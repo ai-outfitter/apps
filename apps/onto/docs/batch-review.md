@@ -9,11 +9,12 @@ for how batches fit the Wiki's writes.
 
 ## Implemented
 
-- **When.** `SubmitBatch` and `batch.submit` start the review after the batch's policy has
-  decided. It runs in the background once the response is sent (the request's
-  `waitUntil`), so submitting never waits for it; `review` stays null until it finishes. A member can ask for a fresh review with **Review again**
-  on the batch's Changes page (`POST /api/apps/onto/batches/steward-review`, editors
-  only). An open or discarded batch is not reviewed.
+- **When.** Submission queues a durable review. An editor-owned `batch-review` schedule
+  picks one current batch per occurrence and records its ID in the run. Save the
+  six-hour schedule with empty inputs. Editors can also review a submitted batch
+  immediately with **Review again** on its Changes page, or send
+  `{"batchId":"<batch UUID>"}` to `POST /api/apps/onto/batches/steward-review`
+  once per batch.
 - **What runs.** One `batch-review` workflow run per review
   ([workflow](../workflows/batch-review/workflow.yaml), `src/server/batch-review.ts`):
   1. Deterministic checks over the batch, as if it all committed: `project.foreign`

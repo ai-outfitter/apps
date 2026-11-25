@@ -55,8 +55,8 @@ function secret(name, bytes = 24, encoding = "hex") {
 const MODEL_SETTINGS = /^(OPENAI_|SPARK_|INFERENCE_PROVIDERS$|AI_MODEL$)/;
 const withoutModelSettings = (values) => Object.fromEntries(Object.entries(values).filter(([name]) => !MODEL_SETTINGS.test(name)));
 
-function start(name, command, args, extra = {}, { modelSettings = false } = {}) {
-  const base = modelSettings ? env : withoutModelSettings(env);
+function start(name, command, args, extra = {}, { modelSettings = false, isolated = false } = {}) {
+  const base = isolated ? {} : modelSettings ? env : withoutModelSettings(env);
   const child = spawn(command, args, { env: { ...base, ...extra }, stdio: ["ignore", "inherit", "inherit"] });
   child.on("exit", (code, signal) => {
     if (stopping) return;
@@ -344,7 +344,11 @@ async function main() {
     OUTFITTER_FORGE: "forgejo", OUTFITTER_FORGE_ORIGIN: FORGEJO, ...(env.AI_MODEL ? { AI_MODEL: env.AI_MODEL } : {}),
   });
   const gatewayToken = secret("gateway");
+  if (APP === "workshop") start("fabrication-preflight", "/opt/cad/bin/python", ["/opt/workshop/preflight_http.py"], {
+    HOME: "/tmp", PATH: "/opt/cad/bin:/usr/bin:/bin", QT_QPA_PLATFORM: "offscreen",
+  }, {isolated:true});
   start("gateway", "node", [join(CHECKOUT, "workspace/gateway.mjs")], {
+    ...(APP === "workshop" && {FABRICATION_PREFLIGHT_URL:"http://127.0.0.1:4041/preflight"}),
     WORKSPACE_GATEWAY_PORT: String(PORTS.gateway), WORKSPACE_DATABASE_URL: `file:${join(STATE, "workspaces.db")}`, KUBERNETES_API_URL: `http://127.0.0.1:${PORTS.kube}`, KUBERNETES_TOKEN_FILE: join(STATE, "kube-token"),
     WORKSPACE_RUNTIME_ORIGIN: `http://127.0.0.1:${PORTS.kube}/runtime/{namespace}/{id}`, WORKSPACE_GATEWAY_TOKEN: gatewayToken, ...(env.BOX_DEBUG_HOST ? { WORKSPACE_DEBUG_ERRORS: "1" } : {}),
     // The one forge this gateway serves: the platform names each task's, and the two must agree.

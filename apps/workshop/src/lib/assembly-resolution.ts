@@ -103,7 +103,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         if (scope && item.power?.loads.length) mergePower(assembly.power);
         const uploaded = attachedMesh(item);
         if (uploaded) result.meshes[viewId]=uploaded;
-        else if (scope && item.mesh) {
+        else if (item.mesh) {
           const run = source.workspace?.requests.find(r=>r.id===source.workspace?.currentBuildId)?.result;
           const artifact=(source.meshBuild?.artifacts ?? run?.manifest?.artifacts)?.find(a=>a.path===item.mesh!.path);
           const base=source.meshBuild?.base ?? run?.artifactBase;

@@ -82,3 +82,9 @@
 
 #reference-images figure { margin: .75rem 0; }
 #reference-images img { display: block; max-width: 100%; max-height: 12rem; object-fit: contain; }
+
+.workspace #print-analysis article { padding:12px 0; border-bottom:1px solid var(--border) }
+.workspace #print-analysis h3,.workspace #print-analysis p { margin:0 0 6px }
+.workspace #print-analysis h3 { font-size:1rem }
+.workspace #print-analysis ul { margin:.5rem 0; padding-inline-start:1.25rem }
+.workspace #print-analysis article > a { display:inline-block; margin-top:.5rem }

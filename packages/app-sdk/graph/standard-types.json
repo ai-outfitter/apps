@@ -1540,6 +1540,174 @@
   }
  },
  {
+  "id": "71000000-0000-4000-8000-000000000123",
+  "category": "edge",
+  "name": "user_of",
+  "title": "user of",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000124",
+  "category": "edge",
+  "name": "payable_to",
+  "title": "payable to",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000103"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000125",
+  "category": "node",
+  "name": "Newsletter",
+  "title": "Newsletters",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000126",
+  "category": "node",
+  "name": "HostedEvent",
+  "title": "Hosted events",
+  "archived": false,
+  "properties": []
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000127",
+  "category": "edge",
+  "name": "published_by",
+  "title": "published by",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000125"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000128",
+  "category": "edge",
+  "name": "organized_by",
+  "title": "organized by",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000126"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000129",
+  "category": "edge",
+  "name": "recipient_of",
+  "title": "recipient of",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000125"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000130",
+  "category": "edge",
+  "name": "registered_for",
+  "title": "registered for",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000126"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000131",
+  "category": "edge",
+  "name": "signed_in_to",
+  "title": "signed in to",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000005"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000015"
+    ]
+   }
+  }
+ },
+ {
+  "id": "71000000-0000-4000-8000-000000000132",
+  "category": "edge",
+  "name": "provided_by",
+  "title": "provided by",
+  "archived": false,
+  "properties": [],
+  "ontology": {
+   "version": 2,
+   "endpoints": {
+    "from": [
+     "71000000-0000-4000-8000-000000000015"
+    ],
+    "to": [
+     "71000000-0000-4000-8000-000000000001"
+    ]
+   }
+  }
+ },
+ {
   "id": "bce00000-0000-4000-8000-000000000001",
   "category": "node",
   "name": "CreativeBrief",

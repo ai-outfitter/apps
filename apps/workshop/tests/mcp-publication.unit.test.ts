@@ -7,7 +7,7 @@ import rows from "../graph/documents.json" with { type: "json" };
 // single-action documents stay for Workshop's pages.
 test("Workshop publishes its batch writes and collection reads to MCP", () => {
   const published = rows.filter(row => !row.hidden).map(row => row.name).sort();
-  assert.deepEqual(published, ["AcceptCreativeHandoff", "AttachCreativeResult", "ConceptChanges", "CreateWorkshopProject", "DescribeWorkshopProject", "ProductRevisionChanges", "ProjectChanges", "ResolvedWorkshopAssembly", "ResolvedWorkshopAssemblyPage", "StartWorkshopDesign", "SubmitWorkshopPcb", "UnitChanges", "UpdateWorkshopAssembly", "UploadWorkshopAssemblyFile", "VerifyWorkshopAssemblyFile", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopProjectHandoff", "WorkshopProjects", "WorkshopSourceFile", "WorkshopUnits"]);
+  assert.deepEqual(published, ["AcceptCreativeHandoff", "AttachCreativeResult", "ConceptChanges", "CreateWorkshopProject", "DescribeWorkshopProject", "ProductRevisionChanges", "ProjectChanges", "RecordWorkshopPrintPlate", "ResolvedWorkshopAssembly", "ResolvedWorkshopAssemblyPage", "StartWorkshopDesign", "SubmitWorkshopPcb", "UnitChanges", "UpdateWorkshopAssembly", "UploadWorkshopAssemblyFile", "VerifyWorkshopAssemblyFile", "WorkshopAssembly", "WorkshopDesignRun", "WorkshopPrint", "WorkshopProjectHandoff", "WorkshopProjects", "WorkshopSourceFile", "WorkshopUnits"]);
   for (const row of rows.filter(row => !row.hidden)) assert.ok((row as { mcp?: { description: string } }).mcp?.description, `${row.name} needs an MCP description`);
   const collections = rows.filter(row => (row as { federation?: unknown }).federation).map(row => row.name).sort();
   assert.deepEqual(collections, ["WorkshopProjects", "WorkshopUnits"]);

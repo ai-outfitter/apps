@@ -23,7 +23,10 @@ export const finding = z.strictObject({
   fix: z.string().max(1000).nullable(),
   stage: stageFix.optional(),
 });
-export type Finding = z.infer<typeof finding>;
+export type Finding = z.infer<typeof finding> & {
+  /** Resolved by Onto against saved nodes in this Wiki. */
+  organizationCandidates?: { id: string; title: string; slug?: string; match: string }[];
+};
 
 export type AdviceRow = {
   ref: string;
@@ -311,6 +314,7 @@ function sprawl(graph: Graph, read: Read): Finding[] {
       const theirs = new Set(type.properties.map((property) => property.name));
       const sameProps = props.size >= 2 && theirs.size === props.size && [...props].every((prop) => theirs.has(prop));
       if (category === "node") return sameProps;
+      if (type.name.toLowerCase() !== name.toLowerCase()) return false;
       const their = type.ontology?.endpoints;
       return !!endpoints && !!their && Array.isArray(endpoints.from) && Array.isArray(endpoints.to) && side(endpoints.from) === side(their.from) && side(endpoints.to) === side(their.to) && (props.size === 0 || sameProps);
     });
@@ -318,7 +322,7 @@ function sprawl(graph: Graph, read: Read): Finding[] {
       : read.edges.filter((edge) => edge.type.key === row.ref).map((edge) => edge.row.ref);
     if (same)
       findings.push({ ref: row.ref, refs: cap([row.ref, ...records]), rule: "type.sprawl", severity: "warning",
-        message: `New ${category} type ${name} has the same ${category === "node" ? "properties" : "endpoints"} as ${same.name}.`,
+        message: `New ${category} type ${name} has the same ${category === "node" ? "properties" : "endpoints"} as ${same.name} (${same.id}).`,
         fix: `Use ${same.name} instead of ${name}${records.length ? ` for its ${records.length} records` : ""}, and remove ${row.ref}.`,
         stage: { proposals: [], move: cap(records) } });
     else if (category === "node" && records.length < minCluster)

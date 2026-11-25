@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {parse,print} from "graphql";
+import {readFileSync} from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -24,7 +26,7 @@ const semantic = (confidence: number) => ({
 type Call = (input: Record<string, unknown>) => unknown;
 function wikiAction(input: Record<string, unknown>, opened: { batchState: string; firstRunTaken: boolean }) {
   const batch = { id: "b0000000-0000-4000-8000-000000000001", state: opened.batchState, reviewBy: null as number | null };
-  if (input.action === "graph.read") return wikiGraphFixture("wiki", { types: types.map((t) => ({ ref: { installationId: "wiki", type: "graph-type", id: t.id }, attributes: t })) });
+  if (input.action === "graph.read") return wikiGraphFixture("personal-onto", { types: types.map((t) => ({ ref: { installationId: "personal-onto", type: "graph-type", id: t.id }, attributes: t })) });
   if (input.action === "batch.seal-due") return { sealed: 0, expired: 0 };
   const firstRun = (input.input as { policy?: { kind: string } }).policy?.kind === "first-run";
   if (input.action === "batch.open" && firstRun && opened.firstRunTaken)
@@ -46,8 +48,10 @@ function fakeHost(confidence: number, opened: { batchState: string; firstRunTake
     "workflow.collect": () => ({}),
     "session.append": () => ({}),
     "inference.generate": () => ({ output: semantic(confidence) }),
-    "entities.types": () => ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "wiki", writable: true })),
-    "connector.execute": (input) => input.operation === "messages.list"
+    "entities.types": (input) => input.template === "wiki-map" ? [] : ["graph-type", "graph-node", "graph-edge"].map((type) => ({ type, installationId: "personal-onto", writable: true })),
+    "connector.execute": (input) => input.operation === "events.list"
+      ? {items:[{id:"event-1",summary:"Meet Bob",start:{date:"2026-11-02"}}]}
+      : input.operation === "messages.list"
       ? { messages: [{ id: "m1" }] }
       : { id: "m1", subject: "Draft", snippet: "Bob: here is the draft.", from: "Bob <bob@example.test>", date: "2026-11-02" },
     "actions.call": (input) => wikiAction(input, opened),
@@ -73,11 +77,13 @@ const occurrence = (runId: string) => ({
   schedule: { id: "50000000-0000-4000-8000-000000000001", workflowId: "forerunner-discovery", inputs: { "analyze.inputs.provider": "gmail", "analyze.inputs.label": "Alice" }, connectionId: connection.id, resource: connection.resource },
 });
 
-test("the scheduled run reads only its connection and leaves an unsure finding for review until end of day", async (t) => {
+for (const provider of ["gmail","google-calendar"]) test(`scheduled ${provider} stages and submits an unsure finding to personal Onto`, async (t) => {
   const { client, db } = await database();
   t.after(() => client.close());
   const { host, calls } = fakeHost(0.7, { batchState: "open", firstRunTaken: true });
-  const result = await scheduledDiscovery(db, who, occurrence("90000000-0000-4000-8000-000000000001"), host);
+  const input=occurrence("90000000-0000-4000-8000-000000000001");
+  input.schedule.inputs["analyze.inputs.provider"]=provider;
+  const result = await scheduledDiscovery(db, who, input, host);
   assert.deepEqual(result, { outcome: "started" });
   // The reserved run id starts the workflow run.
   assert.equal(calls.find((c) => c.name === "workflow.start")?.input.id, "90000000-0000-4000-8000-000000000001");
@@ -90,10 +96,17 @@ test("the scheduled run reads only its connection and leaves an unsure finding f
     { kind: "confidence", threshold: 0.95, version: "forerunner-discovery-2026-11", reviewWindow: { until: "end-of-day", timezone: "Europe/London" } },
   ]);
   const staged = actions.find((a) => a.action === "graph.mutate" && (a.input as { operationName: string }).operationName === "StageChanges");
+  // The platform compares the complete normalized mutation against the installed catalog.
+  const catalog=JSON.parse(readFileSync(new URL("../../onto/graph/documents.json",import.meta.url),"utf8")) as {name:string;query:string}[];
+  for(const call of actions.filter(a=>a.action==="graph.mutate")){
+    const {operationName,query}=call.input as {operationName:string;query:string};
+    assert.equal(print(parse(query)),catalog.find(doc=>doc.name===operationName)?.query);
+  }
   assert.ok(staged);
+  assert.equal(staged.installationId,"personal-onto");
   const added = (staged.input as { variables: { input: { proposals: { confidence: number; evidence: { provider: string; recordId: string }[] }[] } } }).variables.input;
   assert.equal(added.proposals[0].confidence, 0.7);
-  assert.equal(added.proposals[0].evidence[0].provider, "gmail");
+  assert.equal(added.proposals[0].evidence[0].provider, provider);
   const preview = await getPreview(db, who);
   assert.equal(preview?.batch?.policy, "confidence");
   assert.deepEqual(preview?.receipt, { batchId: "b0000000-0000-4000-8000-000000000001", state: "awaiting_review", reviewBy: 1_800_000_000_000, counts: { awaiting_review: 1 }, waiting: [String(preview?.operations[0].attributes.id)] });
@@ -145,7 +158,8 @@ function settingsHost(connections: Record<string, unknown>[], schedules: Record<
       if (name === "schedules") return schedules;
       if (name === "schedule.save") {
         saved.push(input);
-        schedules.splice(0, schedules.length, { workflowId: input.workflow, enabled: input.enabled, connectionId: input.connectionId ?? null, timezone: input.timezone, nextRunAt: 7, lastRunAt: null, lastOutcome: null });
+        const index = schedules.findIndex(row => row.workflowId === input.workflow && row.connectionId === input.connectionId);
+        schedules.splice(index < 0 ? schedules.length : index, index < 0 ? 0 : 1, { resource:input.resource, inputs:input.inputs, workflowId: input.workflow, enabled: input.enabled, connectionId: input.connectionId ?? null, timezone: input.timezone, nextRunAt: 7, lastRunAt: null, lastOutcome: null });
         return {};
       }
       throw new Error(name);
@@ -199,4 +213,15 @@ test("the default daily run is for personal editors only", async () => {
   const status = await defaultSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, { timezone: "UTC" });
   assert.equal(status.enabled, false);
   assert.deepEqual(saved, []);
+});
+
+test("each explicitly scheduled personal account can be paused without losing the others",async()=>{
+  const sources=[connection,calendar,{...connection,id:"mail-two",resource:"second@example.test"},{...calendar,id:"calendar-two",resource:"second@example.test"}];
+  const {host}=settingsHost(sources);
+  for(const source of sources) assert.equal((await changeSchedule(host,who,{enabled:true,source:"connection:"+source.id,timezone:"UTC"})).connectionId,source.id);
+  await changeSchedule(host,who,{enabled:false,source:"connection:"+calendar.id,timezone:"UTC"});
+  const rows=await host.call("schedules",{});
+  assert.deepEqual(rows.map(row=>row.enabled),[true,false,true,true]);
+  await changeSchedule(host,who,{enabled:false,timezone:"UTC"});
+  assert.ok((await host.call("schedules",{})).every(row=>!row.enabled));
 });

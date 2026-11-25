@@ -3,7 +3,7 @@ import BillOfMaterials from "./BillOfMaterials.astro";
 import SelectedComponent from "./SelectedComponent.astro";
 const tabs = [
   ["description", "Description"], ["components", "Components"], ["selected", "Selected"],
-  ["sizing", "Sizing"], ["bom", "BOM"], ["power", "Power"],
+  ["sizing", "Sizing"], ["bom", "BOM"], ["power", "Power"], ["print", "3D Print"],
 ];
 const initialTab = tabs[0][0];
 ---
@@ -11,7 +11,7 @@ const initialTab = tabs[0][0];
   <div role="tablist" aria-label="Project information">
     {tabs.map(([id, label]) => <button type="button" role="tab" id={`tab-${id}`} aria-controls={`pane-${id}`}
       aria-selected={id === initialTab ? "true" : "false"} tabindex={id === initialTab ? 0 : -1}
-      hidden={["bom","power","selected","sizing"].includes(id)}>{label}</button>)}
+      hidden={["bom","power","selected","sizing","print"].includes(id)}>{label}</button>)}
   </div>
   {tabs.map(([id]) => <section role="tabpanel" id={`pane-${id}`} aria-labelledby={`tab-${id}`}
     hidden={id !== initialTab} tabindex="0">
@@ -21,5 +21,6 @@ const initialTab = tabs[0][0];
     {id === "components" && <><p>Select a component to inspect or hide an installed instance.</p><div id="inspection-tree"></div></>}
     {id === "sizing" && <div id="model-sizing"></div>}
     {id === "selected" && <SelectedComponent />}
+    {id === "print" && <div id="print-analysis" /> }
   </section>)}
 </aside>

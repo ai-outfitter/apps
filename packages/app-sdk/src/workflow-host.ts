@@ -278,6 +278,16 @@ const coreOperations = {
   /** Name the destination by `installationId`, or by `template`: the caller's owner's one
    * operational installation of that package, resolved by the host with no discovery call. */
   "actions.call": operation(running, z.strictObject({ installationId: id.optional(), template: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(128).optional(), action: actionName, input: json, readOnly: z.boolean().optional(), maxResponseBytes: z.number().int().min(1).max(8 * 1024 * 1024).optional() }).refine(value => value.maxResponseBytes === undefined || value.readOnly === true, "A custom response budget requires a read-only call").refine(value => (value.installationId === undefined) !== (value.template === undefined), "Name the destination by installationId or by template, not both"), json),
+  /** Schedule a sealed native STL check or read its installation-scoped receipt. */
+  "fabrication.preflight": operation(["interactive", "finalize"], z.union([
+    z.strictObject({id:z.string().regex(/^[a-f0-9]{64}$/)}),
+    z.strictObject({request:z.strictObject({
+      kind:z.literal("stl"),
+      supportPolicy:z.enum(["support-free","supports-required"]).optional(),
+      files:z.array(z.strictObject({name:z.string().regex(/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,159}$/),
+        sha256:z.string().regex(/^[a-f0-9]{64}$/),base64:z.string().max(40_000_000)})).min(1).max(50),
+    }).refine(v=>v.files.reduce((sum,f)=>sum+f.base64.length,0)<=40_000_100)})
+  ]),z.object({id:z.string(),profile:z.string(),state:z.enum(["queued","running","completed","error"]),result:json.optional()}).nullable()),
   /** Approved bindings, subscriptions and usable connections of this installation. Editors only. */
   snapshot: operation(memberReads, z.strictObject({}), z.object({
     installation: z.object({ id, activeHash: z.string().nullable(), hostname: z.string().nullable(), workflows: z.array(id) }),

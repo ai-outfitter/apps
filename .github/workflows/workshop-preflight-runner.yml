@@ -1,0 +1,27 @@
+name: Workshop fabrication runner
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/workshop/box/workspace/**
+      - apps/workshop/tests/preflight-release.py
+      - apps/workshop/tests/fixtures/preflight/**
+      - .github/workflows/workshop-preflight-runner.yml
+  pull_request:
+    paths:
+      - apps/workshop/box/workspace/**
+      - apps/workshop/tests/preflight-release.py
+      - apps/workshop/tests/fixtures/preflight/**
+      - .github/workflows/workshop-preflight-runner.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build and verify the packaged analyzers
+        run: |
+          docker build -t workshop-preflight apps/workshop/box/workspace
+          python3 apps/workshop/tests/preflight-release.py workshop-preflight

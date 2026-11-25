@@ -20,6 +20,11 @@ type Query {
     search: String
   ): WorkshopUnitConnection!
 
+  """
+  Read print preflight and grouped slice evidence for the selected assembly.
+  """
+  workshopPrint(input: WorkshopPrintInput!): JSON
+
   """Read a file at a ref from a connected Forgejo repository."""
   workshopSourceFile(input: WorkshopSourceFileInput!): JSON
 
@@ -63,6 +68,10 @@ type WorkshopProjectConnectionEdge {
 }
 
 type WorkshopProject {
+  """
+  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  """
+  printFindings: JSON
   id: ID!
   name: String!
   purpose: String!
@@ -75,6 +84,9 @@ type WorkshopProject {
   createdAt: DateTime!
   updatedAt: DateTime!
 }
+
+"""Any JSON value."""
+scalar JSON
 
 """ISO-8601 date or date-time; as input also "NOW"."""
 scalar DateTime
@@ -183,8 +195,12 @@ input WorkshopUnitFilter {
   not: WorkshopUnitFilter
 }
 
-"""Any JSON value."""
-scalar JSON
+input WorkshopPrintInput {
+  projectId: ID!
+  revision: Float
+  configuration: String
+  parameters: JSON
+}
 
 input WorkshopSourceFileInput {
   repository: String!
@@ -239,7 +255,41 @@ input WorkshopDesignRunInput {
   id: ID!
 }
 
+input RecordWorkshopPrintPlateInput {
+  projectId: ID!
+  expectedRevision: Float!
+  slicer: String!
+  artifact: RecordWorkshopPrintPlateInputArtifact!
+  result: RecordWorkshopPrintPlateInputResult!
+  plates: [RecordWorkshopPrintPlateInputPlatesItem!]!
+}
+
+input RecordWorkshopPrintPlateInputArtifact {
+  fileName: String!
+  sha256: String!
+  bytes: Float!
+}
+
+input RecordWorkshopPrintPlateInputResult {
+  fileName: String!
+  sha256: String!
+  bytes: Float!
+}
+
+input RecordWorkshopPrintPlateInputPlatesItem {
+  index: Int!
+  name: String!
+  members: [RecordWorkshopPrintPlateInputPlatesItemMembersItem!]!
+}
+
+input RecordWorkshopPrintPlateInputPlatesItemMembersItem {
+  itemId: ID!
+  sha256: String!
+  quantity: Int!
+}
+
 input UploadWorkshopAssemblyFileInput {
+  supportPolicy: String
   projectId: ID!
   fileName: String!
   sha256: String!
@@ -410,6 +460,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemMeshBounds {
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemFilesItem {
+  supportPolicy: String
   projectId: ID!
   fileName: String!
   sha256: String!
@@ -675,6 +726,11 @@ enum DescribeWorkshopProjectInputPhase {
 type WorkshopAssemblyReceipt {
   projectId: ID!
   revision: Int!
+
+  """
+  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  """
+  printFindings: JSON
 }
 
 input WorkshopAssemblyInput {
@@ -745,6 +801,7 @@ input WorkshopAssemblyInputItemsItemMeshBounds {
 }
 
 input WorkshopAssemblyInputItemsItemFilesItem {
+  supportPolicy: String
   projectId: ID!
   fileName: String!
   sha256: String!
@@ -992,6 +1049,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemMeshBounds {
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemFilesItem {
+  supportPolicy: String
   projectId: ID!
   fileName: String!
   sha256: String!
@@ -1218,6 +1276,11 @@ input DeleteWorkshopUnitInput {
 }
 
 type Mutation {
+  """
+  Preserve a native Bambu Studio sliced package and its physical plates for the current print inputs.
+  """
+  recordWorkshopPrintPlate(input: RecordWorkshopPrintPlateInput!): JSON
+
   """Reserve or attach a verified CAD or animation file on one saved item."""
   uploadWorkshopAssemblyFile(input: UploadWorkshopAssemblyFileInput!): JSON
 
