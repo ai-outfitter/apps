@@ -123,7 +123,7 @@ type WorkshopProject {
   concepts: [WorkshopConcept!]!
 
   """
-  Current machine-readable print findings with checked part, digest, profile, state and layer location; a save answers them.
+  Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
 }
@@ -330,6 +330,7 @@ input WorkshopPrintInput {
   revision: Float
   configuration: String
   parameters: JSON
+  itemId: ID
 }
 
 input WorkshopSourceFileInput {
@@ -427,6 +428,7 @@ input UploadWorkshopAssemblyFileInput {
   itemId: ID!
   expectedRevision: Float!
   meshBounds: UploadWorkshopAssemblyFileInputMeshBounds
+  retryPrintCheck: Boolean
 }
 
 input UploadWorkshopAssemblyFileInputMeshBounds {
@@ -858,7 +860,7 @@ type WorkshopAssemblyReceipt {
   revision: Int!
 
   """
-  Current machine-readable print findings with checked part, digest, profile, state and layer location.
+  Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location.
   """
   printFindings: JSON
 }

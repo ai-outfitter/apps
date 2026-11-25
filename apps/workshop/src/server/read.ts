@@ -133,7 +133,7 @@ export const WorkshopProject = new GraphQLObjectType<ProjectSource, Context>({
     evidence: fromProject(list(EvidenceType), (p) => p.evidence, "Bench observations, oldest first."),
     research: fromProject(list(ResearchType), (p) => p.research),
     concepts: fromProject(list(ConceptType), (p) => p.concepts),
-    printFindings: { type: JSONScalar, description: "Current machine-readable print findings with checked part, digest, profile, state and layer location; a save answers them." },
+    printFindings: { type: JSONScalar, description: "Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location." },
   },
 });
 

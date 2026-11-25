@@ -41,7 +41,7 @@ export type WorkshopServices = {
 /** What the actions route (and a page running a document in process) passes to every resolver. */
 export type WorkshopContext = ActionContext & WorkshopServices;
 
-const printFindings = {type:JSONScalar,description:"Current machine-readable print findings with checked part, digest, profile, state and layer location."};
+const printFindings = {type:JSONScalar,description:"Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location."};
 /** The inventory: one row per physical unit, told apart by MAC address or serial. */
 const units = tableType(workshopUnits, {
   field: "workshopUnits", type: "WorkshopUnit",
@@ -83,10 +83,11 @@ const resolvedAssembly = mutationField<typeof AssemblyReferenceSchema, WorkshopC
 });
 resolvedAssembly.extensions = { completeResult: true };
 
-const workshopPrint = mutationField<typeof AssemblyReferenceSchema, WorkshopContext>({
+const workshopPrintInput = AssemblyReferenceSchema.extend({itemId:z.uuid().optional()});
+const workshopPrint = mutationField<typeof workshopPrintInput, WorkshopContext>({
   name:"WorkshopPrint",description:"Read print preflight and grouped slice evidence for the selected assembly.",
-  input:AssemblyReferenceSchema,
-  run:async(context,input)=>readWorkshopPrint(context,input.projectId,await resolvedProject(context.db(),input)),
+  input:workshopPrintInput,
+  run:async(context,{itemId,...input})=>readWorkshopPrint(context,input.projectId,await resolvedProject(context.db(),input),itemId),
 });
 const resolvedPageInput = AssemblyReferenceSchema.extend({cursor:z.string().regex(pageCursor).optional()});
 const resolvedAssemblyPage = mutationField<typeof resolvedPageInput, WorkshopContext>({
@@ -149,8 +150,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       args: { projectId, expectedRevision: revision, assembly: { type: new GraphQLNonNull(zodInputType(AssemblySchema, "WorkshopAssemblyInput")) } },
       run: async (context, { projectId, expectedRevision, assembly }) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, { id: projectId, revision: expectedRevision, assembly });
-        const view = await resolvedProject(context.db(),{projectId,revision:saved.revision});
-        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,view)};
+        return {projectId,revision:saved.revision,printFindings:await assemblyPrintFindings(context,saved)};
       },
     }),
     saveWorkshopAssembly: mutationField<typeof assemblyInput, WorkshopContext>({
@@ -159,8 +159,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
       input: assemblyInput, output: row,
       run: async (context, input) => {
         const saved = await saveWorkshopAssembly(context.db(), context.identity, input);
-        const view = await resolvedProject(context.db(),{projectId:saved.id,revision:saved.revision});
-        return {...await workshopProjectRow(context.db(),saved.id), printFindings:await assemblyPrintFindings(context,view)};
+        return {...await workshopProjectRow(context.db(),saved.id),printFindings:await assemblyPrintFindings(context,saved)};
       },
     }),
     deleteWorkshopProject: mutationField<typeof deleteInput, WorkshopContext>({

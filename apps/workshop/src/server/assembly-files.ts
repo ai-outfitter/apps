@@ -8,15 +8,16 @@ import { analyzePrint, machinePrintFindings, printWarnings, storedPrintBytes } f
 import { getWorkshopProject, patchWorkshopProject } from "./projects";
 
 export const uploadInput = assemblyFile.extend({
-  itemId:z.uuid(), expectedRevision:z.number().int().nonnegative(), meshBounds:meshBounds.optional(),
+  itemId:z.uuid(), expectedRevision:z.number().int().nonnegative(), meshBounds:meshBounds.optional(),retryPrintCheck:z.boolean().optional(),
 }).refine(i=>(fileType(i.fileName)==="model/stl")===Boolean(i.meshBounds),"Supply meshBounds for STL only")
-  .refine(i=>!i.supportPolicy || fileType(i.fileName)==="model/stl","Supply supportPolicy for STL only");
+  .refine(i=>!(i.supportPolicy || i.retryPrintCheck) || fileType(i.fileName)==="model/stl","Supply supportPolicy or retryPrintCheck for STL only");
 export const verifyInput = z.object({projectId:z.uuid(), itemId:z.uuid(), fileName, byteOffset:z.number().int().nonnegative().optional(), expectedSha256:assemblyFile.shape.sha256.optional()}).strict();
 const target = (file:AssemblyFile) => ({space:"builds",key:file.projectId+"/assembly/"+filePath(file)});
 const receipt = (file:AssemblyFile) => ({...file,contentType:fileType(file.fileName),downloadPath:fileBase(file)+filePath(file)});
 
 export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof uploadInput>) {
-  const {itemId,expectedRevision,meshBounds:bounds,...file}=input;
+  const {itemId,expectedRevision,meshBounds:bounds,retryPrintCheck,...file}=input;
+  if (retryPrintCheck && !c.identity.canEdit) throw new Response("An editor must retry the print check",{status:403});
   const project=await getWorkshopProject(c.db(),file.projectId);
   const item=project.assembly.items.find(i=>i.id===itemId);
   if (!item || item.reference) throw new Response("Select a saved item in its owning project",{status:400});
@@ -43,7 +44,7 @@ export async function uploadAssemblyFile(c:WorkshopContext, input:z.infer<typeof
   const result = {status:"attached",projectId:project.id,itemId,revision,file:receipt(file)};
   if (!bounds) return result;
   const bytes = await storedPrintBytes(c,key.key,file);
-  const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy,true);
+  const preflight = await analyzePrint(c,{name:file.fileName,sha256:file.sha256,bytes},file.supportPolicy,retryPrintCheck);
   return {...result,preflight,warnings:printWarnings(preflight),printFindings:machinePrintFindings({itemId,fileName:file.fileName,sha256:file.sha256},preflight)};
 }
 
