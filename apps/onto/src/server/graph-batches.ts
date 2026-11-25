@@ -70,9 +70,6 @@ export async function loadBatch(db: Database, id: string) {
 export const loadOperations = (db: Database, batchId: string) =>
   db.select().from(graphBatchOperations).where(eq(graphBatchOperations.batchId, batchId)).orderBy(asc(graphBatchOperations.position));
 
-const touch = (db: Database, id: string, values: Partial<BatchRow>) =>
-  db.update(graphBatches).set({ ...values, updatedAt: Date.now() }).where(eq(graphBatches.id, id));
-
 /** Milliseconds until the end of the current local day in `zone`. */
 export function untilEndOfDay(now: number, zone: string) {
   const parts = Object.fromEntries(
