@@ -10,8 +10,12 @@ import {
   configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, reviewForgejoIssue, reviewForgejoIssueInput,
 } from "../src/server/workspace/issue-review";
 
-const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "main", baseSha: "a".repeat(40) };
+const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
 const commit = "b".repeat(40);
+const baseBlob = "c".repeat(40);
+const updatedBlob = "d".repeat(40);
+const baseTree = "e".repeat(40);
+const headTree = "f".repeat(40);
 const origin = "https://forge.example";
 const draftUrl = `${origin}/${pin.repository}/pulls/8`;
 const repo = { name: pin.repository, repositoryId: pin.repositoryId, forge: "forgejo", appId: 21,
@@ -21,6 +25,7 @@ function fixture(t: TestContext) {
   const sqlite = new DatabaseSync(":memory:");
   t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL("../migrations/0010_foundry_forgejo_issue_reviews.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../migrations/0011_foundry_forgejo_commit_proof.sql", import.meta.url), "utf8"));
   const db = () => drizzle(async (sql, params, method) => {
     const statement = sqlite.prepare(sql);
     statement.setReturnArrays(true);
@@ -32,10 +37,13 @@ function fixture(t: TestContext) {
   const calls: { operation: string; path?: string; method?: string }[] = [];
   const state = {
     granted: true, baseSha: pin.baseSha, repoId: pin.repositoryId, reviewer: 23, issueOpen: true,
+    baseError: 0, writer: repo.appId, committer: repo.appId, provider: origin, connectionId: "connection",
+    extraPath: false, splitTree: false, providerContent: "Updated æ\n",
     loseStart: false, loseWrites: false, missingCommit: false, moveAfterPull: false,
     head: null as string | null, branch: "", message: "", runId: "", inputs: {} as Record<string, any>,
     pull: null as Record<string, any> | null, reviews: [] as Record<string, any>[], reviewAttempt: "",
   };
+  const runs = new Map<string, Record<string, unknown>>();
   const author = () => ({ id: state.reviewer, login: "independent" });
   const missing = () => new Response("Missing", { status: 404 });
   const lost = () => new Response("Receipt unavailable", { status: 502 });
@@ -48,7 +56,7 @@ function fixture(t: TestContext) {
             bindings: ["implementer", "reviewer"].map(role => ({
               id: role, actor: role, enabled: true, kind: "external", workflowId: issueReviewWorkflow, label: role,
             })),
-            connections: [{ id: "connection", provider: "forgejo", owner: "organization",
+            connections: [{ id: state.connectionId, provider: "forgejo", owner: "organization",
               operations: ["issues.read"], repositories: state.granted ? [pin.repository] : [] }] };
         case "binding.approve":
           assert.equal(input.workspace.checkout, "forgejo-pinned");
@@ -60,13 +68,16 @@ function fixture(t: TestContext) {
           return { id: input.actor };
         case "repository.read":
           assert.ok(["implementer", "reviewer"].includes(input.bindingId));
-          return { ...repo, repositoryId: state.repoId };
+          return { ...repo, repositoryId: state.repoId, connectionId: state.connectionId };
         case "workflow.read":
-          return state.runId ? { run: { workflowId: issueReviewWorkflow, status: "running" }, inputs: state.inputs } : null;
+          return runs.has(input.id) ? { run: { workflowId: issueReviewWorkflow, status: "running" }, inputs: runs.get(input.id) } : null;
         case "workflow.start": {
-          const created = !state.runId;
-          if (created) { state.runId = input.id; state.inputs = input.inputs; }
-          else assert.deepEqual(input.inputs, state.inputs);
+          const created = !runs.has(input.id);
+          if (created) {
+            state.runId = input.id;
+            state.inputs = input.inputs;
+            runs.set(input.id, input.inputs);
+          } else assert.deepEqual(input.inputs, runs.get(input.id));
           if (state.loseStart && created) throw lost();
           return { id: input.id, workflow: input.workflow, created };
         }
@@ -89,10 +100,13 @@ function fixture(t: TestContext) {
             } else if (path === "/contents") {
               assert.equal(input.body.branch, state.branch);
               assert.equal(input.body.files[0].operation, "update");
-              assert.equal(input.body.files[0].sha, "c".repeat(40));
+              assert.equal(input.body.files[0].sha, baseBlob);
               assert.equal(Buffer.from(input.body.files[0].content, "base64").toString("utf8"), "Updated æ\n");
               state.message = input.body.message;
-              if (!state.missingCommit) state.head = commit;
+              if (!state.missingCommit) {
+                state.head = commit;
+                if (!state.loseWrites) return { commit: { sha: commit } };
+              }
             } else {
               assert.equal(path, "/pulls");
               assert.equal(input.body.head, state.branch);
@@ -107,16 +121,34 @@ function fixture(t: TestContext) {
             if (state.loseWrites) throw lost();
             return {};
           }
-          if (path === "") return { id: state.repoId, full_name: pin.repository, html_url: `${origin}/${pin.repository}` };
+          if (path === "") return { id: state.repoId, full_name: pin.repository, html_url: `${state.provider}/${pin.repository}` };
           if (path === `/issues/${pin.issueNumber}`) return { state: state.issueOpen ? "open" : "closed",
-            number: pin.issueNumber, title: "Fix an example", html_url: `${origin}/${pin.repository}/issues/${pin.issueNumber}` };
-          if (path === "/branches/main") return { name: pin.baseRef, commit: { id: state.baseSha } };
-          if (path === "/git/commits/" + commit) return { sha: commit, commit: { message: state.message }, parents: [{ sha: pin.baseSha }] };
+            number: pin.issueNumber, title: "Fix an example", html_url: `${state.provider}/${pin.repository}/issues/${pin.issueNumber}` };
+          if (path === `/branches/${pin.baseRef}`) {
+            if (state.baseError) throw new Response("Provider lookup unavailable", { status: state.baseError });
+            return { name: pin.baseRef, commit: { id: state.baseSha } };
+          }
+          if (path.startsWith("/git/commits/")) {
+            const isBase = path.includes(pin.baseSha);
+            return { sha: isBase ? pin.baseSha : commit, commit: { message: state.message, tree: { sha: isBase ? baseTree : headTree } },
+              parents: isBase ? [] : [{ sha: pin.baseSha }], author: { id: state.writer }, committer: { id: state.committer } };
+          }
+          if (path.startsWith("/git/trees/")) {
+            const isBase = path.includes(baseTree);
+            const tree = [{ path: "example.md", type: "blob", mode: "100644", sha: isBase ? baseBlob : updatedBlob }];
+            if (state.splitTree) tree.push({ path: "untouched.md", type: "blob", mode: "100644", sha: "1".repeat(40) });
+            if (!isBase && state.extraPath) tree.push({ path: "unassigned.md", type: "blob", mode: "100644", sha: "2".repeat(40) });
+            const page = Number(new URL(path, origin).searchParams.get("page"));
+            return { sha: isBase ? baseTree : headTree, tree: state.splitTree ? tree.slice(page - 1, page) : tree,
+              total_count: tree.length, truncated: state.splitTree };
+          }
+          if (path === `/git/blobs/${updatedBlob}`)
+            return { sha: updatedBlob, encoding: "base64", content: Buffer.from(state.providerContent).toString("base64") };
           if (path.startsWith("/branches/")) {
             if (!state.head || path !== `/branches/${state.branch}`) throw missing();
             return { name: state.branch, commit: { id: state.head } };
           }
-          if (path === `/contents/example.md?ref=${pin.baseSha}`) return { type: "file", sha: "c".repeat(40) };
+          if (path === `/contents/example.md?ref=${pin.baseSha}`) return { type: "file", sha: baseBlob };
           if (path.startsWith("/pulls?state=all")) return state.pull ? [state.pull] : [];
           if (path === "/pulls/8") return state.pull;
           if (path === "/pulls/8/reviews?limit=50") return state.reviews;
@@ -189,7 +221,7 @@ test("converges concurrent starts and lost provider replies on one preserved bra
   assert.deepEqual((await f.prepare(implement)), {
     mode: "agent", role: "implement", checkout: { sha: pin.baseSha },
     guidance: [
-      `Work in the local repo checkout from main at ${pin.baseSha}. Check that exact revision before editing.`,
+      `Work in the local repo checkout from ${pin.baseRef} at ${pin.baseSha}. Check that exact revision before editing.`,
       "Return changed text files with their complete contents, or null to delete a file, plus actual check outcomes. Foundry publishes the branch and opens the draft.",
     ],
   });
@@ -214,18 +246,18 @@ test("refuses post-admission base drift, stale PR heads and changed reviewer ide
   await f.start();
   const implement = f.phase("implement");
   f.state.baseSha = commit;
-  await assert.rejects(f.prepare(implement), refused(409));
-  await assert.rejects(f.finalize(implement), refused(409));
+  await assert.rejects(f.prepare(implement), refused(422));
+  await assert.rejects(f.finalize(implement), refused(422));
   assert.deepEqual(f.writes(), []);
   f.state.baseSha = pin.baseSha;
   await f.finalize(implement);
   const review = f.phase("review");
   await assert.rejects(f.prepare({ ...review, settings: { role: "review" } }), refused(403));
   f.state.pull!.head.sha = "d".repeat(40);
-  await assert.rejects(f.prepare(review), refused(409));
+  await assert.rejects(f.prepare(review), refused(422));
   f.state.pull!.head.sha = commit;
   f.state.reviewer = 99;
-  await assert.rejects(f.finalize(review), refused(403));
+  await assert.rejects(f.finalize(review), refused(422));
   assert.equal(f.state.reviews.length, 0);
 });
 
@@ -233,14 +265,72 @@ test("never retries an unseen commit or reports a draft after the base moves dur
   const f = fixture(t);
   await f.start();
   f.state.missingCommit = true;
-  await assert.rejects(f.finalize(f.phase("implement")), refused(409));
-  await assert.rejects(f.finalize(f.phase("implement", true)), refused(409));
+  await assert.rejects(f.finalize(f.phase("implement")), refused(503));
+  await assert.rejects(f.finalize(f.phase("implement", true)), refused(503));
   assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`]);
 
   const afterPull = fixture(t);
   await afterPull.start();
   afterPull.state.moveAfterPull = true;
-  await assert.rejects(afterPull.finalize(afterPull.phase("implement")), refused(409));
+  await assert.rejects(afterPull.finalize(afterPull.phase("implement")), refused(422));
   assert.equal((await afterPull.start()).candidate, null);
   assert.equal(afterPull.writes().length, 3);
+});
+
+test("transient phase lookup failures can retry while a verified connection pin mismatch is terminal", async t => {
+  const f = fixture(t);
+  await f.start();
+  const implement = f.phase("implement");
+  for (const status of [409, 429, 503]) {
+    f.state.baseError = status;
+    await assert.rejects(f.prepare(implement), refused(status));
+  }
+  f.state.baseError = 0;
+  assert.equal((await f.prepare(implement)).mode, "agent");
+  f.state.connectionId = "replacement";
+  await assert.rejects(f.prepare(implement), refused(422));
+  await assert.rejects(f.start(), refused(403));
+  assert.deepEqual(f.writes(), []);
+});
+
+test("recovery rejects a same-marker same-parent commit with different bytes, extra paths, or wrong attribution", async t => {
+  for (const altered of [
+    { providerContent: "different bytes\n" }, { extraPath: true }, { writer: 99 }, { committer: 99 },
+  ]) {
+    const f = fixture(t);
+    await f.start();
+    f.state.loseWrites = true;
+    f.state.missingCommit = true;
+    await assert.rejects(f.finalize(f.phase("implement")), refused(503));
+    assert.ok(f.state.message.includes(f.state.runId));
+    Object.assign(f.state, altered, { head: commit });
+    await assert.rejects(f.finalize(f.phase("implement", true)), refused(422));
+    assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`]);
+  }
+});
+
+test("recovers the frozen file proof on a later read after an uncertain write", async t => {
+  const f = fixture(t);
+  await f.start();
+  f.state.loseWrites = true;
+  f.state.missingCommit = true;
+  await assert.rejects(f.finalize(f.phase("implement")), refused(503));
+  f.state.head = commit;
+  f.state.splitTree = true;
+  await f.finalize(f.phase("implement", true));
+  assert.equal((await f.start()).candidate?.headSha, commit);
+  assert.deepEqual(f.writes(), [`${repo.path}/branches`, `${repo.path}/contents`, `${repo.path}/pulls`]);
+});
+
+
+test("private Forgejo origins with the same numeric IDs produce distinct stable runs", async t => {
+  const f = fixture(t);
+  const first = await f.start();
+  Object.assign(f.state, { provider: "https://another-forge.example", connectionId: "another-connection" });
+  const second = await f.start();
+  assert.notEqual(second.run.id, first.run.id);
+  assert.equal((await f.start()).run.id, second.run.id);
+  Object.assign(f.state, { provider: origin, connectionId: "connection" });
+  assert.equal((await f.start()).run.id, first.run.id);
+  assert.equal(f.calls.filter(call => call.operation === "workflow.start").length, 2);
 });

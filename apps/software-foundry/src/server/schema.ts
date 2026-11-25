@@ -111,6 +111,11 @@ export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", 
   inputs: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
   branchClaim: text(),
   commitClaim: text(),
+  commitProof: text({ mode: "json" }).$type<{
+    nonce: string;
+    headSha?: string;
+    files: { path: string; beforeSha: string | null; contentHash: string | null }[];
+  }>(),
   publication: text({ mode: "json" }).$type<{ headSha: string; attemptId: string }>(),
   candidate: text({ mode: "json" }).$type<Record<string, unknown>>(),
   reviewPublication: text({ mode: "json" }).$type<{ attemptId: string; verdict: string }>(),

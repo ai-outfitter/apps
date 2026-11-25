@@ -5,8 +5,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { IntakeContext } from "../intake";
 import { forgejoIssueReviews } from "../schema";
-import { ForgejoFoundryForge } from "./forgejo";
 import { hostAPI } from "./forge";
+import { phaseMismatch, verifyCommitTree, type CommitProof } from "./issue-review-commit";
 
 export const issueReviewWorkflow = "foundry-forgejo-issue-review";
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
@@ -34,6 +34,7 @@ type Row = typeof forgejoIssueReviews.$inferSelect;
 type Repository = OperationOutput<"repository.read">;
 type Phase = "interactive" | "operator" | "prepare" | "finalize";
 const conflict = (reason: string) => new Response(reason, { status: 409 });
+const unconfirmed = (reason: string) => new Response(reason, { status: 503 });
 const denied = (reason: string) => new Response(reason, { status: 403 });
 const actor = z.object({ id: number, login: z.string().min(1) });
 const metadata = z.object({ id: number, full_name: repository, html_url: z.url() });
@@ -71,27 +72,30 @@ function reviewRepository(host: WorkflowHost<Phase>, repo: Repository, bindingId
     createBranch: (name: string, base: string) => api(`${repo.path}/branches`, { new_branch_name: name, old_ref_name: base }, "POST"),
     commitFiles: (body: { branch: string; message: string; files: ChangeFile[] }) =>
       api(`${repo.path}/contents`, body, "POST"),
-    issue: (issueNumber: number) => new ForgejoFoundryForge(api, repo.name, repo.appId).issue(issueNumber),
   };
 }
 type ReviewRepository = ReturnType<typeof reviewRepository>;
 
-async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewForgejoIssueInput>, origin?: string) {
-  const [repositoryResult, base, issue] = await Promise.all([
+async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewForgejoIssueInput>, origin?: string,
+  mismatch = conflict) {
+  const [repositoryResult, base, issueResult] = await Promise.all([
     api.get(""),
     api.get(`/branches/${pins.baseRef}`),
-    api.issue(pins.issueNumber),
+    api.get(`/issues/${pins.issueNumber}`),
   ]);
+  const issue = z.object({ number, html_url: z.url(), title: z.string(), state: z.string(),
+    body: z.string().nullish(), pull_request: z.unknown().optional() }).parse(issueResult);
   const repo = metadata.parse(repositoryResult);
   const provider = new URL(repo.html_url);
   if (!["https:", "http:"].includes(provider.protocol) || (origin && provider.origin !== origin) ||
       repo.id !== pins.repositoryId || repo.full_name.toLowerCase() !== pins.repository.toLowerCase() ||
-      new URL(issue.url).origin !== provider.origin || issue.state !== "open")
-    throw conflict("The pinned Forgejo repository or open issue changed");
+      new URL(issue.html_url).origin !== provider.origin || issue.number !== pins.issueNumber ||
+      issue.pull_request || issue.state !== "open")
+    throw mismatch("The pinned Forgejo repository or open issue changed");
   const ref = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(base);
   if (ref.name !== pins.baseRef || ref.commit.id !== pins.baseSha)
-    throw conflict("The pinned Forgejo base changed");
-  return { origin: provider.origin, issue: { number: issue.number, title: issue.title, url: issue.url, body: issue.body.slice(0, 16_000) } };
+    throw mismatch("The pinned Forgejo base changed");
+  return { origin: provider.origin, issue: { number: issue.number, title: issue.title, url: issue.html_url, body: (issue.body ?? "").slice(0, 16_000) } };
 }
 
 async function savedReview(db: IntakeContext["db"], runId: string) {
@@ -236,7 +240,7 @@ function verifyPull(current: z.infer<typeof pull>, pins: Target, headSha: string
       current.base.sha !== pins.baseSha || current.head.ref !== pins.branch || current.head.sha !== headSha ||
       !current.body?.includes(marker(runId)) || current.user.id !== pins.workerId ||
       new URL(current.html_url).origin !== pins.origin)
-    throw conflict("The draft pull request no longer matches its pinned repository, base, head or author");
+    throw phaseMismatch("The draft pull request no longer matches its pinned repository, base, head or author");
   return { number: current.number, url: current.html_url, headSha, branch: pins.branch, authorId: current.user.id };
 }
 
@@ -247,13 +251,13 @@ async function findPull(api: ReviewRepository, pins: Target) {
     for (const item of items) {
       const match = z.object({ head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }) }).safeParse(item);
       if (match.success && match.data.head.ref === pins.branch && match.data.head.repo?.id === pins.repositoryId) {
-        if (found) throw conflict("The review branch has multiple pull requests");
+        if (found) throw phaseMismatch("The review branch has multiple pull requests");
         found = pull.parse(item);
       }
     }
     if (items.length < 50) return found;
   }
-  throw conflict("Pull request history exceeds the reconciliation limit");
+  throw phaseMismatch("Pull request history exceeds the reconciliation limit");
 }
 
 async function optionalRead(api: ReviewRepository, suffix: string) {
@@ -265,32 +269,52 @@ async function optionalRead(api: ReviewRepository, suffix: string) {
   }
 }
 
-const commitMessage = (runId: string) => `Implement Forgejo issue review ${runId}`;
+const commitMessage = (runId: string, proof: CommitProof) => `Implement Forgejo issue review ${runId} ${proof.nonce}`;
+const gitCommit = z.object({
+  sha,
+  commit: z.object({ message: z.string(), tree: z.object({ sha }) }),
+  parents: z.array(z.object({ sha })),
+  author: z.object({ id: number }).nullish(),
+  committer: z.object({ id: number }).nullish(),
+});
+const commitPath = (revision: string) => `/git/commits/${revision}?stat=false&files=false`;
+
 async function reviewBranchTip(api: ReviewRepository, pins: Target) {
   const tip = await optionalRead(api, `/branches/${pins.branch}`);
   if (!tip) return null;
   const current = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(tip);
-  if (current.name !== pins.branch) throw conflict("The assigned branch identity changed");
+  if (current.name !== pins.branch) throw phaseMismatch("The assigned branch identity changed");
   return current.commit.id;
 }
 
-async function stagedCommit(api: ReviewRepository, pins: Target, runId: string) {
-  const headSha = await reviewBranchTip(api, pins);
-  if (!headSha || headSha === pins.baseSha) throw conflict("Commit publication is unconfirmed; retry only to reconcile the run branch");
-  await verifyCommit(api, pins, headSha, runId);
-  return headSha;
+function requireCommitProof(row: Row) {
+  if (!row.commitProof) throw phaseMismatch("The Forgejo commit has no durable file proof");
+  return row.commitProof;
 }
 
-async function verifyCommit(api: ReviewRepository, pins: Target, headSha: string, runId: string) {
-  const [tip, commit] = await Promise.all([
-    api.get(`/branches/${pins.branch}`),
-    api.get(`/git/commits/${headSha}`),
-  ]);
-  const branchCommit = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(tip);
-  const object = z.object({ sha, commit: z.object({ message: z.string() }), parents: z.array(z.object({ sha })).length(1) }).parse(commit);
-  if (branchCommit.name !== pins.branch || branchCommit.commit.id !== headSha ||
-      object.sha !== headSha || object.commit.message.trim() !== commitMessage(runId) || object.parents[0].sha !== pins.baseSha)
-    throw conflict("The review branch must contain one commit directly on the pinned base");
+async function stagedCommit(api: ReviewRepository, pins: Target, row: Row) {
+  const proof = requireCommitProof(row);
+  const headSha = await reviewBranchTip(api, pins);
+  const expectedHead = row.publication?.headSha ?? proof.headSha;
+  if (expectedHead && expectedHead !== headSha) throw phaseMismatch("The pinned implementation commit changed");
+  if (!headSha || headSha === pins.baseSha) throw unconfirmed("Commit publication is unconfirmed; reconciling the run branch");
+  const headTree = await verifyCommit(api, pins, headSha, row.runId, proof);
+  const base = gitCommit.parse(await api.get(commitPath(pins.baseSha)));
+  if (base.sha !== pins.baseSha) throw phaseMismatch("The pinned Forgejo commit identity changed");
+  await verifyCommitTree(api.get, base.commit.tree.sha, headTree, proof);
+  return { headSha, proof };
+}
+
+async function verifyCommit(api: ReviewRepository, pins: Target, headSha: string, runId: string, proof: CommitProof) {
+  const [tip, commit] = await Promise.all([reviewBranchTip(api, pins), api.get(commitPath(headSha))]);
+  const object = gitCommit.parse(commit);
+  if (tip !== headSha || object.sha !== headSha ||
+      object.commit.message.trim() !== commitMessage(runId, proof) || object.parents.length !== 1 ||
+      object.parents[0].sha !== pins.baseSha)
+    throw phaseMismatch("The review branch must contain the verified commit directly on the pinned base");
+  if (object.author?.id !== pins.workerId || object.committer?.id !== pins.workerId)
+    throw phaseMismatch("Forgejo did not attribute the commit to the pinned writer");
+  return object.commit.tree.sha;
 }
 
 type Node = z.infer<typeof prepareInput> | z.infer<typeof finalizeInput>;
@@ -302,20 +326,20 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
   if (!row) throw denied("An admitted review run is required");
   const run = await host.call("workflow.read", { id: node.runId });
   if (run?.run.workflowId !== issueReviewWorkflow || canonicalActionValue(run.inputs) !== canonicalActionValue(row.inputs))
-    throw denied("The admitted Forgejo run identity changed");
+    throw phaseMismatch("The admitted Forgejo run identity changed");
   const pins = target.parse(row.inputs["implement.inputs.target"]);
   const supplied = target.parse(inputs.target);
-  if (JSON.stringify(supplied) !== JSON.stringify(pins)) throw conflict("Workflow target pins changed");
+  if (JSON.stringify(supplied) !== JSON.stringify(pins)) throw phaseMismatch("Workflow target pins changed");
   const role = node.nodeId === "implement" ? "implementer" : "reviewer";
   if (phase.settings.role !== role || (role === "reviewer" && phase.settings.reviewer !== pins.reviewer))
-    throw denied("The approved Forgejo execution role changed");
+    throw phaseMismatch("The approved Forgejo execution role changed");
   const bindingId = z.string().min(1).parse(row.inputs[`implement.inputs.${role}Binding`]);
   const repo = await host.call("repository.read", { bindingId });
   const connectionId = z.string().min(1).parse(row.inputs["implement.inputs.connectionId"]);
   if (!sameRepository(repo, pins, connectionId) || repo.appId !== pins.workerId)
-    throw denied("The pinned Forgejo execution authority changed");
+    throw phaseMismatch("The pinned Forgejo execution authority changed");
   const api = reviewRepository(host, repo);
-  await verifySource(api, pins, pins.origin);
+  await verifySource(api, pins, pins.origin, phaseMismatch);
   return { row, pins, api };
 }
 
@@ -325,14 +349,14 @@ async function verifyReviewer(host: WorkflowHost<"prepare" | "finalize">, pins: 
     candidate: { number: candidate.number, headSha: candidate.headSha },
   }));
   if (result.id !== pins.reviewerId || result.id === candidate.authorId)
-    throw denied("The pinned independent reviewer changed");
+    throw phaseMismatch("The pinned independent reviewer changed");
 }
 
 async function currentCandidate(api: ReviewRepository, row: Row, pins: Target) {
   const saved = candidateReceipt.parse(row.candidate);
-  await verifyCommit(api, pins, saved.headSha, row.runId);
+  await verifyCommit(api, pins, saved.headSha, row.runId, requireCommitProof(row));
   const current = verifyPull(pull.parse(await api.get(`/pulls/${saved.number}`)), pins, saved.headSha, row.runId);
-  if (current.number !== saved.number) throw conflict("The pinned pull request changed");
+  if (current.number !== saved.number) throw phaseMismatch("The pinned pull request changed");
   return current;
 }
 
@@ -366,7 +390,7 @@ async function fileOperation(api: ReviewRepository, pins: Target, file: Changes[
   const previous = await optionalRead(api, `/contents/${path}?ref=${pins.baseSha}`);
   const existing = previous === null ? null : z.object({ type: z.literal("file"), sha }).parse(previous);
   if (content === null) {
-    if (!existing) throw conflict("Cannot remove a file missing from the pinned base");
+    if (!existing) throw phaseMismatch("Cannot remove a file missing from the pinned base");
     return { operation: "delete", path, sha: existing.sha };
   }
   const encoded = btoa(Array.from(new TextEncoder().encode(content), byte => String.fromCharCode(byte)).join(""));
@@ -378,14 +402,14 @@ async function fileOperation(api: ReviewRepository, pins: Target, file: Changes[
 async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaited<ReturnType<typeof phaseSource>>,
   phase: z.infer<typeof finalizeInput>) {
   const { runId, attemptId } = phase.node;
-  if (row.commitClaim) return stagedCommit(api, pins, runId);
-  if (phase.coordinator) throw conflict("An implementation result is required");
+  if (row.commitClaim) return stagedCommit(api, pins, row);
+  if (phase.coordinator) throw phaseMismatch("An implementation result is required");
   const result = changes.parse(phase.outputs.result);
   const files: ChangeFile[] = [];
   for (const file of result.files) files.push(await fileOperation(api, pins, file));
   if (!row.branchClaim) {
-    if (await reviewBranchTip(api, pins)) throw conflict("The assigned branch already exists");
-    await verifySource(api, pins, pins.origin);
+    if (await reviewBranchTip(api, pins)) throw phaseMismatch("The assigned branch already exists");
+    await verifySource(api, pins, pins.origin, phaseMismatch);
     const [claimed] = await db().update(forgejoIssueReviews).set({ branchClaim: attemptId })
       .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.branchClaim))).returning();
     if (claimed) {
@@ -396,22 +420,43 @@ async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaite
       }
     }
   }
-  if (await reviewBranchTip(api, pins) !== pins.baseSha) {
-    if ((await savedReview(db, runId))?.commitClaim) return stagedCommit(api, pins, runId);
-    throw conflict("Branch creation is unconfirmed at the pinned base");
+  const tip = await reviewBranchTip(api, pins);
+  if (tip !== pins.baseSha) {
+    const latest = await savedReview(db, runId);
+    if (latest?.commitClaim) return stagedCommit(api, pins, latest);
+    if (tip) throw phaseMismatch("The assigned branch does not point at the pinned base");
+    throw unconfirmed("Branch creation is unconfirmed at the pinned base");
   }
-  await verifySource(api, pins, pins.origin);
-  const [claimed] = await db().update(forgejoIssueReviews).set({ commitClaim: attemptId })
+  await verifySource(api, pins, pins.origin, phaseMismatch);
+  const proof: CommitProof = {
+    nonce: crypto.randomUUID(),
+    files: await Promise.all(files.map(async file => ({
+      path: file.path, beforeSha: file.sha ?? null,
+      contentHash: file.content === undefined ? null : await sha256Hex(file.content),
+    }))),
+  };
+  const [claimed] = await db().update(forgejoIssueReviews).set({ commitClaim: attemptId, commitProof: proof })
     .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.commitClaim))).returning();
   if (claimed) {
-    if (await reviewBranchTip(api, pins) !== pins.baseSha) throw conflict("The assigned branch moved before committing");
+    if (await reviewBranchTip(api, pins) !== pins.baseSha) throw phaseMismatch("The assigned branch moved before committing");
+    await verifySource(api, pins, pins.origin, phaseMismatch);
+    let written: unknown;
     try {
-      await api.commitFiles({ branch: pins.branch, message: commitMessage(runId), files });
+      written = await api.commitFiles({ branch: pins.branch, message: commitMessage(runId, proof), files });
     } catch {
       // A partially observed write is reconciled without issuing a second write.
     }
+    const receipt = z.object({ commit: z.object({ sha }) }).safeParse(written);
+    if (receipt.success) {
+      proof.headSha = receipt.data.commit.sha;
+      await db().update(forgejoIssueReviews).set({ commitProof: proof })
+        .where(and(eq(forgejoIssueReviews.runId, runId), eq(forgejoIssueReviews.commitClaim, attemptId)));
+      claimed.commitProof = proof;
+    }
   }
-  return stagedCommit(api, pins, runId);
+  const current = claimed ?? await savedReview(db, runId);
+  if (!current) throw phaseMismatch("The durable Forgejo commit claim changed");
+  return stagedCommit(api, pins, current);
 }
 
 async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnType<typeof phaseSource>>,
@@ -419,38 +464,38 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
   const { row, pins, api } = source;
   const { attemptId, runId } = phase.node;
   if (row.candidate) return currentCandidate(api, row, pins);
-  const headSha = await publishBranch(db, source, phase);
-  if (row.publication && row.publication.headSha !== headSha) throw conflict("The implementation commit changed");
+  const { headSha, proof } = await publishBranch(db, source, phase);
+  if (row.publication && row.publication.headSha !== headSha) throw phaseMismatch("The implementation commit changed");
   let existing = await findPull(api, pins);
   if (existing && !row.publication) {
     const latest = await savedReview(db, runId);
-    if (latest?.publication?.headSha !== headSha) throw conflict("The assigned branch already has a pull request");
+    if (latest?.publication?.headSha !== headSha) throw phaseMismatch("The assigned branch already has a pull request");
   }
   if (!existing && !row.publication) {
     const [claimed] = await db().update(forgejoIssueReviews).set({ publication: { attemptId, headSha } })
       .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.publication))).returning();
     if (claimed) {
-      await verifyCommit(api, pins, headSha, runId);
-      await verifySource(api, pins, pins.origin);
+      await verifyCommit(api, pins, headSha, runId, proof);
+      await verifySource(api, pins, pins.origin, phaseMismatch);
+      let created: unknown;
       try {
-        const created = pull.parse(await api.createPull({
+        created = await api.createPull({
           head: pins.branch,
           base: pins.baseRef,
           title: `WIP: Review for issue #${pins.issueNumber}`,
           body: `Review of issue #${pins.issueNumber}.\n\n${marker(runId)}`,
-        }));
-        verifyPull(created, pins, headSha, runId);
+        });
       } catch {
-        // A lost response can still have created the draft. Only readback may
-        // establish its receipt and later finalization never sends a second POST.
+        // A lost response can still have created the draft. Reconcile by readback.
       }
+      if (created !== undefined) verifyPull(pull.parse(created), pins, headSha, runId);
     }
     existing = await findPull(api, pins);
   }
-  if (!existing) throw conflict("Draft publication is unconfirmed; retry only to reconcile the run branch");
+  if (!existing) throw unconfirmed("Draft publication is unconfirmed; reconciling the run branch");
   const candidate = verifyPull(existing, pins, headSha, runId);
-  await verifyCommit(api, pins, headSha, runId);
-  await verifySource(api, pins, pins.origin);
+  await verifyCommit(api, pins, headSha, runId, proof);
+  await verifySource(api, pins, pins.origin, phaseMismatch);
   await db().update(forgejoIssueReviews).set({ candidate })
     .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.candidate)));
   return candidate;
@@ -461,13 +506,14 @@ async function reconcileReview(api: ReviewRepository, candidate: Candidate, pins
     id: number, html_url: z.url(), body: z.string().nullable(), commit_id: z.string(), state: z.string(),
     user: actor, dismissed: z.boolean().optional(), stale: z.boolean().optional(),
   })).parse(await api.get(`/pulls/${candidate.number}/reviews?limit=50`));
-  if (items.length >= 50) throw conflict("Review history exceeds the reconciliation limit");
-  const owned = items.filter(item => item.body?.includes(reviewMarker(claim.attemptId)) && item.user.id === pins.reviewerId);
+  if (items.length >= 50) throw phaseMismatch("Review history exceeds the reconciliation limit");
+  const owned = items.filter(item => item.body?.includes(reviewMarker(claim.attemptId)));
   const current = owned[0];
   const expected = claim.verdict === "approved" ? "APPROVED" : "REQUEST_CHANGES";
-  if (owned.length !== 1 || !current || current.commit_id !== candidate.headSha || current.state !== expected ||
+  if (!current) throw unconfirmed("Formal review is unconfirmed at the pinned head");
+  if (owned.length !== 1 || current.user.id !== pins.reviewerId || current.commit_id !== candidate.headSha || current.state !== expected ||
       current.dismissed || current.stale || new URL(current.html_url).origin !== pins.origin)
-    throw conflict("Formal review is unconfirmed at the pinned head");
+    throw phaseMismatch("Formal review differs from its pinned identity or head");
   return reviewReceipt.parse({ id: current.id, url: current.html_url, headSha: current.commit_id,
     verdict: claim.verdict, reviewer: current.user });
 }
@@ -476,7 +522,7 @@ async function publishReview(host: WorkflowHost<"finalize">, db: IntakeContext["
   { row, pins, api }: Awaited<ReturnType<typeof phaseSource>>, phase: z.infer<typeof finalizeInput>) {
   const candidate = await currentCandidate(api, row, pins);
   const result = phase.coordinator ? null : reviewed.parse(phase.outputs.result);
-  if (result && result.headSha !== candidate.headSha) throw conflict("Review reported a different commit");
+  if (result && result.headSha !== candidate.headSha) throw phaseMismatch("Review reported a different commit");
   await verifyReviewer(host, pins, candidate);
   let claim = row.reviewPublication;
   if (!claim && result) {
@@ -485,26 +531,30 @@ async function publishReview(host: WorkflowHost<"finalize">, db: IntakeContext["
       .where(and(eq(forgejoIssueReviews.runId, row.runId), isNull(forgejoIssueReviews.reviewPublication))).returning();
     if (claimed) {
       await currentCandidate(api, row, pins);
-      await verifySource(api, pins, pins.origin);
+      await verifySource(api, pins, pins.origin, phaseMismatch);
+      let published: unknown;
       try {
-        const receipt = reviewReceipt.parse(await host.call("workspace.control", {
+        published = await host.call("workspace.control", {
           operation: "publish-review", reviewer: pins.reviewer, expectedReviewerId: pins.reviewerId,
           candidate: { number: candidate.number, headSha: candidate.headSha },
           verdict: result.verdict, summary: result.summary.replaceAll("<!--", "&lt;!--"),
-        }));
-        if (receipt.reviewer.id !== pins.reviewerId || receipt.headSha !== candidate.headSha || receipt.verdict !== result.verdict)
-          throw conflict("Unexpected broker review receipt");
+        });
       } catch {
         // Independently reconcile the pinned marker, including a lost response.
+      }
+      if (published !== undefined) {
+        const receipt = reviewReceipt.parse(published);
+        if (receipt.reviewer.id !== pins.reviewerId || receipt.headSha !== candidate.headSha || receipt.verdict !== result.verdict)
+          throw phaseMismatch("Unexpected broker review receipt");
       }
     } else {
       claim = (await savedReview(db, row.runId))?.reviewPublication ?? null;
     }
   }
-  if (!claim || (result && result.verdict !== claim.verdict)) throw conflict("The formal review claim changed");
+  if (!claim || (result && result.verdict !== claim.verdict)) throw phaseMismatch("The formal review claim changed");
   const review = await reconcileReview(api, candidate, pins, claim);
   await currentCandidate(api, row, pins);
-  await verifySource(api, pins, pins.origin);
+  await verifySource(api, pins, pins.origin, phaseMismatch);
   await db().update(forgejoIssueReviews).set({ review })
     .where(and(eq(forgejoIssueReviews.runId, row.runId), isNull(forgejoIssueReviews.review)));
   return review;
