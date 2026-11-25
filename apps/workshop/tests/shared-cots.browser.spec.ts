@@ -91,7 +91,7 @@ test("a field researcher can inspect one purchased connector and its original ph
       await page.getByRole("tab", { name: "Purchased parts", exact: true }).click();
       const itemHref = await part.getAttribute("href");
       expect(itemHref).toBeTruthy();
-      expect(new URL(itemHref!, origin).searchParams.get("item")).toBeTruthy();
+      expect(new URL(itemHref!, origin).searchParams.get("sel")).toBeTruthy();
       await part.click();
       await expect(page).toHaveURL(new URL(itemHref!, origin).href);
     }

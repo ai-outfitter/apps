@@ -1,29 +1,65 @@
 ---
 import BillOfMaterials from "./BillOfMaterials.astro";
 import MotionDetails from "./MotionDetails.astro";
+import { appHref } from "../app-href";
+import { componentIdentity, occurrenceUrl, type occurrenceTrail } from "../lib/occurrence-route";
 import ProjectInspection from "./ProjectInspection.astro";
 import "../styles/project-inspection.css";
-interface Props { slug:string; section:string; projectId?:string; preview?:string }
-const {slug,section,projectId,preview}=Astro.props;
+interface Props {
+  slug: string; section: string; projectId?: string; projectName?: string; preview?: string;
+  occurrence?: string; trail?: ReturnType<typeof occurrenceTrail>; hasPcb?: boolean; canEdit?: boolean;
+}
+const { slug, section, projectId, projectName, preview, occurrence, trail, hasPcb, canEdit } = Astro.props;
+const openItem = trail?.at(-1)?.item;
+const crumbQuery = new URLSearchParams(Astro.url.search);
+for (const key of ["sel", "item", "inspect"]) crumbQuery.delete(key);
 const overview = section === "overview";
 ---
-<div class="workspace" data-slug={slug} data-project-id={projectId} data-section={section}>
-  <header><div><h1 id="project-name">Loading project…</h1></div>{!overview && <span id="revision-label"></span>}</header>
+<div class="workspace" data-slug={slug} data-project-id={projectId} data-section={section} data-open-address={occurrence} data-has-pcb={hasPcb ? "true" : undefined} data-can-edit={canEdit ? "true" : undefined}>
+  {!overview && <header><div><h1 id="project-name">{projectName ?? "Loading project…"}</h1></div><span id="revision-label"></span></header>}
   <nav id="project-views" aria-label="Model pages" hidden>
     <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
   </nav>
   <p id="workspace-notice" role="status"></p>
-  <label>Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label>
+  {!overview && <label>Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label>}
   <section id="models-panel" hidden={section !== "models"}>
     <div class="toolbar"><div><h2>Models and parts</h2><p id="models-summary" role="status"></p></div><a id="open-assembly" href="#">Project overview</a></div>
     <div class="catalog-controls"><label>Search models<input id="model-search" type="search" placeholder="Name, part number or manufacturer" /></label><label>Show<select id="model-filter"><option value="all">All items</option><option value="assembly">Assemblies</option><option value="modeled">With geometry</option><option value="cots">COTS parts</option><option value="fabricated">Fabricated parts</option><option value="unmodeled">Awaiting geometry</option></select></label></div>
     <div id="model-catalog" class="model-catalog"></div><p id="models-empty" hidden>No models match your search.</p>
   </section>
   <section id="model-panel" hidden={!overview}>
-    <div class="toolbar"><div><a id="browse-models" href="#">Browse all models</a><span id="full-assembly-link"> · <a id="full-assembly" href="#">Project overview</a></span></div></div>
-    <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
+    {overview && <header class="inspection-header">
+      <div>
+        <p id="inspection-product">{projectName}</p>
+        <nav id="occurrence-crumbs" aria-label="Assembly hierarchy">
+          {trail?.map(({ item, address }, index) => index === trail.length - 1
+            ? <span aria-current="page">{componentIdentity(item).name}</span>
+            : <a href={appHref(Astro.url.pathname, occurrenceUrl(slug, address, crumbQuery))}>{componentIdentity(item).name}</a>)}
+        </nav>
+        <h1 id="project-name" tabindex="-1">{openItem ? componentIdentity(openItem).name : projectName ?? "Loading project…"}</h1>
+        <p id="occurrence-meta"></p>
+      </div>
+      <div class="inspection-header-links">
+        <a id="browse-models" href="#">Models and parts</a>
+        <a id="full-assembly" hidden>Installed assembly</a>
+        <a id="inspection-pcb" hidden>PCB review</a>
+      </div>
+    </header>}
 
     <div class="model-layout">
+      {overview && <>
+        <div id="inspection-tree-dock">
+          <aside id="assembly-navigator" aria-labelledby="assembly-tree-label">
+            <div class="tree-header">
+              <h2 id="assembly-tree-label">Assembly tree</h2>
+              <button id="tree-drawer-close" type="button" aria-label="Close assembly tree">×</button>
+            </div>
+            <label class="tree-search"><span class="visually-hidden">Find components</span><input id="tree-filter" type="search" placeholder="Find components" /></label>
+            <div id="inspection-tree"><p>Loading assembly hierarchy…</p></div>
+          </aside>
+        </div>
+        <dialog id="tree-drawer" aria-labelledby="assembly-tree-label"></dialog>
+      </>}
       <div class="model-stage workspace-card">
         <div class="stage-bar">
           <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="explode-toggle" aria-expanded="false" aria-controls="explode-range-panel" hidden>Explode <span id="explode-value">0%</span></button><button id="explode-reset" hidden>Set to assembled</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden>Show all</button><button id="restore-inspection" hidden>Restore assembly</button></div>
@@ -50,29 +86,24 @@ const overview = section === "overview";
           </details>
         </div>
         <div id="explode-range-panel" hidden>
-          <label for="explode-range">Explode amount</label>
+          <label for="explode-range">Explode amount <small id="explode-direction"></small></label>
           <div><span>0 · Assembled</span><input id="explode-range" type="range" min="0" max="100" value="0" step="1" /><span>100 · Exploded</span></div>
         </div>
         <div class="viewer-frame">
           <canvas id="assembly-viewer" tabindex="0" aria-label="Interactive assembly" aria-description="Arrow keys orbit. Plus and minus zoom."></canvas>
           <div id="assembly-poster" hidden={!preview}>{preview && <img src={preview} alt="Static assembly preview" />}</div>
         </div>
-        <section id="occurrence-inspection" hidden>
-          <nav aria-label="Inspection level" id="occurrence-crumbs"></nav>
-          <h3 tabindex="-1" id="occurrence-heading"></h3>
-          <p id="occurrence-status" role="status" class="visually-hidden"></p>
-          <button id="occurrence-back" hidden>Back</button>
-          <details><summary>Components in this level</summary><div id="occurrence-list"></div></details>
-        </section>
         <p id="assembly-status" role="status">Loading geometry…</p>
       </div>
-      {overview && <ProjectInspection />}
+      {overview && <div class="inspection-mobile-actions">
+        <button id="tree-drawer-open" type="button" aria-haspopup="dialog">Assembly tree</button>
+        <button id="inspection-details-open" type="button">Details</button>
+      </div>}
+      {overview && <ProjectInspection /> }
     </div>
-    <p id="assembly-references" hidden></p>
 
-    <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
-    <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
+  {!overview && <div hidden><div id="source-files"></div><pre id="source-preview"></pre><textarea id="parameter-values"></textarea><form id="build-request"><input id="instruction" /><p id="runner-status"></p></form></div>}
   {!overview && <section id="power-panel" class="workspace-card" aria-label="Assembly power budget" hidden={section !== "power"}></section>}
   {!overview && <BillOfMaterials hidden />}
   <section id="revisions-panel" hidden={section !== "release"}><h2>Revisions and build evidence</h2><p id="revision-help"></p><div id="revision-list"></div><div id="revision-evidence"></div></section>

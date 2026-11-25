@@ -8,9 +8,26 @@ import type { Project } from "./project";
 
 export type AssemblySource = Pick<Project, "id"|"name"|"revision"|"assembly"|"workspace"> & {meshBuild?:{base:string;artifacts:ArtifactRecord[]}};
 export type MeshSource = { base: string; artifact: ArtifactRecord };
+export type ParameterDefinition = { name: string; defaultValue: number; placements: string[] };
+type Configuration = NonNullable<Assembly["configurations"]>[number];
+
+export function parameterDefinitions(assembly: Assembly, configuration?: Configuration): ParameterDefinition[] {
+  const items = new Map(assembly.items.map(item => [item.id, item]));
+  return (configuration?.parameters ?? []).map(parameter => ({
+    name: parameter.name,
+    defaultValue: parameter.defaultValue,
+    placements: parameter.placements.map(binding => {
+      const parent = items.get(binding.parentId);
+      const use = parent?.uses.find(use => use.id === binding.usageId);
+      const target = use && items.get(use.itemId);
+      return [parent?.name, use?.refdes || target?.name, binding.axis.toUpperCase()].filter(Boolean).join(" / ");
+    }),
+  }));
+}
+
 export type ResolvedAssembly = {
   projectId: string; revision: number; assembly: Assembly; buildPrice: ReturnType<typeof buildPrice>;
-  sources: { itemId: string; projectId: string; name: string; revision: number; configuration?: string; parameters?: Record<string,number>; pinned: boolean }[];
+  sources: { itemId: string; projectId: string; name: string; revision: number; configuration?: string; parameters?: Record<string,number>; parameterDefinitions?: ParameterDefinition[]; pinned: boolean }[];
   meshes: Record<string, MeshSource>;
   itemOrigins?: Record<string, {projectId: string; itemId: string; revision: number}>;
 };
@@ -94,11 +111,17 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         }
         const configured = configuredAssembly(target.assembly,ref);
         if (!configured.rootId) throw Error(`Referenced project ${target.name} has no assembly root`);
-        const defaults=target.assembly.configurations?.find(c=>c.name===ref.configuration)?.parameters ?? [];
+        const configuration = target.assembly.configurations?.find(c => c.name === ref.configuration);
+        const defaults = configuration?.parameters ?? [];
         const key = JSON.stringify([target.id,ref.revision??"current",ref.configuration??"",
           defaults.map(p=>[p.name,ref.parameters?.[p.name]??p.defaultValue])]);
         await expand(target,configured,key,new Set([...ancestors,target.id]),viewId);
-        result.sources.push({itemId:viewId,projectId:target.id,name:target.name,revision:target.revision,...(ref.configuration && {configuration:ref.configuration}),...(ref.parameters && {parameters:ref.parameters}),pinned:ref.revision!==undefined});
+        result.sources.push({
+          itemId: viewId, projectId: target.id, name: target.name, revision: target.revision, pinned: ref.revision !== undefined,
+          ...(ref.configuration && { configuration: ref.configuration }),
+          ...(ref.parameters && { parameters: ref.parameters }),
+          ...(defaults.length && { parameterDefinitions: parameterDefinitions(target.assembly, configuration) }),
+        });
       } else {
         const view = {...item,id:viewId,uses:item.uses.map(u=>({...u,id:usageIdFor(u.id),itemId:idFor(u.itemId)}))};
         if (scope && item.driveMotion) {

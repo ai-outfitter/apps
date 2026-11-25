@@ -6,27 +6,41 @@ import { SECTIONS, projectPath, slugId, type SectionId } from "../lib/sections";
 import Content from "./Workspace.astro";
 import PCBReview from "./PCBReview.astro";
 
+import { requestIdentity } from "@ai-outfitter/app-sdk/server";
 import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { projectBySlugId } from "../server/projects";
 import { hasPcbReview } from "../lib/pcb-review";
+import type { Project } from "../lib/project";
+import { componentIdentity, type occurrenceTrail } from "../lib/occurrence-route";
 
-interface Props { section?: SectionId; slug: string }
-const { slug } = Astro.props;
-let projectName: string | undefined;
-let hasPcb = false;
-let projectId:string|undefined, revision:number|undefined;
-if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
+interface Props {
+  section?: SectionId;
+  slug: string;
+  project?: Project;
+  occurrence?: string;
+  occurrenceTrail?: ReturnType<typeof occurrenceTrail>;
+  routeError?: string;
+}
+const { slug, occurrence, occurrenceTrail: trail, routeError } = Astro.props;
+let project = Astro.props.project;
+if (!project && import.meta.env.OUTFITTER_APP_MODE !== "demo") {
   try {
-    const project = await projectBySlugId(installationDatabase(), slugId(slug)!);
-    projectName = project?.name;
-    projectId = project?.id;
-    revision = project?.revision;
-    hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
+    project = await projectBySlugId(installationDatabase(), slugId(slug)!);
   } catch { /* The workspace reports loading errors. */ }
 }
+let canEdit = false;
+if (import.meta.env.OUTFITTER_APP_MODE !== "demo") {
+  try { canEdit = requestIdentity(Astro.request).canEdit; }
+  catch { /* Only a verified editor can use build controls. */ }
+}
+const projectId = project?.id;
+const projectName = project?.name;
+const revision = project?.revision;
+const hasPcb = Boolean(project?.pcbSnapshots?.length) || hasPcbReview(project?.workspace);
+const openItem = trail?.at(-1)?.item;
 const section = Astro.props.section ?? "overview";
 const path = (target: string) => appHref(Astro.url.pathname, target);
-const defaultView=section==="overview" && !["item","configuration","parameters","revision","build","view"].some(key=>Astro.url.searchParams.has(key));
+const defaultView=section==="overview" && !occurrence && !["item","configuration","parameters","revision","build","view"].some(key=>Astro.url.searchParams.has(key));
 const preview=projectId && defaultView ? path(`/api/apps/workshop/projects/${projectId}/preview?revision=${revision}&thumbnail=1`) : undefined;
 const current = SECTIONS.find(page => page.id === section)!;
 const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || page.id === section).filter(page => page.id !== "pcb" || hasPcb || section === "pcb").map(page => ({
@@ -37,12 +51,13 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
 ---
 <AppLayout
   hideReferences={section === "overview"}
+  navigation={section !== "overview"}
   persistKey={`workshop:${slug}:${section}:${Astro.url.search}`}
   name="Workshop"
   headerStyle="app"
   showOrganizationLink={false}
   introVisuallyHidden
-  title={current.label}
+  title={openItem ? componentIdentity(openItem).name : current.label}
   description="Inspect models, parts and product revisions."
   active="home"
   sidebarSections={[
@@ -50,5 +65,5 @@ const links = SECTIONS.filter(page => !["parts", "power"].includes(page.id) || p
     { label: projectName ?? "Project", links },
   ]}
 >
-  {section === "pcb" ? <PCBReview slug={slug} /> : <Content section={section} slug={slug} projectId={projectId} preview={preview} />}
+  {section === "pcb" ? <PCBReview slug={slug} /> : routeError ? <p role="alert">{routeError} <a href={path(projectPath(slug))}>Open project</a></p> : <Content {section} {slug} {projectId} {projectName} {preview} {occurrence} trail={trail} hasPcb={hasPcb} {canEdit} />}
 </AppLayout>

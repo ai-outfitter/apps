@@ -4,9 +4,9 @@ import type { Unit } from "../server/units";
 
 const date = "2026-10-02T15:00:00.000Z";
 
-const sensor = makeProject("sensor");
+const fixtureId = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+const sensor = makeProject("sensor", { id: fixtureId(101), timestamp: date });
 Object.assign(sensor, {
-  id: "00000000-0000-4000-8000-000000000101",
   revision: 2,
   createdAt: date,
   updatedAt: date,
@@ -42,9 +42,8 @@ Object.assign(sensor, {
   }],
 });
 
-const cable = makeProject("holder");
+const cable = makeProject("holder", { id: fixtureId(105), timestamp: date });
 Object.assign(cable, {
-  id: "00000000-0000-4000-8000-000000000105",
   revision: 1,
   createdAt: "2026-09-29T10:00:00.000Z",
   updatedAt: "2026-09-30T11:30:00.000Z",
@@ -52,14 +51,19 @@ Object.assign(cable, {
   owner: "Design team",
 });
 
-const node = makeProject("node");
+let definitionId = 3000;
+const node = makeProject("node", { id: fixtureId(106), timestamp: date, nextAssemblyId: () => fixtureId(definitionId++) });
 // Keep model deep links valid when a visitor reloads the demo.
 const modelIds = new Map(node.assembly.items.map((item, index) =>
-  [item.id, `00000000-0000-4000-8000-${String(index + 1000).padStart(12, "0")}`] as const));
+  [item.id, fixtureId(index + 1000)] as const));
 node.assembly.rootId = modelIds.get(node.assembly.rootId!);
+let usageId = 1100;
 for (const item of node.assembly.items) {
   item.id = modelIds.get(item.id)!;
-  for (const use of item.uses) use.itemId = modelIds.get(use.itemId)!;
+  for (const use of item.uses) {
+    use.id = fixtureId(usageId++);
+    use.itemId = modelIds.get(use.itemId)!;
+  }
 }
 node.assembly.power = {
   version: 1, notes: "Illustrative sensor budget", scenarios: [{id:"sampling",name:"Sampling",notes:"Illustrative development-board load."}],
@@ -69,7 +73,6 @@ const board = node.assembly.items.find(item => item.number === "SNY-C001")!;
 board.power = {loads:[{id:"board",name:"Controller",rail:"usb",evidence:"assumed",source:"Demo assumption",notes:"",
   scenarios:{sampling:{averageW:0.4,operatingW:0.5,peakW:1}}}]};
 Object.assign(node, {
-  id: "00000000-0000-4000-8000-000000000106",
   revision: 3,
   createdAt: "2026-11-01T09:00:00.000Z",
   updatedAt: "2026-11-03T08:00:00.000Z",
@@ -79,8 +82,8 @@ Object.assign(node, {
 
 // Tier 2: a sensor designer reuses this purchased board without manufacturing it.
 const libraryBoard = {...board!, power:undefined};
-const boardModel = ProjectSchema.parse({...makeProject("cube"),
-  id:"00000000-0000-4000-8000-000000000107", name:"ESP32 reference board", purpose:"component",
+const boardModel = ProjectSchema.parse({...makeProject("cube", { id: fixtureId(107), timestamp: date }),
+  name:"ESP32 reference board", purpose:"component",
   brief:"Purchased controller model reused by the soil sensor project.",
   assembly:{rootId:"00000000-0000-4000-8000-000000000108",
     items:[{id:"00000000-0000-4000-8000-000000000108",number:"ESP32-MODEL",revision:"A",name:"ESP32 model",kind:"assembly",uses:[{id:"00000000-0000-4000-8000-000000000109",itemId:libraryBoard.id,quantity:1}]},libraryBoard]}});

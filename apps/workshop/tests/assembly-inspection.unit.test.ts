@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import {inspectionLink, sizingConfigurations} from "../src/lib/inspection-links";
 import {resolveAssembly} from "../src/lib/assembly-resolution";
+import { boxPlan } from "../src/model/cad-plan";
 import { AssemblySchema } from "../src/lib/assembly";
 import { immediatePath, inspectionOccurrences, inspectionOffsets } from "../src/lib/assembly-inspection";
 
@@ -32,6 +33,43 @@ test("tier 2 field instrument keeps repeated rotated cartridges separate, with o
   assert.equal(JSON.stringify(view),snapshot);
 });
 
+
+test("a tilted assembly separates thick, coincident siblings on world Z while retaining authored offsets", () => {
+  const [root, lid, layered, insert, spacer, fixed, lidUse, repeated, nested, authored] = Array.from({length: 10}, () => randomUUID());
+  const item = (id: string, name: string) => ({ id, name, number: name, revision: "A", kind: "assembly" });
+  const geometry = boxPlan(12, 18, 32);
+  const view = AssemblySchema.parse({ rootId: root, items: [
+    { ...item(root, "Field instrument"), uses: [{ id: lidUse, itemId: lid, quantity: 1, orientation: [90, 0, 0] }] },
+    { ...item(lid, "Powered lid"), uses: [
+      { id: repeated, itemId: layered, quantity: 2 },
+      { id: authored, itemId: fixed, quantity: 1, explode: { offset: [0, 0, 24], step: 2 } },
+    ] },
+    { ...item(layered, "Stacked module"), uses: [{ id: nested, itemId: insert, quantity: 1 }] },
+    { ...item(insert, "PCB"), kind: "pcb", geometry },
+    { ...item(spacer, "Uninstalled spare"), kind: "fabricated", geometry },
+    { ...item(fixed, "Authored connector"), kind: "cots", geometry },
+  ] });
+  const level = inspectionOccurrences(view).get(root)!.children[0];
+  const [lower, upper, connector] = level.children;
+  assert.deepEqual(lower.matrix.toArray(), upper.matrix.toArray());
+  assert.deepEqual(inspectionOffsets(level, 0).get(lower.path)?.toArray().map(Math.abs), [0, 0, 0]);
+  const full = inspectionOffsets(level, 100);
+  for (const module of [lower, upper]) {
+    assert.equal(full.get(module.path)?.x, 0);
+    assert.equal(full.get(module.path)?.y, 0);
+    assert.equal(full.has(module.children[0].path), false);
+    assert.equal(immediatePath(level.path, module.children[0].path), module.path);
+  }
+  assert.ok(lower.bounds.max.z + full.get(lower.path)!.z < upper.bounds.min.z + full.get(upper.path)!.z);
+  for (const module of [lower, upper]) {
+    const offset = full.get(module.path)!.z;
+    assert.ok(module.bounds.max.z + offset < connector.bounds.min.z ||
+      module.bounds.min.z + offset > connector.bounds.max.z);
+  }
+  assert.equal(inspectionOffsets(level, 50).get(connector.path)!.length(), 0);
+  const local = full.get(connector.path)!;
+  assert.deepEqual(local.toArray().map(component => Math.round(component) + 0), [0, -24, 0]);
+});
 
 test("old bookmarks recover the real variant while genuine configurations and unrelated parameters survive",()=>{
   const base = randomUUID();

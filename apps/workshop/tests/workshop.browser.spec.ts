@@ -56,9 +56,10 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
  try {
   await routeReadOnly(page, origin, app, {});
   await page.goto(origin + "/projects/node-000000000106");
-  await page.getByRole("tab", {name:"Components"}).click();
-  await page.getByRole("button", {name:"Electronics sub-assembly", exact:true}).click();
-  await expect(page.getByRole("tab", {name:"Selected"})).toHaveAttribute("aria-selected","true");
+  const electronics = page.getByRole("treeitem", {name:"Electronics sub-assembly", exact:true});
+  await electronics.focus();
+  await electronics.press("Enter");
+  await expect(page.locator("#selected-name")).toHaveText("Electronics sub-assembly");
   await page.getByRole("tab", {name:"BOM"}).click();
   await page.locator("#pricing summary").click();
   await expect(page.locator("#bom-price")).toContainText("$44.49 estimated");
@@ -71,22 +72,26 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
    await expect(budget.locator(".power-field-label").first()).toBeVisible();
    expect(await budget.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
   }
-  await page.getByRole("tab", {name:"Selected"}).click();
-  await expect(page.locator("#item-details h3")).toHaveText("Electronics sub-assembly");
-  await page.getByRole("tab",{name:"Components"}).click();
-  await expect(page.getByRole("tab",{name:"Components"})).toBeFocused();
-  await page.getByRole("tab", {name:"Selected"}).click();
-  await page.locator("#item-details").getByRole("button", {name:/ESP32/}).click();
+  await expect(page.locator("#selected-name")).toHaveText("Electronics sub-assembly");
+  await page.getByRole("button", {name:"Assembly tree", exact:true}).click();
+  await electronics.focus();
+  await electronics.press("ArrowRight");
+  const board = page.getByRole("treeitem", {name:/ESP32/});
+  await board.focus();
+  await board.press("Enter");
+  await expect(board).toHaveAttribute("aria-selected","true");
+  await page.getByRole("button", {name:"Close assembly tree"}).click();
+  await expect(page.locator("#selected-name")).toContainText("ESP32");
   await expect(page.getByRole("tab", {name:"BOM"})).toHaveCount(0);
   await page.getByRole("tab", {name:"Power"}).click();
   await expect(page.locator("#power-panel h2")).toContainText("ESP32");
   await page.getByRole("button", {name:"Show all",exact:true}).click();
-  await expect(page.getByRole("tab", {name:"Selected"})).toHaveCount(0);
+  await expect(page.locator("#detail-context")).toHaveText("Open assembly");
   await page.getByRole("tab", {name:"BOM"}).click();
   await expect(page.locator("#bom-price")).toContainText("$70.85 estimated");
   const canvas = await page.locator("#assembly-viewer").elementHandle();
   await page.locator("#bom-rows").getByRole("link", {name:"Electronics sub-assembly"}).click();
-  await expect(page.getByRole("tab", {name:"Selected"})).toHaveAttribute("aria-selected","true");
+  await expect(page.locator("#selected-name")).toHaveText("Electronics sub-assembly");
   expect(await canvas!.evaluate(el => document.querySelector("#assembly-viewer") === el)).toBe(true);
   await page.setViewportSize({width:1440,height:900});
   await page.goto(origin + "/projects/node-000000000106/power");
@@ -112,6 +117,7 @@ test("home separates manufactured products from reusable components",async({page
   await page.locator("#project-purpose").selectOption("all");
   await expect(page.locator(".project-row")).toHaveCount(4);
   await page.locator(".project-row").filter({hasText:"ESP32 reference board"}).getByRole("link").click();
+  await page.getByText("Project settings", {exact:true}).click();
   await expect(page.locator("#project-purpose")).toHaveValue("component");
   await expect(page.locator("#project-purpose")).toBeDisabled();
  } finally {await page.unrouteAll({behavior:"ignoreErrors"});await app.dispose();}
