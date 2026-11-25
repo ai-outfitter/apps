@@ -54,7 +54,7 @@ for (const mode of ["baseline", "candidate"]) {
     await assert.rejects(grouped("app-feedback", "review", feedback), /member/i);
     const requested = await grouped("request", "review", feedback, true);
     assert.deepEqual([requested.id, requested.submittedVersion, requested.state], [batchId, 1, "awaiting_review"]);
-    await assert.rejects(grouped("held", "review", { batchId, expectedVersion: 1, verdict: "approve", refs: ["$edit"] }, true), /requested changes/);
+    await assert.rejects(grouped("stale-feedback", "review", { ...feedback, expectedVersion: 0 }, true), /version changed/);
     step = "memberReview";
     await grouped("approve", "review", { batchId, expectedVersion: 1, verdict: "approve", refs: ["$kept"] }, true);
     async function revise(key: string, title: string) {

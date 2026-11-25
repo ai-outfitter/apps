@@ -461,7 +461,8 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   const submitted = { ...batch, submittedVersion: 1, state: "awaiting_review", commits: batch.commits, reviewJobId: jobId };
   const waiting = live(await loadOperations(db, batch.id));
   if (policy.kind === "first-run" || policy.kind === "confidence") {
-    const eligible = new Set(waiting.filter(row => policy.kind === "first-run" || (row.confidence ?? 0) >= policy.threshold).map(row => row.ref));
+    const eligible = new Set(waiting.filter(row => row.state === "awaiting_review" && !changesRequested(row) &&
+      (policy.kind === "first-run" || (row.confidence ?? 0) >= policy.threshold)).map(row => row.ref));
     for (const duplicate of organizationDuplicates(graph, waiting)) eligible.delete(duplicate.ref);
     const chosen = anchoredSelection(graph, waiting, closeSelection(waiting, eligible), batch.anchors);
     await commitByPolicy(db, who, submitted, waiting, chosen, policyApproval(policy, policy.kind));
@@ -743,6 +744,9 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
     text: input.summary ?? (batch?.summary ? JSON.parse(batch.summary).text : null) };
   const unchanged = batch ? batchRowsUnchanged(batch, existing)
     : sql`not exists (select 1 from graph_batches where id=${batchId})`;
+  const editedRefs = new Set([...written.map(row => row.ref), ...input.remove]);
+  const corrected = existing.some(row => editedRefs.has(row.ref) && changesRequested(row));
+  const reviewBy = jobId ? corrected ? reviewDeadline(batchPolicy.parse(policy), now) : batch?.reviewBy ?? null : null;
   const key = replay?.requestKey ?? `amend:${crypto.randomUUID()}`;
   const statements = [submissionGuard(who, key, replay?.hash ?? "amend", unchanged, receipt)];
   if (!batch) {
@@ -758,7 +762,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
     submissionStatement(batchId, version, nextRows, who.userId, actor, now),
     sql`UPDATE graph_batch_operations SET state='awaiting_review' WHERE batchId=${batchId} AND state='pending'`,
     sql`UPDATE graph_batches SET submittedVersion=${version},state=${state},summary=${JSON.stringify(summary)},
-      reviewBy=${jobId ? batch?.reviewBy ?? null : null},review=CASE WHEN ${Boolean(reused)} THEN review ELSE NULL END,
+      reviewBy=${reviewBy},review=CASE WHEN ${Boolean(reused)} THEN review ELSE NULL END,
       reviewJobId=${jobId},updatedAt=${now},closedAt=${jobId ? null : now} WHERE id=${batchId}`,
   );
   if (jobId && !reused) statements.push(sql`INSERT INTO onto_review_jobs(id,batchId,contentDigest,state,nextAttemptAt,createdAt,runId)
@@ -803,12 +807,7 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
       sql`UPDATE graph_batch_operations SET state='rejected',decidedBy=${who.userId},decision=${JSON.stringify(decision)} WHERE batchId=${batch.id} AND ref IN (SELECT value FROM json_each(${JSON.stringify([...rejected])}))`,
       sql`DELETE FROM graph_changes WHERE userId=${who.userId} AND requestKey=${guard}`,
     ], "Batch changed; reload before reviewing");
-  } else {
-    const approved = withDependencies(rows, waiting, chosen);
-    if (waiting.some(row => approved.has(row.ref) && changesRequested(row)))
-      fail("Edit or withdraw proposals with requested changes before approving", 409);
-    await commitOperations(db, who, batch, rows, approved, () => decision);
-  }
+  } else await commitOperations(db, who, batch, rows, withDependencies(rows, waiting, chosen), () => decision);
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
 }
@@ -934,7 +933,12 @@ export async function sealDueBatches(db: Database, who: AppIdentity, now = Date.
     sealed += committed;
     // A failed seal (a concurrent edit, or a subset that no longer validates)
     // keeps its deadline so the next seal retries; otherwise the window closes.
-    if (committed || !chosen.size) await touch(db, batch.id, { reviewBy: null });
+    if (committed || !chosen.size) {
+      await db.update(graphBatches).set({ reviewBy: null, updatedAt: Date.now() }).where(and(
+        eq(graphBatches.id, batch.id), eq(graphBatches.submittedVersion, batch.submittedVersion),
+        sql`${graphBatches.reviewBy} IS ${batch.reviewBy}`,
+      ));
+    }
     await settle(db, batch.id);
   }
   return { sealed, expired: expired.length };

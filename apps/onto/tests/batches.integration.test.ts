@@ -206,6 +206,13 @@ test("requested changes hold a proposal out of both steward approval and the pol
   assert.equal((await sealDueBatches(db, who, Date.now() + 2 * 3600 * 1000)).sealed, 0);
   assert.equal(await f.exists(uuid(71)), false);
   assert.equal(await f.exists(uuid(72)), true);
+  const amended = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "fixed",
+    proposals: [{ ...held, operation: person("$held", 71, "Corrected") }] } });
+  assert.equal(amended.data.mutateBatchSubmission.submittedVersion, 2);
+  const reopened = (await json(await f.action("batch.get", { batchId }))).batch;
+  assert.ok(reopened.reviewBy > Date.now());
+  assert.equal((await sealDueBatches(db, who, reopened.reviewBy + 1)).sealed, 1);
+  assert.equal(await f.exists(uuid(71)), true);
 });
 
 test("an agent stages, takes back and submits changes with documents; a member commits them", async (t) => {
