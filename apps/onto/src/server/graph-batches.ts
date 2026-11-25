@@ -779,11 +779,12 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   const waiting = rows.filter((row) => row.state === "awaiting_review");
   const waitingRefs = new Set(waiting.map(row => row.ref));
   const chosen = new Set(input.refs ? input.refs.filter(ref => waitingRefs.has(ref)) : waitingRefs);
+  if (!chosen.size) fail("No waiting operations match", 409);
   if (input.verdict === "approve" && !input.refs) {
     for (const row of waiting.filter(changesRequested)) chosen.delete(row.ref);
-    closeSelection(rows, chosen);
+    if (!closeSelection(rows, chosen).size)
+      fail("No eligible proposals; explicitly name proposals with requested changes to approve them", 409);
   }
-  if (!chosen.size) fail("No waiting operations match; explicitly name proposals with requested changes to approve them", 409);
   const at = Date.now();
   const decision = memberDecision(who, actor, { submittedVersion: batch.submittedVersion, verdict: input.verdict, comment: input.comment ?? null, at });
   if (input.verdict === "request_changes") {
