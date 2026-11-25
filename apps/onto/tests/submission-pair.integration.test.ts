@@ -17,7 +17,7 @@ for (const mode of ["baseline", "candidate"]) {
     t.after(() => app.dispose());
     const counts: Record<string, number> = {};
     let step = "create";
-    async function call(name: string, variables: object, asMember = false, caller = asMember ? member : agent) {
+    async function call(name: string, variables: object, asMember = false, caller: Parameters<typeof app.call>[1] = asMember ? member : agent) {
       const doc = catalog.find(doc => doc.name === name);
       assert.ok(doc, `Published document ${name}`);
       counts[step] = (counts[step] ?? 0) + 1;
