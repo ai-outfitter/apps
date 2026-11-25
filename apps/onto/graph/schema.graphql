@@ -96,7 +96,7 @@ type ChangeBatch {
   submittedVersion: Int!
 
   """
-  Immutable proposal content and submitter for this version; legacy baseline zero has unknown authorship.
+  Immutable proposal content, submission time and submitter category for this version. Legacy baseline zero has unknown authorship.
   """
   submission(version: Int!): JSON
 
@@ -599,12 +599,12 @@ input SubmitBatchInput {
 
 type Mutation {
   """
-  Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. The saved submission queues undecided proposals for steward review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.
+  Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. Changing a held proposal's operation or evidence clears its hold and queues it for review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.
   """
   mutateBatchSubmission(input: MutateBatchSubmissionInput!): BatchSubmissionResult!
 
   """
-  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.
+  Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Preserves final decisions. Entity writers can edit member batches. The originating app can edit its open policy draft. After submission the originating app or a member reviewer can edit it.
   """
   reviseBatch(input: ReviseBatchInput!): ChangeBatch!
 

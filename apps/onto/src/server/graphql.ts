@@ -45,6 +45,9 @@ const text = { type: nonNull(GraphQLString) };
 /** The batch's review page, relative to this installation; the platform resolves it against the install's mount. */
 export const batchReviewUrl = (batchId: string) => `changes/${encodeURIComponent(batchId)}`;
 const json = { type: nonNull(JSONScalar) };
+const submissionActors = new Map([
+  ["member", "Member"], ["oauth-client", "Member connection"], ["app", "App"], ["platform", "Platform"],
+]);
 
 const StagedChange = new GraphQLObjectType({
   name: "StagedChange", description: "One proposed graph.apply operation in a batch.",
@@ -128,11 +131,16 @@ const ChangeBatch = new GraphQLObjectType({
     id: { type: nonNull(GraphQLID) }, title: text, purpose: text,
     submittedVersion: { type: nonNull(GraphQLInt), description: "Latest recorded submission; zero for drafts and batches predating version tracking." },
     submission: { type: JSONScalar, args: { version: { type: nonNull(GraphQLInt) } },
-      description: "Immutable proposal content and submitter for this version; legacy baseline zero has unknown authorship.",
+      description: "Immutable proposal content, submission time and submitter category for this version. Legacy baseline zero has unknown authorship.",
       resolve: async (batch, {version}, context: ChangeContext) => {
-        const [saved] = await context.db().select().from(batchSubmissions)
+        const [saved] = await context.db().select({
+          version: batchSubmissions.version, at: batchSubmissions.at,
+          via: batchSubmissions.via, proposals: batchSubmissions.proposals,
+        }).from(batchSubmissions)
           .where(and(eq(batchSubmissions.batchId, batch.id), eq(batchSubmissions.version, version)));
-        return saved ?? null;
+        if (!saved) return null;
+        const { via, ...submission } = saved;
+        return { ...submission, submitter: submissionActors.get(via.split(":", 1)[0]) ?? null };
       } },
     state: { ...text, description: "open, awaiting_review, committed, rejected or discarded." },
     source: { type: JSONScalar }, createdAt: { type: nonNull(DateTimeScalar) },
@@ -300,12 +308,12 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
   fields: {
     mutateBatchSubmission: mutationField({
       name: "MutateBatchSubmission", output: nonNull(BatchSubmissionResult), input: mutateBatchSubmissionInput,
-      description: "Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. The saved submission queues undecided proposals for steward review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.",
+      description: "Create and submit a member batch, submit an open member draft, replace or add undecided proposals by ref, withdraw refs, or delete an open draft with deleteBatch:true. Changing a held proposal's operation or evidence clears its hold and queues it for review under the existing policy. Pass the observed expectedVersion for an existing batch. Retry identical inputs with the original requestKey.",
       run: (context: MutationContext, input) => mutateBatchSubmission(context.db(), context.identity, context.actor, context.originActor, input),
     }),
     reviseBatch: mutationField({
       name: "ReviseBatch", output: nonNull(ChangeBatch), input: batchReviseInput,
-      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Keeps the batch pending review, preserves decisions and commits no graph records. Entity writers can edit member batches. Policy batches require the originating app or a member reviewer.",
+      description: "Amend undecided proposals by ref, add proposals or withdraw refs in an open or submitted batch. Preserves final decisions. Entity writers can edit member batches. The originating app can edit its open policy draft. After submission the originating app or a member reviewer can edit it.",
       run: async (context: MutationContext, input) => {
         const revised = await reviseBatch(context.db(), context.identity, context.actor, context.originActor, input);
         return view(revised);

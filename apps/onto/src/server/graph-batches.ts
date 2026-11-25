@@ -606,9 +606,7 @@ export async function reviseBatch(db: Database, who: AppIdentity, actor: AppActo
     }, batch);
   } else {
     if (batch.state !== "open") fail("Only an open or submitted batch can be edited", 409);
-    if (batch.policy.kind !== "member" && !(actor.kind === "app" && batch.openedVia === actorRef(actor)))
-      requireMemberReview(who, actor, origin);
-    if (batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
+    requireOpen(batch, actor);
     const { existing, written } = await proposedRows(db, who, batch.id, batch, input, "pending");
     await writeDraft(db, who, batch, existing, writeProposals(batch.id, written, input.remove));
   }

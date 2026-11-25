@@ -518,7 +518,12 @@ test("member amendments replace and add proposals without committing; invalid or
   assert.equal(revised.data.reviseBatch.submittedVersion, 2);
   const version = async (n: number) => (await run(f, "BatchSubmission", { id: batchId, version: n })).data.changeBatch.submission;
   assert.equal((await version(1)).proposals[0].operation.attributes.title, "Ada");
-  assert.equal((await version(2)).proposals[0].evidence[0].recordId, "revised-source");
+  const snapshot = await version(2);
+  assert.equal(snapshot.proposals[0].evidence[0].recordId, "revised-source");
+  assert.equal(snapshot.submitter, "Member connection");
+  assert.ok(!("author" in snapshot) && !("via" in snapshot));
+  const storedSubmission = await f.app.database.prepare("SELECT author,via FROM graph_batch_submissions WHERE batchId=? AND version=2").bind(batchId).first();
+  assert.deepEqual(storedSubmission, { author: owner.userId, via: "oauth-client:member-mcp" });
   const stale = await run(f, "ReviseBatch", { input: { ...amendment, expectedVersion: 1 } }, connection);
   assert.equal(stale.errors[0].extensions.status, 409);
   assert.equal((await f.review({batchId, expectedVersion: 1, verdict: "approve"})).status, 409);
@@ -871,7 +876,7 @@ test("submission requests close withdrawn legacy proposals and fence different a
   assert.equal(edits.filter(response => response.data?.mutateBatchSubmission?.submittedVersion === 1).length, 1);
   assert.deepEqual(edits.flatMap(response => response.errors?.map((error: any) => error.extensions.status) ?? []), [409]);
   const baseline = (await run(f, "BatchSubmission", { id: batchId, version: 0 })).data.changeBatch.submission;
-  assert.equal(baseline.author, "");
+  assert.equal(baseline.submitter, null);
   assert.equal(baseline.proposals[0].operation.attributes.title, "Original");
 
   const withdrawn = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 1, requestKey: "withdraw", remove: ["$person"] } });
@@ -891,6 +896,14 @@ test("unified submissions enforce policy-batch and graph-type authority", async 
   }, agent));
   const batchId = batch.id;
   await json(await f.action("batch.add", { batchId, proposals: [{ operation: person("$policy", 983, "Original"), confidence: 0.7 }] }, agent));
+  const revision = { batchId, expectedVersion: 0,
+    proposals: [{ operation: person("$policy", 983, "Edited by opener"), confidence: 0.7 }] };
+  const deniedRevision = await run(f, "ReviseBatch", { input: revision }, owner);
+  assert.equal(deniedRevision.errors[0].extensions.status, 403);
+  const draft = await json(await f.action("batch.get", { batchId }));
+  assert.equal(draft.operations[0].operation.attributes.title, "Original");
+  const revised = await run(f, "ReviseBatch", { input: revision }, agent);
+  assert.equal(revised.data.reviseBatch.state, "open");
   const deniedDraft = await run(f, "MutateBatchSubmission", { input: { batchId, expectedVersion: 0, requestKey: "policy" } }, agent);
   assert.equal(deniedDraft.errors[0].extensions.status, 409);
   await json(await f.action("batch.submit", { batchId }, agent));

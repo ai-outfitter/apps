@@ -96,9 +96,9 @@ export const documents = publishDocuments(withBatchDocuments(changeDocuments, gr
  CreativeRecords:{description:"Read shared briefs, fragments, storyboards, snapshots, candidates and selections."},
  StageCreativeRecord:{description:"Stage a typed creative record for graph review; does not generate or approve."},
  FreezeCreativeInputs:{description:"Freeze committed prompt dependencies into a snapshot proposal; does not generate."},
-  BatchSubmission: { description: "Read the original proposals, author and time of one submitted batch version." },
-  MutateBatchSubmission: { description: 'Create and submit with requestKey, title and proposals. Edit with requestKey, batchId, expectedVersion, replacement or new proposals keyed by ref, and/or refs to withdraw in remove. Delete an open draft with requestKey, batchId, expectedVersion:0 and deleteBatch:true. Retry identical inputs with the original requestKey. Minimal proposal `{operation:{operation:"create",type:"graph-node",ref:"$person",attributes:{typeId:"Person",title:"Ada"}}}`.' },
-  ReviseBatch: { description: "Amend undecided proposals in a member-review batch without approving or committing them. Entity writers may edit member batches and submit a new version for review." },
+  BatchSubmission: { description: "Read the original proposals, submission time and submitter category for one submitted batch version." },
+  MutateBatchSubmission: { description: 'Create and submit with requestKey, title and proposals. Edit with requestKey, batchId, expectedVersion, replacement or new proposals keyed by ref, and/or refs to withdraw in remove. Changing a held proposal\'s operation or evidence clears its hold for review under the existing policy. Delete an open draft with requestKey, batchId, expectedVersion:0 and deleteBatch:true. Retry identical inputs with the original requestKey. Minimal proposal `{operation:{operation:"create",type:"graph-node",ref:"$person",attributes:{typeId:"Person",title:"Ada"}}}`.' },
+  ReviseBatch: { description: "Amend undecided proposals. Entity writers may edit member batches. Only the originating app can edit an open policy draft. A member reviewer can also edit a submitted policy batch." },
   "ChangeBatches": {
     "description": "Find saved change batches and review state; proposals and evidence are opt-in.",
     "collection": true
