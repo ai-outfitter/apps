@@ -375,7 +375,7 @@ type Mutation {
   enableRepository(input: EnableRepositoryInput!): EnabledRepository!
 
   """
-  Start a repository job now (dependency-review, architecture-reanalysis or ui-review): its workspace agent is approved on the repository first, then it files issues there. Owners and admins only.
+  Start a repository job now. Community-template-audit saves a read-only coverage report. Dependency-review, architecture-reanalysis and ui-review use workspace agents to file issues. Owners and admins only.
   """
   runJob(input: RunJobInput!): FoundryJobResult!
 
