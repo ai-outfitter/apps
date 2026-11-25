@@ -316,6 +316,11 @@ const coreOperations = {
     inputs: jsonObject,
     outputs: z.record(z.string(), z.object({ value: json, complete: z.boolean() })),
     readiness: z.object({ run: z.string(), steps: z.record(z.string(), z.string()) }),
+    /** Creator-only host inference ledger summary. Settlement does not prove remote compute stopped. */
+    inference: z.object({
+      status: z.enum(["none", "pending", "settled"]),
+      reasons: z.array(z.enum(["no_response", "http_error", "aborted", "interrupted", "completed", "partial", "error"])),
+    }).optional(),
     attempts: z.array(z.object({ id, nodeId: id, state: z.string(), createdAt: z.number(), updatedAt: z.number(), expiresAt: z.number().optional(), failure: z.string().optional(),
       /** The retained session archive of a failed attempt, as a run artifact reference. */
       sessionArtifact: z.object({ id: z.uuid(), runId: z.uuid() }).optional(),
@@ -388,7 +393,8 @@ const coreOperations = {
    * validates the answer against `schema`. Calls naming a session checkpoint retain private inference evidence.
    * Naming `step` applies that step's declared `inference` settings, which win
    * over any the app passes; a setting neither gives is the platform default
-   * (1,500 output tokens, a 60 s timeout, the provider's reasoning). */
+   * (1,500 output tokens, a 60 s timeout or 600 s for self-hosted built-in
+   * Spark, and the provider's reasoning). */
   "inference.generate": operation(running, z.strictObject({
     runId: runId,
     step: slug.optional(),

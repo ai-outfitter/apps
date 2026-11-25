@@ -11,6 +11,7 @@ import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
   PlanWork: {
+    executionTimeoutMs: 840_000,
     story: "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
     document: `mutation PlanWork($input:PlanWorkInput!){planWork(input:$input)}`,
   },
@@ -46,8 +47,8 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
-  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."},
-  FoundryPlan:{description:"Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."},
+  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Replay the same request ID and inputs as the original requester to recover a verified prepublication failure once. An uncertain publication is reconciled by its original marker. This does not start implementation."},
+  FoundryPlan:{description:"Read the retained planning artifact, scoped citations, current run and issue receipt, or classified failure and retry history by requestId. Legacy history records member-level attribution; the historical OAuth client was unavailable."},
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."
