@@ -35,6 +35,7 @@ function renderPart(part: CotsEvidenceResult["items"][number], partUrl: (itemId:
       `${part.owner.name} · project save ${part.owner.revision}`,
       revisionUrl(part.owner.projectId, part.owner.revision, part.owner.itemId, true),
     ));
+    owner.append(` · ${part.owner.number} · Part rev ${part.owner.partRevision}`);
     section.append(owner);
   }
 
