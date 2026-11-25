@@ -1,24 +1,25 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { startInferenceFixture } from "./inference-fixture.mjs";
 import { startForgejoRelay } from "./forgejo-relay.mjs";
 
 const supervisor = "/app/.box/box/supervisor.mjs";
 const generated = "/app/src/generated/apps";
-const app = "software-foundry";
-
-copyFileSync("/package/software-foundry.operational.json", join(generated, `${app}.operational.json`));
-for (const [file, source, parse] of [
-  ["graph-schemas.json", "schema.graphql", false],
-  ["graph-documents.json", "documents.json", true],
-]) {
-  const path = join(generated, file);
-  const all = JSON.parse(readFileSync(path, "utf8"));
-  const replacement = readFileSync(`/package/${source}`, "utf8");
-  all[app] = parse ? JSON.parse(replacement) : replacement;
-  writeFileSync(path, JSON.stringify(all));
+for (const app of readdirSync("/package")) {
+  const source = join("/package", app);
+  copyFileSync(join(source, "package.json"), join(generated, app + ".operational.json"));
+  for (const [file, name, parse] of [
+    ["graph-schemas.json", "schema.graphql", false],
+    ["graph-documents.json", "documents.json", true],
+  ]) {
+    const path = join(generated, file);
+    const catalog = JSON.parse(readFileSync(path, "utf8"));
+    const value = readFileSync(join(source, name), "utf8");
+    catalog[app] = parse ? JSON.parse(value) : value;
+    writeFileSync(path, JSON.stringify(catalog));
+  }
 }
 
 copyFileSync("/eval/fixtures/webhook-route.ts.fixture", "/app/src/pages/api/webhooks/foundry-planning-eval.ts");

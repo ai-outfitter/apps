@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const requests = JSON.parse(readFileSync(new URL("./fixtures/requests.json", import.meta.url)));
-const citations = ["box/charts:README.md", "box/native-apple:README.md"];
+const packages = JSON.parse(readFileSync(new URL("./fixtures/work-packages.json", import.meta.url)));
+
+// A recorded Spark plan can be replayed through the same isolated product surfaces.
+export const agentPlan = existsSync("/out/agent-plan.json") ? JSON.parse(readFileSync("/out/agent-plan.json")) : null;
+export const projectRequirements = agentPlan?.requirements ?? packages;
 
 function planFor(prompt) {
   const selected = ["ambiguous", "feature", "bug"].find((id) => prompt.includes(requests[id].title));
@@ -12,6 +16,11 @@ function planFor(prompt) {
   assert.match(prompt, /KEYSTONE_CHARTS_FIXTURE/);
   assert.match(prompt, /KEYSTONE_NATIVE_APPLE_FIXTURE/);
   const bug = selected === "bug";
+  const citations = (bug ? ["box/charts", "box/native-apple"] : packages.map(row => row.target.repository).sort()).map(repo => repo + ":README.md");
+  if (!bug) {
+    assert.match(prompt, /KEYSTONE_FLAKE_FIXTURE/);
+    assert.match(prompt, /KEYSTONE_CLUSTER_FIXTURE/);
+  }
   const issueTemplate = bug ? null : ".forgejo/ISSUE_TEMPLATE/feature.md";
   if (issueTemplate) assert.ok(prompt.includes(issueTemplate), "anchor's issue template reaches inference");
   const scenario = requests[selected];
@@ -19,10 +28,10 @@ function planFor(prompt) {
     kind: bug ? "bug" : "feature",
     title: scenario.title,
     goal: bug ? "Preserve Grafana datasource placeholders from preview through local install." :
-      "Let operators preview and install a Grafana dashboard into the iOS and macOS Charts catalog.",
+      requests.feature.description,
     changes: bug
       ? ["Carry the datasource placeholder through the shared Charts persistence model.", "Resolve the placeholder against the current installation on both app shells."]
-      : ["Validate dashboard UID, title and panel list in shared Charts code.", "Use a confirmation screen in the iOS and macOS shells, then persist once by UID."],
+      : packages.map(row => row.target.repository + ": " + row.statement),
     verification: scenario.acceptanceCriteria ?? [
       "Replay the planning request after Forgejo commits the issue and the response is lost.",
     ],
@@ -30,10 +39,42 @@ function planFor(prompt) {
     citations,
     issueTemplate,
     issueBody: issueTemplate
-      ? "## User-visible outcome\n\nPreview and install a Grafana dashboard in Charts.\n\n## Acceptance criteria\n\nA UID is installed once after explicit confirmation.\n\n## Verification\n\nExercise preview, cancel, confirm, and invalid input on iOS and macOS."
+      ? "## User-visible outcome\n\nInstall Forgejo and Grafana from Keystone on iOS and macOS.\n\n## Acceptance criteria\n\nConfirmation installs both services and provisions the standard Grafana dashboards once.\n\n## Verification\n\n" + packages.map(row => "- " + row.target.repository + ": " + row.acceptanceCriteria[0]).join("\n")
       : null,
   };
+  if (agentPlan && selected === "feature") {
+    result.goal = agentPlan.goal;
+    result.changes = projectRequirements.map(row => row.target.repository + ": " + row.statement);
+    result.verification = projectRequirements.map(row => row.acceptanceCriteria.join(" "));
+    result.gaps = agentPlan.gaps;
+    result.citations = agentPlan.citations;
+    result.issueBody = ["## User-visible outcome", result.goal, "## Changes", ...result.changes,
+      "## Acceptance criteria", ...result.verification, "## Milestones",
+      ...agentPlan.milestones.map(m => m.title + ": " + m.keys.join(", ")), "## Gaps", ...result.gaps].join("\n\n");
+  }
   return { selected, result };
+}
+
+function responseFor(input) {
+  const schema = input.text.format.schema.properties;
+  if (schema.routes) {
+    return { selected: "planning-route", result: { routes: [{ kind: "prioritization", dependsOn: [],
+      rationale: "Compare the native installation workflow against the project goal." }] } };
+  }
+  if (schema.opening) {
+    const user = input.input.find(message => message.role === "user");
+    const text = Array.isArray(user.content) ? user.content.map(part => part.text).join("") : user.content;
+    const match = text.match(/<<<DATA\n([\s\S]+)\nDATA>>>/);
+    assert.ok(match, "brief receives saved evidence");
+    const data = JSON.parse(match[1]);
+    const source = data.evidence.find(row => row.kind === "report" && row.text.includes(projectRequirements[0].title));
+    assert.ok(source, "organization report must already contain the Keystone completion");
+    return { selected: "personal-brief", result: {
+      opening: { text: "Planning recorded this completed issue yesterday: " + projectRequirements[0].title + ".", evidence: [source.ref] },
+      highlights: [], attention: [], unsupported: ["Deployment and device verification were not observed."],
+    } };
+  }
+  return planFor(JSON.stringify(input.input));
 }
 
 export async function startInferenceFixture() {
@@ -44,8 +85,8 @@ export async function startInferenceFixture() {
       assert.equal(request.headers.authorization, "Bearer local-planning-fixture");
       const input = JSON.parse(Buffer.concat(await Array.fromAsync(request)).toString("utf8"));
       assert.equal(input.text?.format?.type, "json_schema", "Foundry uses structured inference");
-      const { selected, result } = planFor(JSON.stringify(input.input));
-      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, kind: result.kind, sources: citations }) + "\n");
+      const { selected, result } = responseFor(input);
+      appendFileSync("/out/inference.jsonl", JSON.stringify({ case: selected, ...(result.kind && { kind: result.kind, sources: result.citations }) }) + "\n");
       response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({
         id: `fixture-${selected}`, created_at: 1, model: input.model,
         output: [{ type: "message", id: `message-${selected}`, role: "assistant",

@@ -8,7 +8,8 @@ import { DatabaseSync } from "node:sqlite";
 
 export const anchor = "box/native-apple";
 export const charts = "box/charts";
-export const repositories = [charts, anchor];
+export const clientRepositories = [charts, anchor];
+export const repositories = [charts, "box/ks-config", anchor, "box/os"];
 const forgejo = "http://127.0.0.1:3300";
 
 function adminPassword(box) {
@@ -30,16 +31,19 @@ export async function admin(box, method, path, body) {
 export const setBotPermission = (box, repository, permission) =>
   admin(box, "PUT", `/repos/${repository}/collaborators/outfitter`, { permission });
 
-export async function addChartsRepository(box, db) {
-  await admin(box, "POST", "/orgs/box/repos", { name: "charts", private: true, auto_init: true, default_branch: "main" });
-  await setBotPermission(box, charts, "write");
+export async function addProjectRepositories(box, db) {
   const credentials = Buffer.from(`box-admin:${adminPassword(box)}`).toString("base64");
-  execFileSync("git", ["-c", "safe.directory=/in/charts", "-C", "/in/charts", "push", "--quiet", "--force",
-    `${forgejo}/${charts}.git`, "refs/heads/main:refs/heads/main"], {
-    env: { ...process.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader",
-      GIT_CONFIG_VALUE_0: `Authorization: Basic ${credentials}`, GIT_TERMINAL_PROMPT: "0" },
-    stdio: ["ignore", "ignore", "ignore"],
-  });
+  for (const repository of repositories.filter(repo => repo !== anchor)) {
+    const name = repository.split("/")[1];
+    await admin(box, "POST", "/orgs/box/repos", { name, private: true, auto_init: true, default_branch: "main" });
+    await setBotPermission(box, repository, "read");
+    execFileSync("git", ["-c", "safe.directory=/in/" + name, "-C", "/in/" + name, "push", "--quiet", "--force",
+      forgejo + "/" + repository + ".git", "refs/heads/main:refs/heads/main"], {
+      env: { ...process.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader",
+        GIT_CONFIG_VALUE_0: "Authorization: Basic " + credentials, GIT_TERMINAL_PROMPT: "0" },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+  }
   for (const repository of repositories) {
     const metadata = await admin(box, "PATCH", `/repos/${repository}`, { has_issues: true, has_pull_requests: true, default_branch: "main" });
     assert.equal(metadata.has_pull_requests, true);

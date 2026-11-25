@@ -10,31 +10,44 @@ app_dir=$(CDPATH= cd -- "$planning_dir/../.." && pwd)
 image=$1
 out=$2
 mkdir -- "$out"
+if [ -n "${KEYSTONE_AGENT_PLAN:-}" ]; then
+  cp "$KEYSTONE_AGENT_PLAN" "$out/agent-plan.json"
+fi
 out=$(CDPATH= cd -- "$out" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
-mkdir "$tmp/package" "$tmp/native-apple" "$tmp/charts"
-cp "$planning_dir/fixtures/native-apple.md" "$tmp/native-apple/README.md"
-cp "$planning_dir/fixtures/charts.md" "$tmp/charts/README.md"
+mkdir "$tmp/package"
+for repository in native-apple charts os ks-config; do
+  mkdir "$tmp/$repository"
+  cp "$planning_dir/fixtures/$repository.md" "$tmp/$repository/README.md"
+done
 mkdir -p "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE"
 cp "$planning_dir/fixtures/feature-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/feature.md"
 cp "$planning_dir/fixtures/bug-template.md" "$tmp/native-apple/.forgejo/ISSUE_TEMPLATE/bug.md"
-for repository in native-apple charts; do
+for repository in native-apple charts os ks-config; do
   git -C "$tmp/$repository" init -q -b main
   git -C "$tmp/$repository" add .
   GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
     git -C "$tmp/$repository" -c user.name='Synthetic fixture' -c user.email='fixture@example.test' \
     commit -qm "Seed synthetic Keystone $repository"
 done
-(
-  cd "$app_dir"
-  ASTRO_TELEMETRY_DISABLED=1 npm exec --offline -- outfitter-app-build --mode operational --output "$tmp/package/software-foundry.operational.json"
-)
-cp "$app_dir/graph/"schema.graphql "$app_dir/graph/"documents.json "$tmp/package/"
+for name in software-foundry planning forerunner wiki; do
+  source_dir="$app_dir/../$name"
+  slug=$name
+  if [ "$name" = wiki ]; then slug=wiki-map; fi
+  mkdir "$tmp/package/$slug"
+  (
+    cd "$source_dir"
+    ASTRO_TELEMETRY_DISABLED=1 npm exec --offline -- outfitter-app-build --mode operational --output "$tmp/package/$slug/package.json"
+  )
+  cp "$source_dir/graph/schema.graphql" "$source_dir/graph/documents.json" "$tmp/package/$slug/"
+done
 chmod a+rx "$tmp" "$tmp/package"
 podman run --rm --pull=never --network none --add-host outfitter.localhost:127.0.0.1 \
   --add-host software-foundry.box.outfitter.localhost:127.0.0.1 \
   --userns=keep-id:uid=1000,gid=1000 \
+  -v "$app_dir/../../box/supervisor.mjs:/app/.box/box/supervisor.mjs:ro" \
   -v "$planning_dir:/eval:ro" -v "$tmp/package:/package:ro" \
   -v "$tmp/native-apple:/in/repo:ro" -v "$tmp/charts:/in/charts:ro" \
+  -v "$tmp/os:/in/os:ro" -v "$tmp/ks-config:/in/ks-config:ro" \
   -v "$out:/out" "$image" node /eval/boot.mjs
