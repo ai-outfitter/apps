@@ -12,6 +12,12 @@ const revision = new GraphQLObjectType({
   },
 });
 
+// Both readers use the legacy ledger alias r. Once a mapped document is
+// archived, its old ledger body must no longer be exposed on either surface.
+export const legacyRevisionNotArchived = `NOT EXISTS (
+  SELECT 1 FROM wiki_documents d WHERE d.archived=1 AND (d.id=r.recordId OR d.legacyNodeId=r.recordId)
+)`;
+
 // A cutover copy has the same document ID and revision; its original ledger row
 // remains available for historical lookup but should count only once.
 const activity = `WITH activity AS (
@@ -31,6 +37,7 @@ const activity = `WITH activity AS (
   FROM graph_revisions r JOIN graph_nodes n ON n.id=r.recordId
     JOIN graph_types t ON t.id=n.typeId AND t.name='Document'
   WHERE r.createdAt>=? AND r.createdAt<? AND r.kind='graph-node' AND n.archived=0
+    AND ${legacyRevisionNotArchived}
     AND coalesce(n.slug,'') NOT GLOB 'forerunner-brief-*' AND coalesce(n.slug,'') NOT GLOB 'app-daily-*'
     AND NOT EXISTS (SELECT 1 FROM wiki_documents d JOIN wiki_document_revisions x ON x.documentId=d.id
       WHERE (d.id=r.recordId OR d.legacyNodeId=r.recordId) AND x.revision=r.revision)

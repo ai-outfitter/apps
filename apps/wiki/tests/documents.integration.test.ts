@@ -214,4 +214,9 @@ test("exact Wiki activity links open only the installed member's authored docume
   assert.match(await prior.text(), /Exact legacy body/);
   await app.database.prepare("UPDATE graph_nodes SET typeId=(SELECT id FROM graph_types WHERE name='Person') WHERE id='legacy-draft'").run();
   assert.equal((await app.call(legacy, member)).status, 404);
+  await app.database.batch([
+    app.database.prepare("UPDATE graph_nodes SET typeId=(SELECT id FROM graph_types WHERE name='Document') WHERE id='legacy-draft'"),
+    app.database.prepare("INSERT INTO wiki_documents(id,revision,archived,legacyNodeId,createdAt,updatedAt) VALUES('archived-legacy-copy',2,1,'legacy-draft',1,2)"),
+  ]);
+  assert.equal((await app.call(legacy, member)).status, 404);
 });

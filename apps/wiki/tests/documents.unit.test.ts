@@ -353,5 +353,7 @@ test("Wiki revision activity pages both stores, deduplicates cutover copies, and
       ["authored", "Author draft", "document"], ["late-legacy", "Ledger draft", "legacy"], ["legacy", "Copied draft", "document"],
     ]);
     assert.deepEqual((await read(end, "2026-11-26T06:00:00.000Z")).nodes, []);
+    sqlite.prepare("INSERT INTO wiki_documents(id,revision,archived,legacyNodeId,createdAt,updatedAt) VALUES('stored-copy',1,1,'late-legacy',?,?)").run(day, day);
+    assert.deepEqual((await read(start, end)).nodes.map(row => row.id), ["authored", "legacy"]);
   } finally { sqlite.close(); }
 });

@@ -33,7 +33,7 @@ type Write = {
 };
 type Trace = { operation: string; input: Record<string, unknown> };
 
-async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvidence?: boolean; onto?: boolean | "empty"; ontoTimezone?: string; pendingFor?: number; wiki?: "authored" | "empty" | "unavailable"; dates?: Pick<typeof oceanMorning, "yesterday"> | Pick<typeof chicagoFallback, "yesterday"> } = {}) {
+async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvidence?: boolean; onto?: boolean | "empty"; ontoTimezone?: string; briefTimezone?: string; pendingFor?: number; wiki?: "authored" | "empty" | "unavailable"; dates?: Pick<typeof oceanMorning, "yesterday"> | Pick<typeof chicagoFallback, "yesterday"> } = {}) {
   const client = createClient({ url: ":memory:" });
   t.after(() => client.close());
   const db = drizzle(client);
@@ -71,7 +71,7 @@ async function replay(t: TestContext, fixture: { discovery?: Discovery[]; ownEvi
             lastRunId: state === "waiting" || state === "disabled" ? null : "discovery-run-" + i,
             lastOutcome: state === "waiting" || state === "disabled" ? null : "started",
           }));
-          return [{ ...briefSchedule, enabled: true, timezone, pendingFor: fixture.pendingFor }, ...schedules];
+          return [{ ...briefSchedule, enabled: true, timezone: fixture.briefTimezone ?? timezone, pendingFor: fixture.pendingFor }, ...schedules];
         }
         case "workflow.read": {
           if (!String(input.id).startsWith("discovery-run-")) {
@@ -343,4 +343,13 @@ test("installed setup uses a known member timezone and leaves an unknown zone to
   assert.equal(after.status, 200);
   assert.deepEqual(await after.json(), { dailyBrief: "ready" });
   assert.deepEqual(writes, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "Asia/Tokyo", enabled: true, inputs: {}, ifUnset: true }]);
+});
+
+
+test("a brief in Tokyo does not wait for a Chicago producer that is due after the cutoff", async t => {
+  const app = await replay(t, { ownEvidence: true, briefTimezone: "Asia/Tokyo", wiki: "unavailable" });
+  const slot = Date.parse("2026-11-24T20:00:00.000Z"); // 05:00 on November 25 in Tokyo
+  assert.equal((await app.fire(slot, { ...occurrence, scheduledFor: slot })).outcome, "started");
+  assert.equal(app.prompts[0].coversCompletedDay, oceanMorning.yesterday);
+  assert.ok(app.prompts[0].notKnown.some(gap => gap.startsWith("Onto (personal):")));
 });

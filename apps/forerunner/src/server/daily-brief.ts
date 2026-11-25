@@ -1,3 +1,4 @@
+import { reportTimezone } from "@ai-outfitter/app-sdk/daily-period";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import { readWikiPage, wikiDocuments } from "@ai-outfitter/app-sdk/wiki-documents";
 import { scheduleInput, type InstallationSchedule, type PhaseInput, type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -193,7 +194,17 @@ async function readBriefDependencies(host: WorkflowHost<"interactive">, schedule
   const missing = expected.filter(scope => !ontoScopes.has(scope));
   const gaps = [...discovery.gaps, ...missing.map(scope => `Onto (${scope}): no saved activity report for the previous day in this reporting time zone. Coverage is unknown.`)];
   if (!memberships) gaps.push("Onto: organization access could not be checked.");
-  return { ...discovery, updates, gaps, waiting: discovery.waiting || !ontoScopes.has("personal") || !updates.complete };
+  const ontoWaiting = !ontoScopes.has("personal") && updates.complete && deadline !== undefined && defaultOntoDueBy(date, deadline);
+  return { ...discovery, updates, gaps, waiting: discovery.waiting || ontoWaiting };
+}
+
+// The default Onto producer runs at 02:00 in its reporting zone. Compare
+// wall time so DST does not shift the deadline to a different local hour.
+function defaultOntoDueBy(date: string, deadline: number) {
+  const producerDay = localDate(deadline, reportTimezone);
+  if (producerDay !== date) return producerDay > date;
+  const hour = new Intl.DateTimeFormat("en", { timeZone: reportTimezone, hour: "2-digit", hourCycle: "h23" }).format(deadline);
+  return Number(hour) >= 2;
 }
 
 export const generateDailyBriefInput = z.strictObject({ timezone: timezone });

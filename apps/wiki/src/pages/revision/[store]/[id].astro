@@ -3,6 +3,7 @@ import { micromark } from "micromark";
 import { z } from "zod";
 import Layout from "../../../components/DocumentLayout.astro";
 import { context } from "../../../documents/context";
+import { legacyRevisionNotArchived } from "../../../documents/revision-activity";
 import { getDocument } from "../../../documents/store";
 
 if (import.meta.env.OUTFITTER_APP_MODE !== "operational") return new Response("Revision not found", { status: 404 });
@@ -33,7 +34,7 @@ if (store === "document") {
     SELECT json_extract(r.snapshot,'$.title') AS title, json_extract(r.snapshot,'$.body') AS body
     FROM graph_revisions r JOIN graph_nodes n ON n.id=r.recordId
       JOIN graph_types t ON t.id=n.typeId AND t.name='Document'
-    WHERE r.kind='graph-node' AND r.recordId=? AND r.revision=? AND n.archived=0
+    WHERE r.kind='graph-node' AND r.recordId=? AND r.revision=? AND n.archived=0 AND ${legacyRevisionNotArchived}
   `, params: [id, revision] });
   if (row) snapshot = { title: String(row.title ?? ""), body: String(row.body ?? "") };
 }
