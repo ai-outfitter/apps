@@ -24,6 +24,8 @@ import { personalRoot } from "./owner-root";
 import { wikiHome } from "./wiki-home";
 import { requireAnsweredCitations } from "./batch-questions";
 import { readSettings } from "./settings";
+import { statement } from "./passage-source";
+import { isPassageBatch, passageApproval, passageBatchVisibility, requirePassageBatchAccess } from "./passage-review";
 
 // Wiki change batches (docs/plans/wiki-change-batches.md). A batch stages
 // graph.apply operations over many calls; nothing is visible to graph reads
@@ -32,6 +34,7 @@ import { readSettings } from "./settings";
 // threshold, a review window that seals the rest, or a first discovery run.
 
 import { batchOperationCap, batchExpiryMs, batchPolicy, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, batchReviseInput, mutateBatchSubmissionInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
+import { evidenceList } from "@ai-outfitter/app-sdk/evidence";
 export { batchOperationCap, batchExpiryMs, policyThresholdFloor, batchPolicy, batchSource, batchOpenInput, batchAddInput, batchRemoveInput, batchIdInput, batchListInput, batchSubmitInput, batchReviewInput, recordHistoryInput, batchReviseInput, mutateBatchSubmissionInput, type BatchPolicy } from "@ai-outfitter/app-sdk/graph-contracts";
 const operation = graphChangeInput.shape.operations.element;
 
@@ -65,6 +68,7 @@ export const memberDecision = (who: AppIdentity, actor: AppActor, rest: Record<s
 export async function loadBatch(db: Database, id: string) {
   const [batch] = await db.select().from(graphBatches).where(eq(graphBatches.id, id));
   if (!batch) fail("Batch not found", 404);
+  await requirePassageBatchAccess(db, batch);
   return batch;
 }
 export const loadOperations = (db: Database, batchId: string) =>
@@ -90,8 +94,12 @@ export function reviewDeadline(policy: BatchPolicy, now: number) {
 /** How a batch records who opened it. */
 export const actorRef = (actor: AppActor) => `${actor.kind}:${actor.id}`;
 
-export async function openBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchOpenInput>) {
+export async function openBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchOpenInput>, id: string = crypto.randomUUID()) {
   requireEntityWriter(who);
+  if (isPassageBatch({ id, source: input.source ?? null })) {
+    if (actor.kind !== "app" || actor.id !== who.installationId) fail("The Wiki passage source is reserved", 403);
+    await requirePassageBatchAccess(db, { id, source: input.source ?? null }, true);
+  }
   // Only an app (Forerunner) opens a batch that commits by policy, and only it fills one (requireOpen).
   if (input.policy.kind !== "member" && actor.kind !== "app") fail("Only an app opens a batch that commits by policy", 403);
   if (input.policy.kind === "first-run") await requireFirstRun(db, input.source?.kind);
@@ -100,7 +108,6 @@ export async function openBatch(db: Database, who: AppIdentity, actor: AppActor,
   const root = input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
   const now = Date.now();
-  const id = crypto.randomUUID();
   await db.insert(graphBatches).values({
     id, title: input.title, purpose: input.purpose, source: input.source ?? null, policy: input.policy, anchors,
     state: "open", openedBy: who.userId, openedVia: actorRef(actor),
@@ -193,6 +200,7 @@ async function requireFirstRun(db: Database, kind: string | undefined) {
  * no entity writer unless it holds entities.write.delegated, which Forerunner does not. */
 export function requireOpen(batch: BatchRow, actor: AppActor) {
   if (batch.state !== "open") fail("The batch is no longer open", 409);
+  if (isPassageBatch(batch) && actorRef(actor) !== batch.openedVia) fail("Only the passage index may write to its draft", 403);
   if (batch.expiresAt <= Date.now()) fail("The batch has expired", 409);
   if ((batch.policy as { kind?: string }).kind !== "member" && (actor.kind !== "app" || batch.openedVia !== actorRef(actor)))
     fail("This batch commits by policy; stage changes in a batch a member reviews", 403);
@@ -264,6 +272,7 @@ export const batchConfigureInput = z.strictObject({ batchId: z.uuid(), anchors: 
 export async function configureBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchConfigureInput>) {
   requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
+  if (isPassageBatch(batch)) fail("Wiki passage anchors are set by the source review", 409);
   if (batch.state === "open") requireOpen(batch, actor);
   else if (batch.state !== "awaiting_review" || batch.policy.kind !== "member") fail("Anchors can only change in an open batch or a batch awaiting member review", 409);
   const anchors = await anchorIds(db, who, input.anchors);
@@ -343,9 +352,11 @@ function closeSelection(rows: OperationRow[], selected: Set<string>) {
 type Approval = Record<string, unknown>;
 
 /** Commit chosen operations in one graph.apply per 100, recording batch, evidence and approval. */
-async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow, rows: OperationRow[], refs: Set<string>, approval: (row: OperationRow) => Approval) {
+async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow, rows: OperationRow[], refs: Set<string>, approval: (row: OperationRow) => Approval, validateGraph?: Awaited<ReturnType<typeof passageApproval>>) {
   const committed = new Map(rows.filter((row) => row.state === "committed" && row.recordId).map((row) => [row.ref, row.recordId!]));
   const chosen = rows.filter((row) => refs.has(row.ref) && row.state !== "committed");
+  if (isPassageBatch(batch) && chosen.length > 100)
+    fail("Wiki passage proposals must fit in one graph commit", 409);
   for (let start = 0; start < chosen.length; start += 100) {
     const chunk = chosen.slice(start, start + 100);
     const operations = chunk.map((row) => resolveCommitted(row, committed));
@@ -357,8 +368,10 @@ async function commitOperations(db: Database, who: AppIdentity, batch: BatchRow,
       batchId: batch.id,
       proposedBy: batch.openedBy,
       approval: approval(chunk[0]),
-      evidence: Object.fromEntries(chunk.map((row) => [row.ref, row.evidence])),
+      evidence: Object.fromEntries(chunk.map((row) => [row.ref, isPassageBatch(batch)
+        ? evidenceList.parse(row.evidence).map(({ quote: _quote, ...citation }) => citation) : row.evidence])),
       precondition: reviewedRowsUnchanged(batch, chunk),
+      validateGraph,
       finalize: (saved, gate) => [
         ...chunk.map(row => sql`UPDATE graph_batch_operations SET state='committed',recordId=${saved[row.ref].id},recordRevision=${saved[row.ref].revision},decision=${JSON.stringify(approval(row))},decidedBy=${approval(row).kind === "member" ? who.userId : null}
           WHERE batchId=${batch.id} AND ref=${row.ref} AND ${gate}`),
@@ -384,6 +397,23 @@ function reviewedRowsUnchanged(batch: BatchRow, rows: OperationRow[]) {
       or r.evidence is not json_extract(e.value,'$.evidence') or r.confidence is not json_extract(e.value,'$.confidence')
       or r.reason is not json_extract(e.value,'$.reason')
       or r.decision is not json_extract(e.value,'$.decision'))`;
+}
+
+// Keep already-decided operations and committed revisions when a Wiki source
+// makes an undecided passage proposal obsolete. Execute with the source update.
+export function closePassageBatches(target: string, params: unknown[], reason: "source-superseded" | "source-unresolved") {
+  const now = Date.now();
+  const active = `SELECT id FROM graph_batches WHERE state IN ('open','awaiting_review') AND id IN (${target})`;
+  return [
+    statement(`UPDATE onto_review_jobs SET state='superseded',leaseId=NULL,leaseUntil=NULL
+      WHERE state IN ('pending','running') AND batchId IN (${active})`, ...params),
+    statement(`UPDATE graph_batch_operations SET state='rejected',decision=?
+      WHERE state IN ('pending','awaiting_review') AND batchId IN (${active})`, JSON.stringify({ kind: reason }), ...params),
+    statement(`UPDATE graph_batches SET state=CASE WHEN EXISTS (
+      SELECT 1 FROM graph_batch_operations WHERE batchId=graph_batches.id AND state='committed'
+    ) THEN 'committed' ELSE 'discarded' END,reviewBy=NULL,closedAt=?,updatedAt=?
+      WHERE id IN (${active})`, now, now, ...params),
+  ];
 }
 
 async function settle(db: Database, batchId: string) {
@@ -422,6 +452,7 @@ export async function submitBatch(db: Database, who: AppIdentity, actor: AppActo
   requireEntityWriter(who);
   const batch = await loadBatch(db, input.batchId);
   requireOpen(batch, actor);
+  await requirePassageBatchAccess(db, batch, true);
   const rows = live(await loadOperations(db, batch.id));
   const graph = await readGraph(db, who);
   const types = new Map(graph.types.map((type) => [type.id, type.name]));
@@ -521,6 +552,7 @@ async function validateRows(db: Database, who: AppIdentity, batch: Pick<BatchRow
 type ProposalEdit = Pick<z.infer<typeof batchReviseInput>, "proposals" | "remove">;
 
 async function proposedRows(db: Database, who: AppIdentity, batchId: string, batch: BatchRow | undefined, input: ProposalEdit, state: string) {
+  if (batch && isPassageBatch(batch)) fail("Wiki passage suggestions must be decided as submitted", 409);
   await requireAnsweredCitations(db, input.proposals.flatMap(item => item.evidence));
   const existing = batch ? await loadOperations(db, batch.id) : [];
   const byRef = new Map(existing.map(row => [row.ref, row]));
@@ -648,6 +680,7 @@ export async function mutateBatchSubmission(db: Database, who: AppIdentity, acto
   try {
     if (input.deleteBatch) return await discardOpenBatch(db, who, actor, origin, input, requestKey, hash);
     const [batch] = input.batchId ? await db.select().from(graphBatches).where(eq(graphBatches.id, input.batchId)) : [];
+    if (batch) await requirePassageBatchAccess(db, batch);
     return await writeBatchSubmission(db, who, actor, origin, input, batch, { requestKey, hash });
   } catch (error) {
     const completed = await replay();
@@ -661,6 +694,7 @@ async function discardOpenBatch(db: Database, who: AppIdentity, actor: AppActor,
   if (!batchId || title !== undefined || purpose !== undefined || source !== undefined || anchors !== undefined ||
       summary !== undefined || proposals.length || remove.length) fail("Deleting a draft takes only batchId, expectedVersion and requestKey");
   const batch = await loadBatch(db, batchId);
+  if (isPassageBatch(batch)) fail("Wiki passage suggestions must be decided as submitted", 409);
   if (batch.state !== "open" || batch.commits || batch.submittedVersion) fail("Only an open, never-submitted draft can be deleted", 409);
   const sameActor = batch.openedVia === actorRef(actor) && actorRef(actor) === actorRef(origin);
   const opener = sameActor && (batch.policy.kind === "member" ? batch.openedBy === who.userId : actor.kind === "app");
@@ -710,6 +744,7 @@ async function writeBatchSubmission(db: Database, who: AppIdentity, actor: AppAc
   }
 
   const batchId = batch?.id ?? input.batchId ?? crypto.randomUUID();
+  if (!batch && isPassageBatch({ id: batchId, source: input.source ?? null })) fail("The Wiki passage source is reserved", 403);
   const graph = await readGraph(db, who);
   const root = !batch && input.anchors === undefined ? await rootNode(db, who) : null;
   const anchors = batch ? batch.anchors : root ? [root] : input.anchors?.length ? await anchorIds(db, who, input.anchors) : null;
@@ -777,6 +812,10 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
   const waitingRefs = new Set(waiting.map(row => row.ref));
   const chosen = new Set(input.refs ? input.refs.filter(ref => waitingRefs.has(ref)) : waitingRefs);
   if (!chosen.size) fail("No waiting operations match", 409);
+  const passage = isPassageBatch(batch);
+  if (passage && input.verdict === "request_changes") fail("Wiki passage suggestions must be decided as submitted", 409);
+  if (passage && input.verdict === "reject" && chosen.size !== waiting.length)
+    fail("Reject the complete Wiki passage proposal together", 409);
   if (input.verdict === "approve" && !input.refs) {
     for (const row of waiting.filter(changesRequested)) chosen.delete(row.ref);
     if (!closeSelection(rows, chosen).size)
@@ -812,7 +851,10 @@ export async function reviewBatch(db: Database, who: AppIdentity, actor: AppActo
     const approved = withDependencies(rows, waiting, chosen);
     const heldDependency = waiting.find(row => approved.has(row.ref) && !chosen.has(row.ref) && changesRequested(row));
     if (heldDependency) fail(`Approve ${heldDependency.ref} explicitly before approving proposals that depend on it`, 409);
-    await commitOperations(db, who, batch, rows, approved, () => decision);
+    if (passage && (approved.size !== waiting.length || rows.length !== waiting.length))
+      fail("Approve the complete Wiki passage proposal together", 409);
+    const validateGraph = await passageApproval(db, batch, rows);
+    await commitOperations(db, who, batch, rows, approved, () => decision, validateGraph);
   }
   await settle(db, batch.id);
   return getBatch(db, who, { batchId: batch.id });
@@ -843,6 +885,8 @@ export async function stewardApprove(db: Database, who: AppIdentity, batchId: st
   const reasons = new Map<string, string>();
   const hold = (ref: string, reason: string) => { if (!reasons.has(ref)) reasons.set(ref, reason); };
   const holdAll = (reason: string) => { for (const row of waiting) hold(row.ref, reason); };
+  if (isPassageBatch(batch))
+    return { approved: 0, held: waiting.map(row => ({ ref: row.ref, reason: "Wiki passage suggestions require a member decision" })), at: Date.now() };
   for (const row of waiting.filter(changesRequested)) hold(row.ref, "changes were requested");
   if (!review.complete) holdAll("the review read only part of the batch");
   for (const item of review.findings.filter((finding) => finding.severity === "error" || finding.severity === "warning")) {
@@ -1001,7 +1045,7 @@ export async function changeRequests(db: Database, batchId: string) {
 
 export async function listBatches(db: Database, _who: AppIdentity, input: z.infer<typeof batchListInput>) {
   const batches = await db.select().from(graphBatches)
-    .where(input.state ? eq(graphBatches.state, input.state) : undefined)
+    .where(and(await passageBatchVisibility(db), input.state ? eq(graphBatches.state, input.state) : undefined))
     .orderBy(desc(graphBatches.updatedAt)).limit(input.limit);
   const counts = batches.length ? await db.select({ batchId: graphBatchOperations.batchId, state: graphBatchOperations.state, n: sql<number>`count(*)` })
     .from(graphBatchOperations).where(inArray(graphBatchOperations.batchId, batches.map((b) => b.id)))

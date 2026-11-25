@@ -6,6 +6,8 @@ import type { APIRoute } from "astro";
 import { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import { requestIdentity } from "@ai-outfitter/app-sdk/server";
 import { workflowHost, workflowPhaseHandler } from "@ai-outfitter/app-sdk/workflow-host";
+import { passageOnSchedule, passageWorkflow } from "../../../../server/passage-index";
+import { withPassageReviewHost } from "../../../../server/passage-review";
 import { sealOnSchedule } from "../../../../server/seal-timer";
 
 // The reserved workflow host route: only platform dispatch, with trusted props,
@@ -18,8 +20,10 @@ export const POST: APIRoute = ({ request, locals }) =>
       const host = workflowHost<"schedule">(locals);
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
       if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);
+      if (schedule.workflowId === passageWorkflow)
+        return withPassageReviewHost(() => identity, () => host, () => passageOnSchedule(identity, host, input));
       if (schedule.workflowId === reviewWorkflow) {
-        const reviewed = await processScheduledReview(installationDatabase(), identity, host, runId);
+        const reviewed = await withPassageReviewHost(() => identity, () => host, () => processScheduledReview(installationDatabase(), identity, host, runId));
         if (!reviewed?.runId) return { outcome: "declined", reason: reviewed?.error ?? "No current Onto review was available" };
         return reviewed.runId === runId ? { outcome: "started" } : { outcome: "resumed", runId: reviewed.runId };
       }

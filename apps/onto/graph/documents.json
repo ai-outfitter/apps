@@ -1189,6 +1189,55 @@
     }
   },
   {
+    "name": "EnableWikiPassageIndex",
+    "kind": "mutation",
+    "story": "As an organization editor, I want to explicitly enable recurring indexing for a Wiki I can access, so that members can discover its passages.",
+    "query": "mutation EnableWikiPassageIndex($wiki: WikiPassageTarget!) {\n  enableWikiPassageIndex(wiki: $wiki) {\n    id\n    workflowId\n    enabled\n    cron\n    timezone\n    nextRunAt\n  }\n}",
+    "hash": "ccfb8310f87d2abf3afdf7ec53702e6d5859a565caa00d2f2068a9ce23ada800",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "wiki": {
+          "description": "GraphQL WikiPassageTarget!"
+        }
+      },
+      "required": [
+        "wiki"
+      ]
+    },
+    "mcp": {
+      "description": "Organization editors can explicitly enable six-hour passage indexing for an accessible Wiki. Returns the schedule receipt."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "enableWikiPassageIndex": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "workflowId": {
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "cron": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "nextRunAt": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "Exploration",
     "kind": "query",
     "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",
@@ -2372,5 +2421,254 @@
       ]
     },
     "hidden": true
+  },
+  {
+    "name": "WikiPassageSearch",
+    "kind": "query",
+    "story": "As a member, I want to find indexed Wiki excerpts with precise citations, so that I can verify the source even before a graph link exists.",
+    "query": "query WikiPassageSearch($wiki: WikiPassageTarget!, $query: String!, $limit: Int, $after: String) {\n  wikiPassageSearch(wiki: $wiki, query: $query, limit: $limit, after: $after) {\n    passages {\n      id\n      text\n      source {\n        sourceId\n        version\n        pageSlug\n        pageRevision\n        revision\n        fileName\n        sha256\n        contentHash\n      }\n      locator {\n        kind\n        section\n        page\n        startMs\n        endMs\n        start\n        end\n      }\n    }\n    next\n  }\n}",
+    "hash": "5baede82f12c5367cf4107873d0b2c435a52164340e522f0f6ccd50ec5523212",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "wiki": {
+          "description": "GraphQL WikiPassageTarget!"
+        },
+        "query": {
+          "type": "string",
+          "description": "GraphQL String!"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        },
+        "after": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": [
+        "wiki",
+        "query"
+      ]
+    },
+    "mcp": {
+      "description": "Search indexed excerpts in a readable Wiki in this organization. Returns text, revision pins, locators and a continuation cursor."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "wikiPassageSearch": {
+          "type": "object",
+          "properties": {
+            "passages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "sourceId": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "pageSlug": {
+                        "type": "string"
+                      },
+                      "pageRevision": {
+                        "type": "integer"
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "nullable": true
+                      },
+                      "fileName": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "contentHash": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "locator": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      },
+                      "section": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "page": {
+                        "type": "integer",
+                        "nullable": true
+                      },
+                      "startMs": {
+                        "type": "number",
+                        "nullable": true
+                      },
+                      "endMs": {
+                        "type": "number",
+                        "nullable": true
+                      },
+                      "start": {
+                        "type": "integer"
+                      },
+                      "end": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "next": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "WikiPassageStatus",
+    "kind": "query",
+    "story": "As a member, I want to view passage indexing progress and held items, so that I can see what is pending and why.",
+    "query": "query WikiPassageStatus($wiki: WikiPassageTarget!, $limit: Int) {\n  wikiPassageProgress(wiki: $wiki) {\n    cursor\n    sweeps\n    updatedAt\n    lastError\n    indexedSources\n    pendingSources\n    sourceIssues\n    indexedPassages\n    pendingPassages\n    inferenceRetries\n    routed\n    pendingSuggestions\n    unresolved\n    routingRetries\n  }\n  wikiPassageHeldItems(wiki: $wiki, limit: $limit) {\n    sources {\n      sourceId\n      version\n      issue\n    }\n    suggestions {\n      id\n      sourceId\n      version\n      passageId\n      issue\n    }\n  }\n}",
+    "hash": "948c7eb0beb67f4b73dcac70d1f0c4055070484ad014f0ef4e00facf2ebf5d5c",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "wiki": {
+          "description": "GraphQL WikiPassageTarget!"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "GraphQL Int"
+        }
+      },
+      "required": [
+        "wiki"
+      ]
+    },
+    "mcp": {
+      "description": "Read Wiki passage indexing progress, extraction issues and held suggestion reasons in this organization."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "wikiPassageProgress": {
+          "type": "object",
+          "properties": {
+            "cursor": {
+              "type": "string",
+              "nullable": true
+            },
+            "sweeps": {
+              "type": "integer"
+            },
+            "updatedAt": {
+              "type": "number",
+              "nullable": true
+            },
+            "lastError": {
+              "type": "string",
+              "nullable": true
+            },
+            "indexedSources": {
+              "type": "integer"
+            },
+            "pendingSources": {
+              "type": "integer"
+            },
+            "sourceIssues": {
+              "type": "integer"
+            },
+            "indexedPassages": {
+              "type": "integer"
+            },
+            "pendingPassages": {
+              "type": "integer"
+            },
+            "inferenceRetries": {
+              "type": "integer"
+            },
+            "routed": {
+              "type": "integer"
+            },
+            "pendingSuggestions": {
+              "type": "integer"
+            },
+            "unresolved": {
+              "type": "integer"
+            },
+            "routingRetries": {
+              "type": "integer"
+            }
+          }
+        },
+        "wikiPassageHeldItems": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sourceId": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "issue": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "suggestions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "sourceId": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "passageId": {
+                    "type": "string"
+                  },
+                  "issue": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 ]
