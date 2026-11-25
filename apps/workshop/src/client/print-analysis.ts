@@ -96,16 +96,19 @@ function partSummary(part: Part | undefined, name: string, quantity: number, loc
     const messages = { pass: "Printability check passed", warning: "Printability warning", fail: "Printability check failed" };
     section.append(text("p", messages[result.status]));
     if (result.message) section.append(text("p", result.message));
-    if (result.support_heights_mm?.length) {
-      const heights = result.support_heights_mm.map(height => `Z ${grams.format(height)} mm`);
-      section.append(text("p", "Support at " + heights.join(", ")));
-    }
     if (result.findings?.length) {
       const findings = document.createElement("ul");
       for (const finding of result.findings) {
         findings.append(text("li", `Z ${grams.format(finding.z_mm)} mm · ${grams.format(finding.unsupported_area_mm2)} mm² unsupported`));
       }
       section.append(findings);
+    }
+    if (result.support_heights_mm?.length) {
+      const heights = result.support_heights_mm.map(height => `Z ${grams.format(height)} mm`);
+      const supports = document.createElement("details");
+      supports.append(text("summary", `Support extrusion on ${heights.length} ${heights.length === 1 ? "layer" : "layers"}`),
+        text("p", heights.join(", ")));
+      section.append(supports);
     }
   } else {
     const messages = { pending: "Printability check pending", stale: "Printability check stale", error: "Printability check unavailable", completed: "Printability check pending" };
