@@ -151,3 +151,17 @@ checks solids and project-supplied interference tests, and writes `manifest.json
 Customer models and eval inputs stay in customer repositories/private mounts.
 Unmeasured physical properties stay explicitly unverified. Animation and
 Kubernetes activation require subsequent work; this local harness proves neither.
+
+### Publishing the print preflight runner
+
+The fabrication gateway calls the sealed STL runner on its private listener.
+The Workshop runner CI builds and checks the image for every change. Publish a
+reviewed runner from the apps checkout with `box/workspace/publish-preflight.sh`
+after authenticating the container engine to GHCR with write access to
+`ai-outfitter/workspace-runtime`. The script verifies the image, uses a dedicated
+`workshop-preflight-<source hash>` tag, and prints the immutable reference for
+the platform deployment. It reuses and checks a published tag on rerun.
+The platform deployment starts
+`/opt/cad/bin/python /opt/workshop/preflight_http.py` and sets the private
+listener address. Before changing the deployment, confirm that a registry
+pull using an empty authentication file resolves the printed digest.

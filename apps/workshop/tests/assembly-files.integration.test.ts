@@ -15,14 +15,24 @@ test("an attachment preserves the saved assembly, checks the file and requires t
  try {
   const created=await app.call("/api/apps/workshop/projects",member,{method:"POST",body:{example:"cube"}});
   const project=ProjectSchema.parse(await created.json());
-  const itemId=randomUUID();
-  const graph=async(name:"UploadWorkshopAssemblyFile"|"VerifyWorkshopAssemblyFile"|"UpdateWorkshopAssembly",variables:unknown)=>{
-   const response=await app.call("/api/internal/actions/v1/call",member,{method:"POST",body:{action:name==="VerifyWorkshopAssemblyFile"?"graph.graphql":"graph.mutate",input:{query:documentText(documents[name].document),variables}}});
+  const itemId=randomUUID(), partId=randomUUID();
+  const graph=async(name:"UploadWorkshopAssemblyFile"|"VerifyWorkshopAssemblyFile"|"UpdateWorkshopAssembly"|"WorkshopPrint",variables:unknown)=>{
+   const response=await app.call("/api/internal/actions/v1/call",member,{method:"POST",body:{action:name==="VerifyWorkshopAssemblyFile"||name==="WorkshopPrint"?"graph.graphql":"graph.mutate",input:{query:documentText(documents[name].document),variables}}});
    const result=await response.json() as any;
    if(result.errors)throw Error(result.errors[0].message);
    return Object.values(result.data)[0] as any;
   };
-  const {revision}=await graph("UpdateWorkshopAssembly",{projectId:project.id,expectedRevision:project.revision,assembly:{rootId:itemId,items:[{id:itemId,number:"part",revision:"A",name:"Fixture",kind:"assembly"}]}});
+  const {revision}=await graph("UpdateWorkshopAssembly",{projectId:project.id,expectedRevision:project.revision,assembly:{
+    rootId:itemId,items:[
+      {id:itemId,number:"fixture",revision:"A",name:"Fixture",kind:"assembly",
+        uses:[{id:randomUUID(),itemId:partId,refdes:"P1",quantity:2,position:[0,0,0]}]},
+      {id:partId,number:"part",revision:"A",name:"Fixture part",kind:"printed"},
+    ],
+  }});
+  const print=await graph("WorkshopPrint",{input:{projectId:project.id}});
+  assert.equal(print.parts[0].state,"pending");
+  assert.equal(print.parts[0].quantity,2);
+  assert.equal(print.parts[0].sha256,undefined);
   const bytes=Buffer.from("ISO-10303-21;\nEND-ISO-10303-21;");
   const verify={projectId:project.id,itemId,fileName:"fixture.step"};
   const input={...verify,expectedRevision:revision,bytes:bytes.length,sha256:createHash("sha256").update(bytes).digest("hex")};

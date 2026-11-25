@@ -22,6 +22,7 @@ const answers: Record<string, unknown> = {
   "entities.get": entity,
   "entities.create": entity,
   "entities.update": { ...entity, revision: 2, title: "Updated", attributes: { title: "Updated" } },
+  "fabrication.preflight": {id:"a".repeat(64),profile:"b".repeat(64),state:"queued"},
   "graph.documents": { appDocuments: [], documents: [] },
   "graph.graphql": { data: {} },
   "actions.list": [{ installationId: "provider", actions: [{ name: "record.touch", description: "Touch a record", access: "write", permitted: true, input: { type: "object" }, output: { type: "object" } }] }],

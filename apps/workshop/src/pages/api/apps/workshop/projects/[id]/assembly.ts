@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { readJSON, respond } from "@ai-outfitter/app-sdk/server";
 import { AssemblyReferenceSchema } from "../../../../../../lib/assembly";
 import { resolvedProject } from "../../../../../../server/assembly-references";
+import { readWorkshopPrint } from "../../../../../../server/print-analysis";
 import { assemblyUpdateBody } from "../../../../../../server/projects";
 import { workshopContext } from "../../../../../../server/context";
 import { documents, runDocument } from "../../../../../../server/documents";
@@ -21,5 +22,10 @@ export const GET: APIRoute = ({params, request, locals}) => respond(async () => 
   const ref=AssemblyReferenceSchema.safeParse({projectId:params.id,parameters,configuration:query.get("configuration")??undefined,
     revision:query.has("revision")?Number(query.get("revision")):undefined});
   if(!ref.success) throw new Response("Invalid assembly selection",{status:400});
-  return resolvedProject(workshopContext(request,locals).db(),ref.data);
+  const context = workshopContext(request, locals);
+  const resolved = await resolvedProject(context.db(), ref.data);
+  if (query.get("view") === "print") {
+    return { revision: resolved.revision, ...await readWorkshopPrint(context, resolved.projectId, resolved) };
+  }
+  return resolved;
 });
