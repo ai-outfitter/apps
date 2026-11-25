@@ -1,14 +1,14 @@
 import { wikiDocuments, wikiPackage } from "@ai-outfitter/app-sdk/wiki-documents";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
-import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { z } from "zod";
-import { dailyBriefSchedule } from "./daily-brief";
+import { briefSlug, briefTimezone as timezone } from "./brief-config";
+export { briefSlug } from "./brief-config";
+import { briefSlotReceipt, dailyBriefSchedule, dailyBriefWorkflow } from "./daily-brief";
 import { readDayReview } from "./day-review";
 import { listItems, type Database } from "./items";
 import { localDate, shiftDate } from "./review-period";
 
-const timezone = z.string().min(1).max(64).refine(value => { try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; } });
 /** What a homepage can read on its own: the saved digest, board priorities, yesterday's reports, last week's. */
 export const dailyHomeSections = ["digest", "priorities", "review", "history"] as const;
 export type DailyHomeSection = (typeof dailyHomeSections)[number];
@@ -32,9 +32,6 @@ export function dailyHomeDates(now: number, zone: string) {
   const weekEnd = shiftDate(date, -(weekday || 7)), weekStart = shiftDate(weekEnd, -6);
   return { date, yesterday, weekStart, weekEnd, weekDates: Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index)) };
 }
-
-export const briefSlug = async (owner: AppIdentity, date: string, zone: string) =>
-  `forerunner-brief-${date}-${await stableGraphId(owner.owner, owner.installationId, zone)}`;
 
 type Timings = Record<string, number>;
 const timed = async <T>(timings: Timings, name: string, work: () => Promise<T>) => {
@@ -81,6 +78,22 @@ export async function savedBrief(host: Host, owner: AppIdentity, date: string, z
   return (await savedBriefs(host, owner, date, zone)).current;
 }
 
+async function latestBriefRun(host: Host, date: string, zone: string) {
+  try {
+    const { items } = await host.call("workflow.activity", { workflows: [dailyBriefWorkflow], limit: 8 });
+    const latest = items.find(run => localDate(run.createdAt, zone) === date);
+    if (!latest) return null;
+    const detail = await host.call("workflow.read", { id: latest.id });
+    const slot = detail?.outputs["collect.outputs.brief"];
+    const receipt = slot?.complete ? briefSlotReceipt.safeParse(slot.value).data : undefined;
+    if (receipt?.date === date) return { ...receipt, runId: latest.id };
+    if (latest.status === "running") return { date, status: "running" as const, runId: latest.id };
+    return { date, status: "failed" as const, reason: "The run did not record a brief result.", runId: latest.id };
+  } catch {
+    return { date, status: "unavailable" as const };
+  }
+}
+
 /**
  * A homepage snapshot from saved, authorized records. It never starts
  * generation, a workflow, a connector read or a schedule write. With
@@ -110,11 +123,12 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
       return { current: null, previous: null, latest: null, briefState: "unavailable" as const };
     }
   };
-  const [briefs, priorities, priorDay, weekDays] = await Promise.all([
+  const [briefs, priorities, priorDay, weekDays, briefRun] = await Promise.all([
     sections.has("digest") ? digest() : null,
     board,
     sections.has("review") ? timed(timings, "review", () => readDayReview(db, identity, host, { date: yesterday, timezone: zone }, now)) : null,
     sections.has("history") ? timed(timings, "history", () => Promise.all(weekDates.map(day => readDayReview(db, identity, host, { date: day, timezone: zone }, now)))) : null,
+    sections.has("digest") ? timed(timings, "briefRun", () => latestBriefRun(host, date, zone)) : null,
   ]);
   if (briefs) {
     if (!schedule) warnings.push("The personal daily brief schedule has not been set up.");
@@ -126,7 +140,7 @@ export async function readDailyHome(db: Database, identity: AppIdentity, host: H
       scheduleSetupRequired: !schedule, schedule: schedule ?? null, brief: briefs.current, previousBrief: briefs.previous,
       // Today's brief is saved, missing, or could not be read. A missing one may still show the last dated snapshot.
       briefState: briefs.briefState === "unavailable" ? "unavailable" as const : briefs.current ? "saved" as const : "missing" as const,
-      latestBrief: briefs.latest,
+      latestBrief: briefs.latest, briefRun,
     } : {}),
     ...(priorities ? { priorities: priorities.filter(item => item.status !== "done").slice(0, 30).map(item => ({ id: item.id, title: item.title, category: item.category, status: item.status, dueDate: item.dueDate })) } : {}),
     ...(priorDay ? { yesterday: priorDay } : {}),

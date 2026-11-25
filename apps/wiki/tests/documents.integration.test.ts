@@ -185,3 +185,38 @@ test('document navigation retains authorized personal and organization mounts wi
   }finally{await app.dispose();}
  }
 });
+
+
+test("exact Wiki activity links open only the installed member's authored document revisions", async t => {
+  const app = await appWorker("wiki-map", new URL("../.outfitter/packages/operational.json", import.meta.url));
+  t.after(() => app.dispose());
+  const created = await app.call(api, owner, { method: "POST", body: {
+    operation: "SaveDocument", variables: { input: { title: "Historical evidence", body: "Authored native body." } },
+  } });
+  assert.equal(created.status, 200);
+  const { saveDocument } = await created.json() as { saveDocument: { id: string; revision: number } };
+  const native = `/revision/document/${saveDocument.id}?revision=${saveDocument.revision}`;
+  assert.equal((await app.call(native)).status, 401);
+  const readable = await app.call(native, member);
+  assert.equal(readable.status, 200);
+  assert.match(await readable.text(), /Authored native body/);
+  await app.database.prepare("UPDATE wiki_documents SET archived=1 WHERE id=?").bind(saveDocument.id).run();
+  assert.equal((await app.call(native, member)).status, 404);
+
+  const legacy = "/revision/legacy/legacy-draft?revision=1";
+  await app.database.batch([
+    app.database.prepare("INSERT INTO graph_nodes(id,typeId,slug,title,revision,createdAt,updatedAt) VALUES('legacy-draft',(SELECT id FROM graph_types WHERE name='Document'),'draft','Head',2,1,2)"),
+    app.database.prepare("INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,snapshot,createdAt) VALUES('graph-node','legacy-draft',1,'fixture','{}',?,1)")
+      .bind(JSON.stringify({ title: "Legacy revision", body: "Exact legacy body." })),
+  ]);
+  const prior = await app.call(legacy, member);
+  assert.equal(prior.status, 200);
+  assert.match(await prior.text(), /Exact legacy body/);
+  await app.database.prepare("UPDATE graph_nodes SET typeId=(SELECT id FROM graph_types WHERE name='Person') WHERE id='legacy-draft'").run();
+  assert.equal((await app.call(legacy, member)).status, 404);
+  await app.database.batch([
+    app.database.prepare("UPDATE graph_nodes SET typeId=(SELECT id FROM graph_types WHERE name='Document') WHERE id='legacy-draft'"),
+    app.database.prepare("INSERT INTO wiki_documents(id,revision,archived,legacyNodeId,createdAt,updatedAt) VALUES('archived-legacy-copy',2,1,'legacy-draft',1,2)"),
+  ]);
+  assert.equal((await app.call(legacy, member)).status, 404);
+});

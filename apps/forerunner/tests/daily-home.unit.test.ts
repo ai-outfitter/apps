@@ -45,7 +45,7 @@ async function wikiHost(saved: Record<string, Saved>, extra: (operation: string)
 const noon = Date.parse("2026-11-12T18:00:00Z");
 const schedules = (operation: string) => operation === "schedules"
   ? [{ id: "s", workflowId: "forerunner-daily-brief", timezone: "America/Chicago", cron: "0 5 * * *", enabled: true }]
-  : refuse(operation);
+  : operation === "workflow.activity" ? { items: [] } : refuse(operation);
 
 test("DailyHome reads an exact Wiki revision with redacted provenance through authorized read actions", async () => {
   const { host, calls } = await wikiHost({ "2026-11-12": { id: "doc", revision: 4, generatedBody: "# Saved brief" } });
@@ -75,10 +75,10 @@ test("the digest section reads the saved brief without reports, priorities, gene
   assert.equal(result.latestBrief, null);
   assert.equal(result.schedule?.timezone, "America/Chicago");
   assert.ok(!("yesterday" in result) && !("priorities" in result) && !("previousWeek" in result));
-  // One schedule read and one Wiki request, addressed by package name. No discovery, no page lookup.
-  assert.deepEqual(calls.map(call => call.operation === "actions.call" ? call.action : call.operation), ["schedules", "graph.graphql"]);
-  assert.equal(calls[1].template, "wiki-map");
-  assert.deepEqual(Object.keys(result.timings).sort(), ["briefRead", "schedule"]);
+  // A schedule read, a read-only run lookup and a Wiki request by package name.
+  assert.deepEqual(calls.map(call => call.operation === "actions.call" ? call.action : call.operation), ["schedules", "workflow.activity", "graph.graphql"]);
+  assert.equal(calls[2].template, "wiki-map");
+  assert.deepEqual(Object.keys(result.timings).sort(), ["briefRead", "briefRun", "schedule"]);
   assert.ok(Object.values(result.timings).every(value => typeof value === "number"));
 });
 
@@ -128,4 +128,17 @@ test("a section given its time zone reads neither the schedule nor the Wiki", as
     assert.deepEqual(calls, []);
     assert.ok(!("brief" in result) && !("schedule" in result));
   } finally { client.close(); }
+});
+
+
+test("Today reports the brief's failed output even when the outer workflow is complete", async () => {
+  const { host } = await wikiHost({}, operation => {
+    if (operation === "workflow.activity") return { items: [{ id: "brief-run", status: "complete", createdAt: noon }] };
+    if (operation === "workflow.read") return { outputs: {
+      "collect.outputs.brief": { complete: true, value: { date: "2026-11-12", status: "failed", reason: "Model unavailable." } },
+    } };
+    return schedules(operation);
+  });
+  const result = await readDailyHome({} as never, alice, host, { sections: ["digest"] }, noon);
+  assert.deepEqual(result.briefRun, { date: "2026-11-12", status: "failed", reason: "Model unavailable.", runId: "brief-run" });
 });

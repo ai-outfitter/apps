@@ -322,3 +322,38 @@ test('install time does not require a cutover but edited seed definitions do',as
   } finally {sqlite.close();}
  }
 });
+
+test("Wiki revision activity pages both stores, deduplicates cutover copies, and excludes generated digests", async () => {
+  const { db, sqlite } = fixture();
+  try {
+    const { documents } = await import("../src/documents/documents");
+    const { serveGraphql } = await import("@ai-outfitter/app-sdk/app-graphql");
+    const day = Date.parse("2026-11-24T06:00:00.000Z");
+    sqlite.prepare("INSERT INTO wiki_documents(id,revision,createdAt,updatedAt) VALUES('authored',1,?,?)").run(day, day);
+    sqlite.prepare("INSERT INTO wiki_document_revisions(documentId,revision,title,createdAt) VALUES('authored',1,'Author draft',?)").run(day);
+    sqlite.prepare("INSERT INTO wiki_pages(id,slug,documentId,updatedAt) VALUES('native-page','native-page','authored',?)").run(day);
+    sqlite.prepare("INSERT INTO graph_nodes(id,typeId,slug,title,revision,createdAt,updatedAt) VALUES('late-legacy',(SELECT id FROM graph_types WHERE name='Document'),'older-page','Head',1,?,?)").run(day, day);
+    sqlite.prepare("INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','late-legacy',1,'member','{}','[]','{\"title\":\"Ledger draft\"}',?)").run(day);
+    // An imported copy of a graph ledger revision is reported only once.
+    sqlite.prepare("INSERT INTO graph_revisions(kind,recordId,revision,proposedBy,approval,evidence,snapshot,createdAt) VALUES('graph-node','legacy',3,'member','{}','[]','{\"title\":\"Copied draft\"}',?)").run(day);
+    sqlite.prepare("INSERT INTO wiki_document_revisions(documentId,revision,title,createdAt) VALUES('legacy',3,'Copied draft',?)").run(day);
+    sqlite.prepare("INSERT INTO wiki_documents(id,revision,createdAt,updatedAt) VALUES('digest',1,?,?)").run(day, day);
+    sqlite.prepare("INSERT INTO wiki_document_revisions(documentId,revision,title,provenance,createdAt) VALUES('digest',1,'Not activity','{\"kind\":\"planning.daily-report\"}',?)").run(day);
+    async function read(start: string, end: string, after?: string) {
+      const answer = await serveGraphql({ schema: graphqlSchema, query: documents.WikiRevisionActivity.document as string,
+        variables: { start, end, first: 2, ...(after ? { after } : {}) }, context: { database: db, identity: who }, operation: "query" });
+      assert.equal(answer.errors, undefined, JSON.stringify(answer.errors));
+      return answer.data!.wikiRevisionActivity as { nodes: { id: string; title: string; store: string }[]; pageInfo: { endCursor: string; hasNextPage: boolean } };
+    }
+    const start = "2026-11-24T06:00:00.000Z", end = "2026-11-25T06:00:00.000Z";
+    const first = await read(start, end), second = await read(start, end, first.pageInfo.endCursor);
+    assert.ok(first.pageInfo.hasNextPage);
+    assert.equal(second.pageInfo.hasNextPage, false);
+    assert.deepEqual([...first.nodes, ...second.nodes].map(row => [row.id, row.title, row.store]), [
+      ["authored", "Author draft", "document"], ["late-legacy", "Ledger draft", "legacy"], ["legacy", "Copied draft", "document"],
+    ]);
+    assert.deepEqual((await read(end, "2026-11-26T06:00:00.000Z")).nodes, []);
+    sqlite.prepare("INSERT INTO wiki_documents(id,revision,archived,legacyNodeId,createdAt,updatedAt) VALUES('stored-copy',1,1,'late-legacy',?,?)").run(day, day);
+    assert.deepEqual((await read(start, end)).nodes.map(row => row.id), ["authored", "legacy"]);
+  } finally { sqlite.close(); }
+});

@@ -1,5 +1,6 @@
 type Query {
   dailyAppUpdates(first: Int = 100, after: String, ids: [ID!], date: String!): AppDailyUpdateConnection!
+  wikiRevisionActivity(first: Int = 100, after: String, ids: [ID!], start: String!, end: String!): WikiRevisionActivityConnection!
 
   """
   Read a generated document series. Defaults to its greatest version (lexical order) and that document's current draft revision. Supply version and revision to pin both.
@@ -40,6 +41,27 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+type WikiRevisionActivityConnection {
+  edges: [WikiRevisionActivityConnectionEdge!]!
+  nodes: [WikiRevisionActivity!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type WikiRevisionActivityConnectionEdge {
+  cursor: String!
+  node: WikiRevisionActivity!
+}
+
+type WikiRevisionActivity {
+  id: ID
+  slug: String
+  revision: Int
+  title: String
+  createdAt: String
+  store: String
 }
 
 type WikiDocumentVersion {

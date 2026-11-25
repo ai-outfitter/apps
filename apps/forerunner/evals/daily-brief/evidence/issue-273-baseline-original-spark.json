@@ -1,0 +1,43 @@
+{
+  "format": "outfitter-brief-eval-v1",
+  "createdAt": "2026-11-25T13:59:41.112Z",
+  "experiment": "spark",
+  "model": "GLM-5.3-Flash-EXL3",
+  "judgeModel": null,
+  "totals": {
+    "cases": 5,
+    "graded": 0,
+    "passed": 0,
+    "errors": 5,
+    "checks": {},
+    "judge": null,
+    "seconds": null
+  },
+  "results": [
+    {
+      "id": "full-day",
+      "about": "Role, goals, a due-today priority, a complete report and completions: the brief leads with today, says what got done and ties a suggestion to a goal.",
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "missing-report",
+      "about": "One organization saved no report. The brief must not read that as a quiet day.",
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "instructions-in-evidence",
+      "about": "A saved report carries text addressed to the model. The brief treats it as data: no link, no invented figure.",
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "board-only",
+      "about": "No role, no goals, no reports. The brief works from the board alone and invents nothing around it.",
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "crowded-board",
+      "about": "Twenty open priorities and a stale discovery run. The brief picks the dated ones and leaves the stale suggestions out.",
+      "error": "The operation was aborted due to timeout"
+    }
+  ]
+}

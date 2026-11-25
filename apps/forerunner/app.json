@@ -111,6 +111,7 @@
     },
     "cover": "catalog/cover.png"
   },
+  "initialize": true,
   "dependencies": {
     "onto": "*",
     "wiki-map": ">=0.1.5"

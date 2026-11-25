@@ -10,7 +10,7 @@ test("schedule reads never enable it; explicit saves preserve enabled=false and 
   const host = { call: async (op: string, input: unknown) => { calls.push([op, input]); return op === "schedules" ? [] : input; } } as never;
   assert.equal(await dailyBriefSchedule(host, who), null);
   await setDailyBriefSchedule(host, who, { enabled: false, timezone: "America/Chicago" });
-  assert.deepEqual(calls, [["schedules", {}], ["schedule.save", { workflow: "forerunner-daily-brief", cron: "0 5 * * *", enabled: false, timezone: "America/Chicago", inputs: {} }]]);
+  assert.deepEqual(calls, [["schedules", {}], ["schedules", {}], ["schedule.save", { workflow: "forerunner-daily-brief", cron: "0 5 * * *", enabled: false, timezone: "America/Chicago", inputs: {} }]]);
   await assert.rejects(() => setDailyBriefSchedule(host, { ...who, owner: { kind: "organization", id: "org" } }, { enabled: true, timezone: "America/Chicago" }), /./);
   await assert.rejects(() => setDailyBriefSchedule(host, who, { enabled: true, timezone: "invalid/zone" }));
 });
@@ -31,7 +31,7 @@ test("the default daily brief schedule is saved once and never overrides a saved
   // No schedule at all: one enabled 05:00 schedule in the device's time zone, with no connection.
   const fresh = hostWith([{ workflowId: "forerunner-discovery", cron: "0 6 * * *", timezone: "UTC", enabled: true }]);
   const first = await setDailyBriefSchedule(fresh.host, who, { enabled: true, timezone: "America/Chicago", ifUnset: true });
-  assert.deepEqual(fresh.saved, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: true, inputs: {} }]);
+  assert.deepEqual(fresh.saved, [{ workflow: "forerunner-daily-brief", cron: "0 5 * * *", timezone: "America/Chicago", enabled: true, inputs: {}, ifUnset: true }]);
   assert.equal((first as { enabled: boolean }).enabled, true);
   // Repeating it, from another device in another zone, saves nothing more.
   await defaultDailyBriefSchedule(fresh.host, who, "Europe/London");
@@ -169,7 +169,7 @@ async function fixture(model: (data: ReturnType<typeof modelData>, instructions:
   const log = { writes: 0, inferences: [] as { data: ReturnType<typeof modelData>; instructions: string; runId: string }[], collected: [] as Record<string, unknown>[], started: [] as string[] };
   let beforeWrite = async () => {};
   const host = { call: async (op: string, args: any) => {
-    if (op === "schedules") return [{ id: "schedule", timezone: "America/Chicago" }];
+    if (op === "schedules") return [{ id: "schedule", timezone: "America/Chicago", enabled: true }];
     if (op === "workflow.start") { log.started.push(args.id); return {}; }
     if (op === "workflow.collect") { assert.equal(args.complete, true); log.collected.push(args.value); return {}; }
     if (op === "inference.generate") { log.inferences.push({ data: args.data, instructions: args.instructions, runId: args.runId }); return { output: await model(args.data, args.instructions) }; }
@@ -220,14 +220,17 @@ test("capture writes one owner-scoped Wiki document with provenance, reuses unch
     assert.equal(f.log.inferences.length, 1);
     // The scheduled path is the same generation: it starts a run and settles its output.
     const runId = crypto.randomUUID();
-    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
+    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, trigger: "manual", scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
     assert.deepEqual(f.log.started, [runId]);
+    assert.equal(f.log.collected.at(-1)?.outcome, "saved");
+    assert.equal(f.log.writes, 2);
+    assert.deepEqual(await scheduledDailyBrief(f.db, who, { runId, trigger: "manual", scheduledFor: now, schedule: { id: "schedule", workflowId: "forerunner-daily-brief", inputs: {}, connectionId: null, resource: null } }, f.host, now), { outcome: "started" });
     assert.equal(f.log.collected.at(-1)?.outcome, "unchanged");
-    assert.equal(f.log.writes, 1);
+    assert.equal(f.log.writes, 2);
     const saved = f.stored.get(first.slug);
     if (saved) saved.archived = true;
     await assert.rejects(() => captureDailyBrief(f.db, who, f.host, { ...run, runId: "again" }, now), e => e instanceof Response && e.status === 409);
-    assert.equal(f.log.writes, 1);
+    assert.equal(f.log.writes, 2);
   } finally { f.close(); }
 });
 
@@ -339,4 +342,60 @@ test("the brief reads personal and organization app updates over all Wiki result
     "/apps/wiki-map/p/app-daily-abc?revision=3","/o/team-a/wiki-map/p/app-daily-abc?revision=3","/o/team-b/wiki-map/p/app-daily-abc?revision=3",
   ]);
   assert.ok(gaps.some(gap=>gap.includes("team-b")&&gap.includes("incomplete")));
+});
+
+
+test("the brief cites an Onto report from another reporting timezone without claiming exact local-day coverage", () => {
+  const { evidence, gaps } = gatherEvidence(inputs({ appUpdates: { complete: true, rows: [{
+    id: "onto-report", slug: "ledger", revision: 2, scope: "personal", app: "Onto", timezone: "America/Los_Angeles",
+    summary: "Two committed revisions.", complete: true,
+  }] } }));
+  assert.ok(evidence.some(row => row.href?.endsWith("/ledger?revision=2") && row.text.includes("America/Los_Angeles")));
+  assert.ok(gaps.some(gap => gap.includes("different local-day boundary")));
+});
+
+test("a declined discovery occurrence is a known gap and does not hold the brief", async () => {
+  const { briefDependencies } = await import("../src/server/brief-dependencies");
+  const at = Date.parse("2026-11-25T13:00:00.000Z");
+  const host = { call: async () => { throw new Error("A declined occurrence has no run"); } } as never;
+  const result = await briefDependencies(host, [{
+    id: "discovery", workflowId: "forerunner-discovery", cron: "0 7 * * *", timezone: "America/Chicago",
+    inputs: { "analyze.inputs.label": "Fixtures" }, connectionId: "connection", resource: "account",
+    createdBy: "alice", enabled: true, lastRunAt: at, lastRunId: null, lastOutcome: "skipped: declined by app",
+    nextRunAt: at + 24 * 3_600_000,
+  }], "2026-11-25", "America/Chicago", at);
+  assert.equal(result.waiting, false);
+  assert.deepEqual(result.gaps, ["Discovery (Fixtures): this morning's occurrence failed or was declined."]);
+});
+
+
+test("unsupported Wiki authorship is left out of the saved brief while exact attributed sources remain", async () => {
+  const input = inputs({ wikiActivity: { complete: true, rows: [{
+    id: "revision", slug: "handoff-notes", revision: 3, scope: "personal", store: "document",
+    title: "Handoff notes", createdAt: "2026-11-10T16:00:00.000Z",
+  }] } });
+  const { evidence, gaps } = gatherEvidence(input);
+  const wiki = evidence.find(row => row.kind === "wiki-activity")!;
+  const answer: BriefAnswer = {
+    opening: { text: "You authored the Wiki revision.", evidence: [wiki.ref] },
+    highlights: [{ text: "The member wrote the notes.", kind: "fact", evidence: [wiki.ref] }],
+    attention: [{ text: "Review the handoff", why: "You edited it yesterday.", goal: null, evidence: [wiki.ref] }],
+    unsupported: [],
+  };
+  const saved = renderBrief(input, evidence, gaps, answer, await evidenceDigest(input, evidence, gaps));
+  assert.doesNotMatch(saved, /You authored|The member wrote|You edited/i);
+  assert.match(saved, /The saved Wiki activity appears below/);
+  assert.match(saved, /Handoff notes.*document revision 3/);
+  assert.match(saved, /handoff-notes\?revision=3/);
+});
+
+
+test("the saved prose uses the correct weekday for an explicitly repeated reporting date", async () => {
+  const input = inputs({ date: "2026-11-25" });
+  const { evidence, gaps } = gatherEvidence(input);
+  const answer: BriefAnswer = { opening: { text: "Brief for Tuesday, 2026-11-25.", evidence: [evidence[0].ref] },
+    highlights: [], attention: [], unsupported: [] };
+  const saved = renderBrief(input, evidence, gaps, answer, await evidenceDigest(input, evidence, gaps));
+  assert.ok(saved.includes("Brief for Wednesday, 2026-11-25."));
+  assert.ok(!saved.includes("Brief for Tuesday, 2026-11-25."));
 });

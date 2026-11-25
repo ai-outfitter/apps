@@ -2,7 +2,8 @@ import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
 import type { DayReview, ReportSource } from "./day-review";
-import type { AppUpdates } from "./app-updates";
+import { wikiRevisionHref, type AppUpdates, type WikiActivity } from "./app-updates";
+import type { DiscoveryReceipt } from "./brief-dependencies";
 import type { PlanningWork } from "./planning-work";
 
 // The daily digest is written by one model answer over saved, authorized evidence.
@@ -24,12 +25,15 @@ export type BriefInputs = {
   /** Issues in progress in the member's organizations' Planning. Absent means it was not read. */
   work?: PlanningWork;
   appUpdates?: AppUpdates;
+  wikiActivity?: WikiActivity;
+  dependencyGaps?: string[];
+  discoveryReceipts?: DiscoveryReceipt[];
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
 };
-type Kind = "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
+type Kind = "wiki-activity" | "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
 export type Evidence = {
   ref: string; kind: Kind;
   /** What the member reads in the source list. */
@@ -51,7 +55,7 @@ const usable = (source: ReportSource) => source.status === "complete" || source.
  * saved role and the last discovery run's saved suggestions.
  */
 export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps: string[] } {
-  const evidence: Evidence[] = [], gaps: string[] = [];
+  const evidence: Evidence[] = [], gaps: string[] = [...(input.dependencyGaps ?? [])];
   const add = (kind: Kind, prefix: string, item: Omit<Evidence, "ref" | "kind">) => evidence.push({ ref: `${prefix}${evidence.filter(row => row.kind === kind).length + 1}`, kind, ...item });
   const role = input.role.role?.title;
   if (input.role.status === "ready" && role) add("responsibility", "role", { label: `Your role: ${cut(role, 120)}`, text: cut(`${role}. ${input.role.role?.reasoning ?? ""}`, 400) });
@@ -66,14 +70,30 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
     for (const row of input.appUpdates.rows) {
       const owner = row.scope === "personal" ? "Personal" : row.scope;
       const label = `${owner} · ${row.app} (${input.review.period.date}, ${row.timezone})`;
-      const mount = row.scope === "personal" ? "/apps" : `/o/${encodeURIComponent(row.scope)}`;
       add("app-update", "app", { label, text: cut(`${label}: ${row.summary}`, 800), scope: row.scope,
         status: row.complete ? "complete" : "incomplete", recordId: row.id, revision: row.revision,
-        href: `${mount}/wiki-map/p/${encodeURIComponent(row.slug)}?revision=${row.revision}` });
+        href: wikiRevisionHref(row.scope, row.slug, row.revision) });
       if (!row.complete) gaps.push(`${label}: the app reported incomplete coverage.`);
+      if (row.app === "Onto" && row.timezone !== input.timezone) gaps.push(`${label}: the producer used a different local-day boundary; exact ${input.timezone} coverage is unknown.`);
     }
     if (!input.appUpdates.complete) gaps.push("Some app updates could not be read.");
     else if (!input.appUpdates.rows.length) gaps.push("No app updates were saved for this reporting date.");
+  }
+  if (input.wikiActivity) {
+    for (const row of input.wikiActivity.rows) {
+      const owner = row.scope === "personal" ? "Personal" : row.scope;
+      const label = `${owner} · Wiki: ${cut(row.title, 120)}`;
+      add("wiki-activity", "wiki", { label, text: `${label}, ${row.store === "legacy" ? "legacy graph revision" : "document revision"} ${row.revision}, saved ${row.createdAt}`,
+        scope: row.scope, recordId: row.id, revision: row.revision,
+        href: wikiRevisionHref(row.scope, row.slug, row.revision, row) });
+    }
+    const count = input.wikiActivity.rows.length;
+    if (input.wikiActivity.complete) add("wiki-activity", "wiki", {
+      label: "Authorized Wiki revision activity",
+      text: `${count} authored Wiki revisions observed across all authorized scopes and both revision stores for ${input.review.period.date}.`,
+      status: "complete",
+    });
+    else gaps.push("Wiki: authored revision coverage is incomplete.");
   }
   const work = input.work;
   for (const issue of work?.issues.slice(0, 30) ?? []) add("work", "w", { label: `In progress in ${cut(issue.organization, 80)}: ${cut(issue.title, 160)}`, text: cut(`${issue.title} (${issue.organization}, ${issue.category}, in progress${issue.dueDate ? `, due ${issue.dueDate}` : ""})`, 300), scope: issue.scope, href: issue.href });
@@ -89,6 +109,13 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (overview && usable(overview) && !input.review.organizations.includes(overview)) add("overview", "o", { label: `Personal planning overview for ${input.review.period.date}`, text: reportText(overview), scope: overview.scope, status: overview.status, href: overview.href });
   else if (overview && !usable(overview)) gaps.push(`Personal planning: ${overview.status === "missing" ? "no overview was saved" : "the saved overview could not be read"} for ${input.review.period.date}.`);
   for (const done of input.review.completions.slice(0, 30)) add("completion", "c", { label: `Completed: ${cut(done.title, 160)}`, text: cut(`${done.title} (${done.category})`, 240), recordId: done.itemId });
+  for (const receipt of input.discoveryReceipts ?? []) {
+    const label = `Discovery: ${receipt.label}`;
+    const results = [receipt.entries === undefined ? null : `${receipt.entries} analyzed entries`,
+      receipt.suggestions === undefined ? null : `${receipt.suggestions} saved suggestions`].filter(Boolean);
+    add("discovery", "d", { label, text: `${label} completed this morning${results.length ? `: ${results.join(", ")}` : ""}.`,
+      recordId: receipt.id, status: "complete", href: `/apps/forerunner/runs/${encodeURIComponent(receipt.id)}` });
+  }
   if (input.discovery) {
     const stale = input.now - Date.parse(input.discovery.savedAt) > discoveryFreshMs;
     if (stale) gaps.push(`Discovery: the last saved daily run is from ${input.discovery.savedAt.slice(0, 10)}; nothing newer was saved, so it is not included.`);
@@ -103,7 +130,11 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (kept.length < evidence.length) gaps.push(`${evidence.length - kept.length} lower-priority source records were left out to keep this brief bounded.`);
   return { evidence: kept, gaps };
 }
-const modelView = (row: Evidence) => ({ ref: row.ref, kind: row.kind, text: row.text, ...(row.status ? { coverage: row.status } : {}) });
+const modelView = (row: Evidence) => ({
+  ref: row.ref, kind: row.kind,
+  text: row.kind === "wiki-activity" ? `${row.text} Author and editor identity: unknown.` : row.text,
+  ...(row.status ? { coverage: row.status } : {}),
+});
 
 export const briefInstructions = [
   "You write one person's morning brief from their own saved records. Be concise, concrete and useful to someone starting their day.",
@@ -111,6 +142,10 @@ export const briefInstructions = [
   "Rules:",
   "- Every statement cites the refs it rests on. Cite only refs that appear in `evidence`.",
   "- `highlights` are what matters today in light of the person's role (kind `responsibility`) and goals (kind `goal`) when those are present. Mark each `fact` (directly stated by the cited evidence) or `inference` (your reading of it).",
+  "- The response is for the exact date and timezone in the input. Prefer ‘today’ and ‘yesterday’ over spelling out a calendar date.",
+  "- Onto updates distinguish ledger commits from current pending and rejected proposal states. A batch named in the commit list is not evidence it is pending. Do not assign a state to a named batch without direct evidence of that state.",
+  "- The app separately lists the exact Wiki revisions. Author and editor names are unavailable in this evidence. Use the Wiki topic or scope in third person, for example, ‘A legacy Wiki revision covers the handoff.’ Never say that you, the recipient, or any named person wrote, reviewed or edited a Wiki revision.",
+  "- Kind `wiki-activity` reports authored Wiki revisions and checked coverage. Generated daily briefs and app updates are excluded.",
   "- Kind `priority` is the person's own board. Kind `work` is an issue in progress in one of their organizations; it is not necessarily assigned to them.",
   "- `attention` are at most five things worth their attention today, each with a reason. They are your suggestions, not facts. Set `goal` to the ref of the goal it serves, or null.",
   "- Never invent activity, numbers, people, dates or progress. If the evidence does not say it, do not say it. A missing source is unknown, not quiet.",
@@ -153,14 +188,33 @@ const localLink = (href: string | null | undefined) => href?.startsWith("/") && 
 export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: string[], answer: BriefAnswer, digest: string) {
   const byRef = new Map(evidence.map(row => [row.ref, row]));
   const cited = (refs: string[]) => `(${[...new Set(refs)].map(ref => `source ${ref}`).join(", ")})`;
-  const lines = [`# Today — ${input.date}`, `${plain(answer.opening.text)} ${cited(answer.opening.evidence)}`,
+  const unsupportedWikiActor = /\b(?:(?:you|the member|the reader)\s+(?:(?:had|have)\s+)?(?:authored|wrote|edited|made|reviewed|documented|updated)|your\s+(?:(?:wiki|document)\s+)?(?:edits|revisions))\b/i;
+  const supported = (text: string, refs: string[]) => !refs.some(ref => byRef.get(ref)?.kind === "wiki-activity") || !unsupportedWikiActor.test(text);
+  // The reporting dates are app-owned. Correct a weekday attached to one of
+  // those dates if the model repeats it with a different weekday.
+  const periods = new Set([input.date, input.review.period.date]);
+  const writeText = (text: string) => plain(text).replace(
+    /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(,?\s+)(\d{4}-\d{2}-\d{2})\b/gi,
+    (match, separator: string, date: string) => {
+      if (!periods.has(date)) return match;
+      const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long" }).format(new Date(`${date}T00:00:00Z`));
+      return `${weekday}${separator}${date}`;
+    },
+  );
+  const opening = supported(answer.opening.text, answer.opening.evidence)
+    ? writeText(answer.opening.text) : "The saved Wiki activity appears below.";
+  const lines = [`# Today — ${input.date}`, `${opening} ${cited(answer.opening.evidence)}`,
     `Written from saved records for the completed day ${input.review.period.date} (${input.timezone}) and your board as of this run.`];
-  if (answer.highlights.length) lines.push("## What matters", answer.highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${plain(item.text)} ${cited(item.evidence)}`).join("\n"));
-  if (answer.attention.length) lines.push("## Suggested attention", "These are suggestions, not facts.", answer.attention.map(item => {
+  const highlights = answer.highlights.filter(item => supported(item.text, item.evidence));
+  if (highlights.length) lines.push("## What matters", highlights.map(item => `- ${item.kind === "inference" ? "Inference: " : ""}${writeText(item.text)} ${cited(item.evidence)}`).join("\n"));
+  const attention = answer.attention.filter(item => supported(`${item.text} ${item.why}`, item.evidence));
+  if (attention.length) lines.push("## Suggested attention", "These are suggestions, not facts.", attention.map(item => {
     const goal = item.goal ? byRef.get(item.goal) : null;
-    return `- **${plain(item.text)}** ${plain(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
+    return `- **${writeText(item.text)}** ${writeText(item.why)}${goal ? ` Serves ${plain(goal.label)}.` : ""} ${cited(item.evidence)}`;
   }).join("\n"));
-  lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${gap}`).join("\n"));
+  const activity = evidence.filter(row => row.kind === "wiki-activity" || (row.kind === "app-update" && input.appUpdates?.rows.some(update => update.id === row.recordId && update.app === "Onto")));
+  if (activity.length) lines.push("## Previous day’s activity", activity.map(row => `- ${plain(row.text)} ${cited([row.ref])}`).join("\n"));
+  lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${plain(gap)}`).join("\n"));
   lines.push("## Sources", evidence.map(row => {
     const href = localLink(row.href), revision = row.revision ? `, revision ${row.revision}` : "";
     return `- ${row.ref}: ${href ? `[${plain(row.label)}](${href})` : plain(row.label)}${revision}${row.status && row.status !== "complete" ? ` (${row.status})` : ""}`;
