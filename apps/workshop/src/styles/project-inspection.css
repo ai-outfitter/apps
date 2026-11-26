@@ -44,7 +44,7 @@
 }
 .workspace #motion-menu { position: relative; margin: 0; padding: 0; border: 0; }
 .workspace #motion-popover {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 4; width: min(320px, 78vw); max-height: 45vh;
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 4; width: min(320px, 78vw); max-height: min(64vh, 520px);
   overflow: auto; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
 }
 .workspace .viewer-frame:has(#assembly-viewer[data-ready="true"]:not([data-empty])) ~ #assembly-status { display: none; }
@@ -175,3 +175,13 @@
 .workspace .cots-interface dl {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:0 0 8px}
 .workspace .cots-interface dt {color:var(--muted)}
 .workspace .cots-interface dd {margin:0}
+
+.workspace #operation-timeline {margin-block-start:8px;}
+.workspace #operation-clock {font-variant-numeric:tabular-nums;}
+.workspace #operation-loop,.workspace #operation-unchecked {color:var(--muted);}
+.workspace .operation-actions {display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.workspace #operation-checks {margin:8px 0 0;padding:0;border:0;}
+.workspace #operation-checks summary {font-weight:550;}
+.workspace #operation-check-list {list-style:none;padding:0;margin:0;}
+.workspace #operation-check-list li {display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);}
+.workspace #operation-check-list button {justify-self:start;}

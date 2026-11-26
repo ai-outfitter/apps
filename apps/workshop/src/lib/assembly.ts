@@ -1,4 +1,4 @@
-import { JointSchema, OperationSchema } from "./operation-schema";
+import { CouplingSchema, JointSchema, OperationSchema } from "./operation-schema";
 import { SavedDriveMotionSchema } from "./drive-motion-schema";
 import { z } from "zod";
 import { cotsEvidence, cotsEvidenceRef } from "./cots-evidence";
@@ -109,6 +109,7 @@ export const ItemSchema = z
     provenance: z.enum(["provisional","manufacturer","measured"]).default("provisional"),
     reference: AssemblyReferenceSchema.optional(),
     /** Pick this assembly when a user clicks one of its installed parts. */
+    couplings: z.array(CouplingSchema).optional(),
     operations: z.array(OperationSchema).optional(),
     driveMotion: SavedDriveMotionSchema.optional(),
     selectAsUnit: z.boolean().optional(),
@@ -157,6 +158,7 @@ function assemblySchema(uniquePartNumbers: boolean) { return z
       }
     }
     for (const owner of assembly.items) {
+      if (owner.couplings?.length && (owner.kind !== "assembly" || owner.reference)) fail("Couplings belong on the source assembly");
       if (owner.operations?.length) {
         if (owner.kind !== "assembly" || owner.reference) fail("Operations belong on the source assembly");
         if (new Set(owner.operations.map(op=>op.name)).size !== owner.operations.length) fail("Operation names must be unique within an assembly");

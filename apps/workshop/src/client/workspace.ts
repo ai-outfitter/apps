@@ -227,6 +227,28 @@ function seek(time:number) {
  $("operation-clock").textContent=time.toFixed(2)+" s";
  viewer?.previewPose(entry.pose(time));
 }
+const motionNumber = new Intl.NumberFormat(undefined, {maximumSignificantDigits: 6});
+function showOperationChecks(entry: typeof operations[number]) {
+ const checks = entry.checks();
+ const panel = $<HTMLDetailsElement>("operation-checks");
+ panel.hidden = !checks.length;
+ panel.open = false;
+ $("operation-unchecked").hidden = !!checks.length;
+ const passed = checks.filter(check => check.passed).length;
+ $("operation-check-summary").textContent = `Modeled checks · ${passed}/${checks.length} passed`;
+ const rows = checks.map(check => {
+   const row = document.createElement("li");
+   const heading = element("strong", (check.passed ? "Pass · " : "Fail · ") + check.label);
+   const value = (values: number[]) => values.map(n => motionNumber.format(n)).join(", ") + " " + check.unit;
+   const result = element("small", `Actual ${value(check.actual)} · Expected ${value(check.expected)} ± ${value([check.tolerance])}`);
+   const jump = document.createElement("button");
+   jump.textContent = `View at ${motionNumber.format(check.time)} s`;
+   jump.onclick = () => { pauseOperation(); seek(check.time); };
+   row.append(heading, result, jump);
+   return row;
+ });
+ $("operation-check-list").replaceChildren(...rows);
+}
 function chooseOperation() {
  pauseOperation();stopMotion();
  const entry=operations[opSelect.selectedIndex];
@@ -235,7 +257,12 @@ function chooseOperation() {
  $("motion-menu").hidden=!operations.length && !motion;
  viewer?.inspectDrive([],false);
  $<HTMLInputElement>("inspect-drive").checked=false;
- if(entry){scrub.max=String(entry.operation.durationSeconds);seek(0);}
+ if(entry){
+   scrub.max=String(entry.operation.durationSeconds);
+   $("operation-loop").hidden = entry.operation.playback !== "loop";
+   showOperationChecks(entry);
+   seek(0);
+ }
  else if(motion)applyMotion(0);
 }
 opSelect.onchange=chooseOperation;
@@ -244,11 +271,14 @@ $("operation-reset").onclick=()=>{pauseOperation();seek(0);};
 $("operation-play").onclick=()=>{
  if(opFrame){pauseOperation();return;}
  const duration=Number(scrub.max), current=Number(scrub.value);
+ const loop = operations[opSelect.selectedIndex]?.operation.playback === "loop";
  const start=performance.now()-1000*(current>=duration?0:current);
  $("operation-play").textContent="Pause operation";
  function tick(now:number) {
-  const time=Math.max(0,Math.min(duration,(now-start)/1000));seek(time);
-  if(time<duration) opFrame=requestAnimationFrame(tick);else pauseOperation();
+  const elapsed=Math.max(0,(now-start)/1000);
+  const time=loop ? elapsed % duration : Math.min(duration,elapsed);
+  seek(time);
+  if(loop || time<duration) opFrame=requestAnimationFrame(tick);else pauseOperation();
  }
  opFrame=requestAnimationFrame(tick);
 };

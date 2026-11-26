@@ -1,3 +1,4 @@
+import { operationPrograms, resolveMotionParameters } from "./operation-program";
 import { realConfiguration } from "./inspection-links";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -64,7 +65,7 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         throw Error(`Incompatible referenced power rail: ${rail.id}`);
     }
   }
-  async function expand(source: AssemblySource, assembly: Assembly, scope: string, ancestors: Set<string>, mountId?: string) {
+  async function expand(source: AssemblySource, assembly: Assembly, scope: string, ancestors: Set<string>, mountId?: string, installed?:AssemblyReference) {
     const ids = new Map(assembly.items.map(i=>[i.id,i]));
     const idFor = (id: string) => {
       if(id===assembly.rootId && mountId) return mountId;
@@ -97,10 +98,10 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         const defaults=target.assembly.configurations?.find(c=>c.name===ref.configuration)?.parameters ?? [];
         const key = JSON.stringify([target.id,ref.revision??"current",ref.configuration??"",
           defaults.map(p=>[p.name,ref.parameters?.[p.name]??p.defaultValue])]);
-        await expand(target,configured,key,new Set([...ancestors,target.id]),viewId);
+        await expand(target,configured,key,new Set([...ancestors,target.id]),viewId,ref);
         result.sources.push({itemId:viewId,projectId:target.id,name:target.name,revision:target.revision,...(ref.configuration && {configuration:ref.configuration}),...(ref.parameters && {parameters:ref.parameters}),...(defaults.length && {parameterDefinitions:defaults.map(({name,defaultValue})=>({name,defaultValue}))}),pinned:ref.revision!==undefined});
       } else {
-        const view = {...item,id:viewId,uses:item.uses.map(u=>({...u,id:usageIdFor(u.id),itemId:idFor(u.itemId)}))};
+        const view = {...resolveMotionParameters(item,assembly.configurations,installed),id:viewId,uses:item.uses.map(u=>({...u,id:usageIdFor(u.id),itemId:idFor(u.itemId)}))};
         if (scope && item.driveMotion) {
           const {viewRootIds,z} = item.driveMotion;
           view.driveMotion = {...item.driveMotion,viewRootIds:viewRootIds.map(idFor),z:{...z,
@@ -127,9 +128,9 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
     if (!scope && !selection?.configuration) for (const item of assembly.items) await visit(item.id);
     return rootId;
   }
-  await expand(root,base,"",new Set([root.id]));
+  await expand(root,base,"",new Set([root.id]),undefined,selection);
   for (const owner of items.values()) {
-    if (!owner.operations?.length) continue;
+    if (!owner.operations?.length && !owner.couplings?.length) continue;
     function bind(path:string, needsJoint=false) {
       let parent = owner;
       return path.split("/").map((segment,index,parts) => {
@@ -143,11 +144,19 @@ export async function resolveAssembly(root: AssemblySource, load: (ref: Assembly
         return id+"#"+copy;
       }).join("/");
     }
-    owner.operations = owner.operations.map(op=>({...op,
+    if (owner.couplings) owner.couplings=owner.couplings.map(c=>({...c,driverPath:bind(c.driverPath,true),followerPath:bind(c.followerPath,true)}));
+    if (owner.operations) owner.operations = owner.operations.map(op=>({...op,
       tracks: op.tracks.map(t=>({...t,path:bind(t.path,true)})),
+      ...(op.calls && {calls:op.calls.map(c=>({...c,path:bind(c.path)}))}),
+      ...(op.expectations && {expectations:op.expectations.map(e=>({...e,path:bind(e.path,e.kind==="joint"),...(e.kind==="distance" && {otherPath:bind(e.otherPath)})}))}),
       ...(op.handoffs && {handoffs:op.handoffs.map(e=>({...e,propPath:bind(e.propPath),...(e.carrierPath && {carrierPath:bind(e.carrierPath)})}))}),
     }));
   }
   result.assembly.items=[...items.values()];
+  const programs=operationPrograms(result.assembly.items);
+  for(const owner of result.assembly.items) {
+    programs.validateCouplings(owner);
+    for(const op of owner.operations ?? []) programs.compile(owner,op);
+  }
   return {...result, buildPrice: buildPrice(result.assembly)};
 }

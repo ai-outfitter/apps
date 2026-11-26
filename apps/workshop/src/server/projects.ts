@@ -153,7 +153,7 @@ export async function createWorkshopProject(
   if (await exists())
     throw new Response("Project already exists.", { status: 409 });
   const linked = revisionColumns(project);
-  const guard = project.assembly.items.some(i=>i.reference || i.cotsEvidenceRef || i.operations?.length) ? await assemblyGuard(db,project) : sql`1`;
+  const guard = project.assembly.items.some(i=>i.reference || i.cotsEvidenceRef || i.operations?.length || i.couplings?.length) ? await assemblyGuard(db,project) : sql`1`;
   // One statement keeps the cap atomic.
   await db.run(sql`INSERT INTO workshop_projects (id, name, purpose, revision, data, wikiInstallationId, productRevisionId, productRevisionTitle, createdBy, updatedBy, createdAt, updatedAt)
     SELECT ${project.id}, ${project.name}, ${project.purpose}, ${project.revision}, ${JSON.stringify(project)}, ${linked.wikiInstallationId}, ${linked.productRevisionId}, ${linked.productRevisionTitle}, ${identity.userId}, ${identity.userId}, ${project.createdAt}, ${project.updatedAt}

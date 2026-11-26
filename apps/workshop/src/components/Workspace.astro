@@ -61,8 +61,11 @@ const overview = section === "overview";
                 <label>Operation <select id="operation-select"></select></label>
                 <div id="operation-timeline" hidden>
                   <label>Time <input id="operation-time" type="range" min="0" step="any" value="0" /></label>
-                  <output id="operation-clock" for="operation-time"></output>
-                  <button id="operation-play">Play operation</button><button id="operation-reset">Reset operation</button>
+                  <output id="operation-clock" for="operation-time" aria-live="off"></output>
+                  <small id="operation-loop" hidden>Repeats until paused</small>
+                  <div class="operation-actions"><button id="operation-play">Play operation</button><button id="operation-reset">Reset operation</button></div>
+                  <details id="operation-checks"><summary id="operation-check-summary"></summary><ul id="operation-check-list"></ul></details>
+                  <small id="operation-unchecked" hidden>No modeled checks defined</small>
                 </div>
               </div>
               <div class="motion-controls" id="motion-controls" role="group" aria-labelledby="motion-heading" hidden>
