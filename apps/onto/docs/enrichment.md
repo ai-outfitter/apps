@@ -34,7 +34,10 @@ installation**, through Connections. The grant's branch and file or directory
 define the read boundary. A grant for another app cannot supply this read.
 In an organization, an editor uses an active organization-owned connection
 that already admits the repository and whose Onto capability allows
-`contents.read`. The organization connection must be authorized by its forge.
+`contents.read`. The organization connection must be authorized by its forge. Forgejo
+repositories reserved for explicit bindings do not qualify through the
+organization's general connection. The Onto installation must have the
+catalog capability for repository enrichment enabled.
 A personal account or another organization's access cannot supply this read.
 Org scans read a bounded set of README and project metadata files at the
 default branch's pinned commit. Both paths require a configured default
@@ -44,6 +47,8 @@ Private repository calls keep their contents out of workflow inference capture.
 The result supplies `runId`, `state` and `batchId`. Explicit targets also
 return `targets` with each node's own review receipt. Review the batch on
 Changes. Each repository proposal cites the exact path and commit URL.
+The checked excerpt lives in review evidence, and is excluded from the
+proposed graph record body.
 The workflow submits to the existing member batch policy. Repeating a pending
 target returns its existing receipt.
 

@@ -6,7 +6,7 @@ import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workfl
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { Graph, GraphNode } from "../lib/graph";
-import { isRepositoryEvidence } from "./enrichment-source";
+import { isEnrichmentSource, isRepositoryEvidence } from "./enrichment-source";
 import { readGraph } from "./graph";
 import { mutateBatchSubmission, type Database } from "./graph-batches";
 import { graphBatches, graphBatchOperations } from "./schema";
@@ -224,7 +224,7 @@ async function enrichTarget(db: Database, who: AppIdentity, host: Host, runId: s
   const ref = `enrichment/${anchor.id}`;
   const state = (state: string, batchId: string | null = null) => ({ state, batchId });
   const held = await pending(db);
-  const existing = held.find(row => row.source?.ref === ref || (!target.repo &&
+  const existing = held.find(row => (row.source?.ref === ref && isEnrichmentSource(row.source)) || (!target.repo &&
     [row.operation?.attributes?.fromId, row.operation?.attributes?.toId].includes(anchor.id)));
   if (existing) return state("pending", existing.batchId);
   const sources = target.repo ? repositoryEvidence(target.repo) : [...await priorEvidence(db, anchor.id), ...activitySources].slice(0, 20);
@@ -286,11 +286,18 @@ export async function enrichGraph(db: Database, who: AppIdentity, host: Host, in
     ...(input.repositories ? { "explore.inputs.repositories": input.repositories } : {}),
   } });
   const results: (Result & { node: string })[] = [];
-  for (const target of roots) {
-    const result = await enrichTarget(db, who, host, runId, prompt, graph, target, activity.sources);
-    results.push({ ...result, node: target.node.id });
-    // The legacy discovery workflow handles one eligible gap per occurrence.
-    if (!targeted && result.state !== "pending") break;
+  try {
+    for (const target of roots) {
+      const result = await enrichTarget(db, who, host, runId, prompt, graph, target, activity.sources);
+      results.push({ ...result, node: target.node.id });
+      // The legacy discovery workflow handles one eligible gap per occurrence.
+      if (!targeted && result.state !== "pending") break;
+    }
+  } catch (error) {
+    await host.call("workflow.collect", { runId, slot: "explore.outputs.result", value: {
+      state: "failed", batchId: null, runId, ...(targeted ? { targets: results } : {}),
+    } }).catch(() => {});
+    throw error;
   }
   const chosen = results.find(row => row.state !== "pending") ?? results[0];
   const result = {
