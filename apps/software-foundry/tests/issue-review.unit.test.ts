@@ -8,8 +8,8 @@ import { prepareResult, type PhaseInput, type WorkflowHost } from "@ai-outfitter
 import { documents } from "../src/server/documents";
 import type { IntakeContext } from "../src/server/intake";
 import {
-  configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, readForgejoIssueReview,
-  recoverForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput, reviewIssueInput,
+  configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, readIssueReview,
+  recoverIssueReview, reviewForgejoIssue, reviewIssuePins, reviewIssueInput,
 } from "../src/server/workspace/issue-review";
 
 const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
@@ -233,19 +233,19 @@ test("recovers one retained initialization failure after a lost start receipt wi
   const attempt = { id: crypto.randomUUID(), nodeId: "implement", state: "failed",
     failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: id } };
   f.failedRuns.set(id, [attempt]);
-  assert.equal((await readForgejoIssueReview(f.context, id)).recovery, null);
+  assert.equal((await readIssueReview(f.context, id)).recovery, null);
   f.state.granted = false;
-  await assert.rejects(recoverForgejoIssueReview(f.context, id), refused(403));
+  await assert.rejects(recoverIssueReview(f.context, id), refused(403));
   f.state.granted = true;
   f.state.loseStart = true;
-  await assert.rejects(recoverForgejoIssueReview(f.context, id), refused(502));
-  const recovered = await readForgejoIssueReview(f.context, id);
+  await assert.rejects(recoverIssueReview(f.context, id), refused(502));
+  const recovered = await readIssueReview(f.context, id);
   assert.deepEqual(recovered.original, { id, status: "failed", attempts: [attempt] });
   assert.equal(recovered.recovery?.status, "running");
   assert.notEqual(recovered.recovery?.id, id);
   assert.deepEqual(recovered.target, admitted.target);
   f.state.granted = false;
-  assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => recoverForgejoIssueReview(f.context, id))),
+  assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => recoverIssueReview(f.context, id))),
     [recovered, recovered, recovered]);
   assert.deepEqual(f.writes(), []);
 });
@@ -255,7 +255,7 @@ test("refuses recovery without checkout failure proof or when source and native 
   const { run: { id } } = await f.start();
   const attempt = { id: crypto.randomUUID(), nodeId: "implement", state: "failed",
     failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: id } };
-  const recover = () => recoverForgejoIssueReview(f.context, id);
+  const recover = () => recoverIssueReview(f.context, id);
   f.failedRuns.set(id, [{ ...attempt, failure: "Workspace execution failed" }]);
   await assert.rejects(recover(), refused(409));
   f.failedRuns.set(id, [attempt]);
@@ -268,14 +268,14 @@ test("refuses recovery without checkout failure proof or when source and native 
   f.state.head = null;
   f.state.pull = { head: { ref: f.state.branch, repo: null }, body: null };
   await assert.rejects(recover(), refused(409));
-  assert.equal((await readForgejoIssueReview(f.context, id)).recovery, null);
+  assert.equal((await readIssueReview(f.context, id)).recovery, null);
   assert.equal(f.calls.filter(call => call.operation === "workflow.start").length, 1);
   assert.deepEqual(f.writes(), []);
 });
 
 test("publishes the authenticated document and approves only its two pinned roles", async t => {
   assert.match(JSON.stringify(documents), /ReviewForgejoIssue/);
-  assert.equal(reviewForgejoIssueInput.safeParse({ ...pin, baseRef: "refs/heads/main" }).success, false);
+  assert.equal(reviewIssuePins.safeParse({ ...pin, baseRef: "refs/heads/main" }).success, false);
   const f = fixture(t);
   assert.deepEqual(await f.configure(), { workflow: issueReviewWorkflow, repository: pin.repository,
     implementer: "implementer", reviewer: "reviewer" });

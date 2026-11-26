@@ -1,4 +1,4 @@
-import { issueReviewRunInput, readForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput,
+import { issueReviewRunInput, readIssueReview, reviewForgejoIssue, reviewIssuePins,
   reviewIssue, reviewIssueGraphInput, reviewIssueInput } from "./workspace/issue-review";
 import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
@@ -152,8 +152,8 @@ const issueReviewArgs = { input: issueReviewRunInput, args: { runId: { type: non
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
-    reviewForgejoIssue: mutationField<typeof reviewForgejoIssueInput, FoundryContext>({
-      name: "ReviewForgejoIssue", input: reviewForgejoIssueInput, run: reviewForgejoIssue,
+    reviewForgejoIssue: mutationField<typeof reviewIssuePins, FoundryContext>({
+      name: "ReviewForgejoIssue", input: reviewIssuePins, run: reviewForgejoIssue,
       description: "Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.",
     }),
     reviewIssue: mutationField<typeof reviewIssueInput, FoundryContext>({
@@ -215,7 +215,7 @@ const baseGraphqlSchema = new GraphQLSchema({
     issueReview: mutationField<typeof issueReviewRunInput, FoundryContext>({
       ...issueReviewArgs, name: "IssueReview",
       description: "Read the original issue review, recovery progress, draft and formal review.",
-      run: (context, { runId }) => readForgejoIssueReview(context, runId),
+      run: (context, { runId }) => readIssueReview(context, runId),
     }),
     foundryPlan: mutationField<typeof findPlanInput, FoundryContext>({
       name: "FindFoundryPlan", input: findPlanInput, run: findPlan,

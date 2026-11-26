@@ -29,7 +29,7 @@ const gitBlob = z.object({ sha, content: z.string(), encoding: z.literal("base64
 
 export async function readBlobContent(read: Read, blobSha: string) {
   const blob = gitBlob.parse(await read(`/git/blobs/${blobSha}`));
-  if (blob.sha !== blobSha) throw phaseMismatch("Forgejo returned a different Git blob");
+  if (blob.sha !== blobSha) throw phaseMismatch("The provider returned a different Git blob");
   return btoa(atob(blob.content));
 }
 
@@ -40,16 +40,16 @@ async function readTree(read: Read, treeSha: string | undefined) {
   for (let page = 1; page <= 20; page++) {
     const list = treePage.parse(await read(`/git/trees/${treeSha}?page=${page}&per_page=1000`));
     if (list.sha !== treeSha || (total !== undefined && total !== list.total_count))
-      throw phaseMismatch("Forgejo returned a different Git tree");
+      throw phaseMismatch("The provider returned a different Git tree");
     total = list.total_count;
     for (const entry of list.tree) {
-      if (entries.has(entry.path)) throw phaseMismatch("Forgejo returned an overlapping Git tree");
+      if (entries.has(entry.path)) throw phaseMismatch("The provider returned an overlapping Git tree");
       entries.set(entry.path, entry);
     }
     // Forgejo 11 can report truncated on every page of a split tree, including the last.
     if (entries.size === total) return entries;
     if (!list.tree.length || entries.size > total || !list.truncated)
-      throw phaseMismatch("Forgejo returned an incomplete Git tree");
+      throw phaseMismatch("The provider returned an incomplete Git tree");
   }
   throw phaseMismatch("The Git tree exceeds the review verification limit");
 }
@@ -58,7 +58,7 @@ async function readTree(read: Read, treeSha: string | undefined) {
  * and a correct proposed blob does not by itself rule out changes to other paths. */
 export async function verifyCommitTree(read: Read, baseTree: string, headTree: string, proof: CommitProof) {
   const remaining = new Map(proof.files.map(file => [file.path, file]));
-  const reject = () => phaseMismatch("The recovered Forgejo commit differs from the frozen file changes");
+  const reject = () => phaseMismatch("The recovered commit differs from the frozen file changes");
   async function compare(baseSha: string | undefined, headSha: string | undefined, prefix: string) {
     if (baseSha === headSha) return;
     const [before, after] = await Promise.all([readTree(read, baseSha), readTree(read, headSha)]);
