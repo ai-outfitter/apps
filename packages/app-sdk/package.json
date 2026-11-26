@@ -20,6 +20,7 @@
     "./chat-input": "./src/chat-input.ts",
     "./agent-store": "./src/agent-store.ts",
     "./workflow-host": "./src/workflow-host.ts",
+    "./repository-enrichment": "./src/repository-enrichment.ts",
     "./entities": "./src/entities.ts",
     "./entity-query": "./src/entity-query.ts",
     "./database": "./src/database.ts",

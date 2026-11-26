@@ -103,6 +103,7 @@ async function platformRecords(host: WorkflowHost<"interactive">) {
     workflowValidated: await outcome(() => host.call("workflows.validate", { job: "{}" })),
     catalogApps: await outcome(() => host.call("catalog.apps", {})),
     inferenceEffort: await outcome(() => host.call("inference.effort", {})),
+    repositoryEnrichment: await outcome(() => host.call("repository.enrichment", { repository: "fixture/example" })),
     discoveryGrants: await outcome(() => host.call("discovery.grants", {})),
     discoveryChanges: await outcome(() => host.call("discovery.changes", { grantId: "fixture-grant" })),
   };

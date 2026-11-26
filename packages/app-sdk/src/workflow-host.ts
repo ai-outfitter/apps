@@ -1,3 +1,4 @@
+import { repositoryEnrichmentInput, repositoryEnrichmentOutput } from "./repository-enrichment";
 import { discoveryChangesInput, discoveryChangesPage, discoveryGrant } from "./discovery-content";
 import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
@@ -537,6 +538,8 @@ const coreOperations = {
   "discovery.grants": operation(["interactive", "schedule"], z.strictObject({}), z.object({ grants: z.array(discoveryGrant) })),
   /** Changed content under one grant, pinned to a provider revision during pagination. */
   "discovery.changes": operation(["interactive", "schedule"], discoveryChangesInput, discoveryChangesPage),
+  /** Pinned repository context from a currently approved grant for this installation. */
+  "repository.enrichment": operation(["interactive"], repositoryEnrichmentInput, repositoryEnrichmentOutput),
   /** Verified connector inbox metadata for a run; never the provider payload or lease. */
   "connector.receipts": operation(memberPhases, z.strictObject({ runId: id }),
     z.array(z.object({ deliveryId: z.string(), provider: z.string(), receivedAt: z.number(), status: z.string() }))),

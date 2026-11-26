@@ -50,6 +50,7 @@ const answers: Record<string, unknown> = {
   "workflow.collect": { run: "complete", steps: { work: "done" } },
   "connector.execute": { ok: true },
   "connector.receipts": [],
+  "repository.enrichment": { repository: "https://github.com/fixture/example", provider: "github", revision: "a".repeat(40), files: [] },
   "discovery.grants": { grants: [] },
   "discovery.changes": { changes: [], checkpoint: "fixture-checkpoint", cursor: null },
   "repository.read": { name: "acme/widgets", path: "/repos/acme/widgets", repositoryId: 1, installationId: 101, appId: 42 },

@@ -1,6 +1,6 @@
 version: beta
 id: graph-enrichment
-summary: Expand the installation graph from recent thread activity and cited sources.
+summary: Propose graph enrichment from recent threads, an existing node, or authorized repository sources.
 actors: {}
 triggers:
   - on: manual
@@ -8,11 +8,15 @@ triggers:
     cron: "0 9 * * *"
 steps:
   - id: explore
-    inference: {maxOutputTokens: 4000, timeoutMs: 120000}
+    inference: {maxOutputTokens: 4000, timeoutMs: 75000}
     inputs:
       prompt:
         schema: {type: string, maxLength: 2000}
         default: ""
+      node:
+        schema: {type: string, format: uuid}
+      repositories:
+        schema: {type: array, minItems: 1, maxItems: 4, items: {type: string, maxLength: 500}}
     outputs:
       result:
         connector: database

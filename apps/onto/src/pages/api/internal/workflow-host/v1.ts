@@ -22,7 +22,7 @@ export const POST: APIRoute = ({ request, locals }) =>
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
       if (schedule.workflowId === enrichmentWorkflow) {
         const input = enrichmentInput.parse({ prompt: schedule.inputs["explore.inputs.prompt"] ?? schedule.inputs.prompt });
-        await enrichGraph(installationDatabase(), identity, host, input.prompt, runId);
+        await enrichGraph(installationDatabase(), identity, host, input, runId);
         return { outcome: "started" };
       }
       if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);

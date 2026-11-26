@@ -1238,6 +1238,43 @@
     }
   },
   {
+    "executionTimeoutMs": 840000,
+    "name": "EnrichGraph",
+    "kind": "mutation",
+    "story": "As an editor, I want to enrich an existing node or authorized repository, so that sourced proposals reach Onto review.",
+    "query": "mutation EnrichGraph($node: ID, $repositories: [String!], $prompt: String) {\n  enrichGraph(node: $node, repositories: $repositories, prompt: $prompt)\n}",
+    "hash": "0281eaf2ae520293f240c49b67b81913385f9b819a6f19eae8e67e4d4760b01e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "description": "GraphQL ID"
+        },
+        "repositories": {
+          "type": "array",
+          "description": "GraphQL [String!]"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "GraphQL String"
+        }
+      },
+      "required": []
+    },
+    "mcp": {
+      "description": "Enrich an existing node with node (its ID), or name one to four authorized repositories with repositories (canonical HTTPS URLs, or unique owner/name). A Repository node reads its canonical source and the same graph anchor as its URL. Optional prompt narrows the subject. Returns review batches; accepts no changes."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "enrichGraph": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "Exploration",
     "kind": "query",
     "story": "As an agent, I want to see exactly the nodes and relationships a member is looking at in an exploration, so that I can traverse from them and patch the view at its current revision.",

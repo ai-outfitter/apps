@@ -15,7 +15,7 @@ import { batchGroups } from "./batch-groups";
 // Wiki's graph.graphql serves changeQueries beside its generated types, so the
 // printed schema (graph/schema.graphql) answers through both.
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
+import { fieldError, mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, type GraphContext, groupBy, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import {
@@ -351,12 +351,18 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
     ...creativeMutations,
     ...creativeAddressMutations,
     enrichGraph: {
-      type: nonNull(JSONScalar), args: { prompt: { type: GraphQLString } },
-      description: "Explore graph gaps using recent threads and submit sourced changes for review. Optionally direct exploration with a prompt.",
-      resolve: (_root, args, context: MutationContext) => {
-        if (!context.host) throw new Response("Workflow host unavailable", { status: 503 });
-        const input = enrichmentInput.parse({ prompt: args.prompt ?? undefined });
-        return enrichGraph(context.db(), context.identity, context.host() as WorkflowHost<"interactive">, input.prompt);
+      type: nonNull(JSONScalar), args: {
+        prompt: { type: GraphQLString }, node: { type: GraphQLID },
+        repositories: { type: new GraphQLList(nonNull(GraphQLString)) },
+      },
+      description: "Propose reviewed enrichment for an existing node or one to four authorized repositories. A Repository node resolves the same repository and anchor as its URL. Omit targets to explore recent scoped thread activity.",
+      resolve: async (_root, args, context: MutationContext) => {
+        try {
+          if (!context.host) throw new Response("Workflow host unavailable", { status: 503 });
+          const input = enrichmentInput.safeParse({ prompt: args.prompt ?? undefined, node: args.node ?? undefined, repositories: args.repositories ?? undefined });
+          if (!input.success) throw new Response(input.error.issues.map(issue => issue.message).join("; "), { status: 400 });
+          return await enrichGraph(context.db(), context.identity, context.host() as WorkflowHost<"interactive">, input.data);
+        } catch (error) { throw await fieldError(error); }
       },
     },
     stageChanges: mutationField({
