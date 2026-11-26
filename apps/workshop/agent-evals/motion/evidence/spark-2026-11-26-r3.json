@@ -1,0 +1,499 @@
+{
+  "model": "GLM-5.3-Flash-EXL3",
+  "sourceSha256": {
+    "fixtures.ts": "791f63af815292b232a45456386b13ff4a4dada2d555d8cc4339d3e2bfee87b4",
+    "grade.ts": "0da7babb98875397d72fb7cb2f9bd7bbf9a825a317db9dd93481789d5c23bb08",
+    "run.ts": "308b40b8bf6613783a31a5048b2e16e49bef619c4ea9eef6d59690bafed795e4"
+  },
+  "dependencySha256": {
+    "box/eval/read-only-agent.mjs": "4a947acd7cd0a22be6e05a232078bc80b0db092355a708d2c55f9732fb16b47b",
+    "apps/workshop/src/lib/assembly.ts": "10628a7a7d2c5b2671ab7895620930b71744bbb0147603abfec4ce811c4ad105",
+    "apps/workshop/src/lib/operation-schema.ts": "011ade7941d0bbfdc73cadb156e6b29b711c8566f05eb6855b41b27eb55479b3",
+    "apps/workshop/src/lib/operation-program.ts": "68e1fced40f3eb3d5ca0e88d179e44683a9d735962c879cfea34d9b7957adec3",
+    "apps/workshop/src/lib/installed-operations.ts": "298918a212703396124d724faf206b49506d6205263dff8ea815adb29a5ad0d2"
+  },
+  "receipts": [
+    {
+      "inputs": {
+        "fixture": "gear-pair",
+        "promptSha256": "7225e202ec0ea44725a3bd30bfd444a0ffdd622e168d2c1a397c0b6d5020a7ba",
+        "specificationSha256": "6b2ca2c0cc1d23b28f6fce73fe66d60e09c62fa37cdeae9579803a3c17991e42"
+      },
+      "initialMessages": [
+        {
+          "role": "system",
+          "content": "Author a Workshop motion program for the synthetic assembly described by the user. Return JSON only with keys \"tracks\", \"couplings\", \"handoffs\". Tracks are [{\"part\":\"name\",\"keys\":[{\"time\":0,\"value\":0},{\"time\":1,\"value\":10}]}]. Keys are linearly interpolated. Supply at least two keys per authored track. Omit fixed and coupled follower parts from tracks. Couplings are [{\"driver\":\"name\",\"follower\":\"name\",\"ratio\":1}]. Follower value equals driver value times ratio. Handoffs are [{\"time\":1,\"prop\":\"name\",\"carrier\":\"name\"}]. Use null carrier to release in place. Use degrees for rotation, millimeters for travel, seconds for time, and exact part names. Use empty arrays where unused."
+        },
+        {
+          "role": "user",
+          "content": "A robotics team is demonstrating a reduction stage on a fixed base. The 12-tooth pinion drives the 24-tooth gear directly. Turn the pinion one full positive revolution at constant speed over two seconds. Express how the driven gear moves with a native coupling from the pinion.\n\nAssembly: {\"durationSeconds\":2,\"playback\":\"once\",\"parts\":[{\"name\":\"base\",\"joint\":\"fixed\"},{\"name\":\"pinion\",\"joint\":\"turn-z\"},{\"name\":\"gear\",\"joint\":\"turn-z\"}]}"
+        }
+      ],
+      "modelRevision": null,
+      "startedAt": "2026-11-26T17:03:43.454Z",
+      "limits": {
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "tokensPerCall": 4096,
+        "temperature": 0,
+        "seed": 42
+      },
+      "wallMs": 31661,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "observedModel": "GLM-5.3-Flash-EXL3",
+      "providerFingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 292,
+        "outputTokens": 575,
+        "totalTokens": 867
+      },
+      "output": "{\n  \"tracks\": [\n    {\n      \"part\": \"pinion\",\n      \"keys\": [\n        {\"time\": 0, \"value\": 0},\n        {\"time\": 2, \"value\": 360}\n      ]\n    }\n  ],\n  \"couplings\": [\n    {\n      \"driver\": \"pinion\",\n      \"follower\": \"gear\",\n      \"ratio\": -0.5\n    }\n  ],\n  \"handoffs\": []\n}",
+      "grade": {
+        "passed": true,
+        "nativeDriveChain": true,
+        "nativeHandoffs": true,
+        "driver": [
+          {
+            "timeSeconds": 0,
+            "expectedDeg": 0,
+            "actualDeg": 0,
+            "passed": true
+          },
+          {
+            "timeSeconds": 1,
+            "expectedDeg": 180,
+            "actualDeg": 180,
+            "passed": true
+          },
+          {
+            "timeSeconds": 2,
+            "expectedDeg": 360,
+            "actualDeg": 360,
+            "passed": true
+          }
+        ],
+        "checks": [
+          {
+            "label": "Pinion quarter turn",
+            "timeSeconds": 0.5,
+            "expectedMm": [
+              0,
+              10,
+              8
+            ],
+            "actualMm": [
+              6.123233995736766E-16,
+              10,
+              8
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Follower turns opposite",
+            "timeSeconds": 1,
+            "expectedMm": [
+              36,
+              -22,
+              8
+            ],
+            "actualMm": [
+              36,
+              -22,
+              8
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Follower ends at half turn",
+            "timeSeconds": 2,
+            "expectedMm": [
+              14,
+              0,
+              8
+            ],
+            "actualMm": [
+              14,
+              -2.6942229581241772E-15,
+              8
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "inputs": {
+        "fixture": "spinning-wheel",
+        "promptSha256": "9c6f7ff23961c36e785fa2f1036b92296da0d25674fa1c353c263dc046e461fc",
+        "specificationSha256": "9e22d80a3fa78e1b651cd6f2ec92c3ce37df5a283b81e6469cd739fff8ed7860"
+      },
+      "initialMessages": [
+        {
+          "role": "system",
+          "content": "Author a Workshop motion program for the synthetic assembly described by the user. Return JSON only with keys \"tracks\", \"couplings\", \"handoffs\". Tracks are [{\"part\":\"name\",\"keys\":[{\"time\":0,\"value\":0},{\"time\":1,\"value\":10}]}]. Keys are linearly interpolated. Supply at least two keys per authored track. Omit fixed and coupled follower parts from tracks. Couplings are [{\"driver\":\"name\",\"follower\":\"name\",\"ratio\":1}]. Follower value equals driver value times ratio. Handoffs are [{\"time\":1,\"prop\":\"name\",\"carrier\":\"name\"}]. Use null carrier to release in place. Use degrees for rotation, millimeters for travel, seconds for time, and exact part names. Use empty arrays where unused."
+        },
+        {
+          "role": "user",
+          "content": "A robotics team is demonstrating its first moving joint with a fixed stand, a wheel and a stationary retaining cap. Turn the wheel one full positive revolution at constant speed in two seconds. Only the wheel has a joint. The player repeats the operation.\n\nAssembly: {\"durationSeconds\":2,\"playback\":\"loop\",\"parts\":[{\"name\":\"stand\",\"joint\":\"fixed\"},{\"name\":\"wheel\",\"joint\":\"turn-z\"},{\"name\":\"cap\",\"joint\":\"fixed\"}]}"
+        }
+      ],
+      "modelRevision": null,
+      "startedAt": "2026-11-26T17:03:43.445Z",
+      "limits": {
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "tokensPerCall": 4096,
+        "temperature": 0,
+        "seed": 42
+      },
+      "wallMs": 8575,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "observedModel": "GLM-5.3-Flash-EXL3",
+      "providerFingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 280,
+        "outputTokens": 295,
+        "totalTokens": 575
+      },
+      "output": "{\n  \"tracks\": [\n    {\n      \"part\": \"wheel\",\n      \"keys\": [\n        { \"time\": 0, \"value\": 0 },\n        { \"time\": 2, \"value\": 360 }\n      ]\n    }\n  ],\n  \"couplings\": [],\n  \"handoffs\": []\n}",
+      "grade": {
+        "passed": true,
+        "nativeDriveChain": true,
+        "nativeHandoffs": true,
+        "driver": [
+          {
+            "timeSeconds": 0,
+            "expectedDeg": 0,
+            "actualDeg": 0,
+            "passed": true
+          },
+          {
+            "timeSeconds": 1,
+            "expectedDeg": 180,
+            "actualDeg": 180,
+            "passed": true
+          },
+          {
+            "timeSeconds": 2,
+            "expectedDeg": 360,
+            "actualDeg": 360,
+            "passed": true
+          }
+        ],
+        "checks": [
+          {
+            "label": "Quarter-turn witness",
+            "timeSeconds": 0.5,
+            "expectedMm": [
+              0,
+              18,
+              7
+            ],
+            "actualMm": [
+              1.102182119232618E-15,
+              18,
+              7
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Half-turn witness",
+            "timeSeconds": 1,
+            "expectedMm": [
+              -18,
+              0,
+              7
+            ],
+            "actualMm": [
+              -18,
+              2.204364238465236E-15,
+              7
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "One full turn",
+            "timeSeconds": 2,
+            "expectedMm": [
+              18,
+              0,
+              7
+            ],
+            "actualMm": [
+              18,
+              -4.408728476930472E-15,
+              7
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Stationary axle cap",
+            "timeSeconds": 1,
+            "expectedMm": [
+              5,
+              0,
+              14
+            ],
+            "actualMm": [
+              5,
+              0,
+              14
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "inputs": {
+        "fixture": "transfer-rig",
+        "promptSha256": "84b2fc44c477fd1d76a3602891c91c314489356f779f5c8918b7ee141616e1c5",
+        "specificationSha256": "f06a212af37e2170d8363b78234dc2bd64a3285eac4f52ebfc46e77f05fcdedb"
+      },
+      "initialMessages": [
+        {
+          "role": "system",
+          "content": "Author a Workshop motion program for the synthetic assembly described by the user. Return JSON only with keys \"tracks\", \"couplings\", \"handoffs\". Tracks are [{\"part\":\"name\",\"keys\":[{\"time\":0,\"value\":0},{\"time\":1,\"value\":10}]}]. Keys are linearly interpolated. Supply at least two keys per authored track. Omit fixed and coupled follower parts from tracks. Couplings are [{\"driver\":\"name\",\"follower\":\"name\",\"ratio\":1}]. Follower value equals driver value times ratio. Handoffs are [{\"time\":1,\"prop\":\"name\",\"carrier\":\"name\"}]. Use null carrier to release in place. Use degrees for rotation, millimeters for travel, seconds for time, and exact part names. Use empty arrays where unused."
+        },
+        {
+          "role": "user",
+          "content": "A chamber robotics team is demonstrating a payload transfer on a horizontal bench rig. The motor housing and frame stay fixed. The motor shaft drives the screw directly in the same direction at the same speed. The screw moves the carriage +12 mm per full positive revolution. Only the shaft gets a direct track. Use native couplings for both stages.\n\nFrom 0 to 1 second stay at rest. At 1 second pick up the payload with the carriage. From 1 to 3 seconds turn the shaft to +900 degrees at constant speed. At 3 seconds release the payload in place, then return the shaft to its start at constant speed until 4 seconds. Use native handoffs to track pickup and release. The payload should stay at the drop position as the carriage returns.\n\nAssembly: {\"durationSeconds\":4,\"playback\":\"once\",\"parts\":[{\"name\":\"frame\",\"joint\":\"fixed\"},{\"name\":\"motor\",\"joint\":\"fixed\"},{\"name\":\"shaft\",\"joint\":\"turn-x\"},{\"name\":\"screw\",\"joint\":\"turn-x\"},{\"name\":\"carriage\",\"joint\":\"slide-x\"},{\"name\":\"payload\",\"joint\":\"fixed\"}]}"
+        }
+      ],
+      "modelRevision": null,
+      "startedAt": "2026-11-26T17:03:43.454Z",
+      "limits": {
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "tokensPerCall": 4096,
+        "temperature": 0,
+        "seed": 42
+      },
+      "wallMs": 39676,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "observedModel": "GLM-5.3-Flash-EXL3",
+      "providerFingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-06793def",
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 416,
+        "outputTokens": 976,
+        "totalTokens": 1392
+      },
+      "output": "{\n  \"tracks\": [\n    {\n      \"part\": \"shaft\",\n      \"keys\": [\n        { \"time\": 0, \"value\": 0 },\n        { \"time\": 1, \"value\": 0 },\n        { \"time\": 3, \"value\": 900 },\n        { \"time\": 4, \"value\": 0 }\n      ]\n    }\n  ],\n  \"couplings\": [\n    { \"driver\": \"shaft\", \"follower\": \"screw\", \"ratio\": 1 },\n    { \"driver\": \"screw\", \"follower\": \"carriage\", \"ratio\": 0.03333333333333333 }\n  ],\n  \"handoffs\": [\n    { \"time\": 1, \"prop\": \"payload\", \"carrier\": \"carriage\" },\n    { \"time\": 3, \"prop\": \"payload\", \"carrier\": null }\n  ]\n}",
+      "grade": {
+        "passed": true,
+        "nativeDriveChain": true,
+        "nativeHandoffs": true,
+        "driver": [
+          {
+            "timeSeconds": 0,
+            "expectedDeg": 0,
+            "actualDeg": 0,
+            "passed": true
+          },
+          {
+            "timeSeconds": 1,
+            "expectedDeg": 0,
+            "actualDeg": 0,
+            "passed": true
+          },
+          {
+            "timeSeconds": 2,
+            "expectedDeg": 450,
+            "actualDeg": 450,
+            "passed": true
+          },
+          {
+            "timeSeconds": 3,
+            "expectedDeg": 900,
+            "actualDeg": 900,
+            "passed": true
+          },
+          {
+            "timeSeconds": 4,
+            "expectedDeg": 0,
+            "actualDeg": 0,
+            "passed": true
+          }
+        ],
+        "checks": [
+          {
+            "label": "Motor housing stays fixed",
+            "timeSeconds": 2,
+            "expectedMm": [
+              -30,
+              -10,
+              9
+            ],
+            "actualMm": [
+              -30,
+              -10,
+              9
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Shaft witness turns",
+            "timeSeconds": 2,
+            "expectedMm": [
+              -25,
+              -10,
+              12
+            ],
+            "actualMm": [
+              -25,
+              -9.999999999999998,
+              12
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Screw witness turns with shaft",
+            "timeSeconds": 2,
+            "expectedMm": [
+              0,
+              -10,
+              12
+            ],
+            "actualMm": [
+              0,
+              -9.999999999999998,
+              12
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Carriage at half travel",
+            "timeSeconds": 2,
+            "expectedMm": [
+              3,
+              0,
+              9
+            ],
+            "actualMm": [
+              3,
+              0,
+              9
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Payload before pickup",
+            "timeSeconds": 0.5,
+            "expectedMm": [
+              -12,
+              0,
+              17
+            ],
+            "actualMm": [
+              -12,
+              0,
+              17
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Payload pose at pickup",
+            "timeSeconds": 1,
+            "expectedMm": [
+              -12,
+              0,
+              17
+            ],
+            "actualMm": [
+              -12,
+              0,
+              17
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Payload follows carriage",
+            "timeSeconds": 2,
+            "expectedMm": [
+              3,
+              0,
+              17
+            ],
+            "actualMm": [
+              3,
+              0,
+              17
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Payload pose at release",
+            "timeSeconds": 3,
+            "expectedMm": [
+              18,
+              0,
+              17
+            ],
+            "actualMm": [
+              18,
+              0,
+              17
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Payload remains at drop after carriage returns",
+            "timeSeconds": 4,
+            "expectedMm": [
+              18,
+              0,
+              17
+            ],
+            "actualMm": [
+              18,
+              0,
+              17
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          },
+          {
+            "label": "Carriage returns alone",
+            "timeSeconds": 4,
+            "expectedMm": [
+              -12,
+              0,
+              9
+            ],
+            "actualMm": [
+              -12,
+              0,
+              9
+            ],
+            "toleranceMm": 0.001,
+            "passed": true
+          }
+        ]
+      },
+      "error": null
+    }
+  ]
+}

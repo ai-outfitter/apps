@@ -1,0 +1,1510 @@
+{
+  "sourceBase": "561bd030c24531691f89d3d147d44c4abc353e7f",
+  "capturedAt": "2026-11-26T17:06:12+00:00",
+  "image": "localhost/outfitter/workshop-box:dev",
+  "imageId": "02ec51d890bd2e63bf31442448961f5f2f40f401e11b6073406dc58bce0e611e",
+  "network": "none",
+  "checkoutMountedReadOnly": true,
+  "nodeVersion": "v24.22.2",
+  "referenceAndControls": [
+    {
+      "id": "spinning-wheel",
+      "subject": "reference",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Quarter-turn witness",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            18,
+            7
+          ],
+          "actualMm": [
+            1.102182119232618e-15,
+            18,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Half-turn witness",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -18,
+            0,
+            7
+          ],
+          "actualMm": [
+            -18,
+            2.204364238465236e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "One full turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            18,
+            0,
+            7
+          ],
+          "actualMm": [
+            18,
+            -4.408728476930472e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Stationary axle cap",
+          "timeSeconds": 1,
+          "expectedMm": [
+            5,
+            0,
+            14
+          ],
+          "actualMm": [
+            5,
+            0,
+            14
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "gear-pair",
+      "subject": "reference",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Pinion quarter turn",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            10,
+            8
+          ],
+          "actualMm": [
+            6.123233995736766e-16,
+            10,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower turns opposite",
+          "timeSeconds": 1,
+          "expectedMm": [
+            36,
+            -22,
+            8
+          ],
+          "actualMm": [
+            36,
+            -22,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower ends at half turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            14,
+            0,
+            8
+          ],
+          "actualMm": [
+            14,
+            -2.6942229581241772e-15,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "transfer-rig",
+      "subject": "reference",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 450,
+          "actualDeg": 450,
+          "passed": true
+        },
+        {
+          "timeSeconds": 3,
+          "expectedDeg": 900,
+          "actualDeg": 900,
+          "passed": true
+        },
+        {
+          "timeSeconds": 4,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Motor housing stays fixed",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -30,
+            -10,
+            9
+          ],
+          "actualMm": [
+            -30,
+            -10,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Shaft witness turns",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -25,
+            -10,
+            12
+          ],
+          "actualMm": [
+            -25,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Screw witness turns with shaft",
+          "timeSeconds": 2,
+          "expectedMm": [
+            0,
+            -10,
+            12
+          ],
+          "actualMm": [
+            0,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage at half travel",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            9
+          ],
+          "actualMm": [
+            3,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload before pickup",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at pickup",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload follows carriage",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            17
+          ],
+          "actualMm": [
+            3,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at release",
+          "timeSeconds": 3,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload remains at drop after carriage returns",
+          "timeSeconds": 4,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage returns alone",
+          "timeSeconds": 4,
+          "expectedMm": [
+            -12,
+            0,
+            9
+          ],
+          "actualMm": [
+            -12,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "spinning-wheel",
+      "subject": "motionless-wheel",
+      "passed": false,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 0,
+          "passed": false
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 0,
+          "passed": false
+        }
+      ],
+      "checks": [
+        {
+          "label": "Quarter-turn witness",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            18,
+            7
+          ],
+          "actualMm": [
+            18,
+            0,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Half-turn witness",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -18,
+            0,
+            7
+          ],
+          "actualMm": [
+            18,
+            0,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "One full turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            18,
+            0,
+            7
+          ],
+          "actualMm": [
+            18,
+            0,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Stationary axle cap",
+          "timeSeconds": 1,
+          "expectedMm": [
+            5,
+            0,
+            14
+          ],
+          "actualMm": [
+            5,
+            0,
+            14
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "gear-pair",
+      "subject": "wrong-direction",
+      "passed": false,
+      "nativeDriveChain": false,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Pinion quarter turn",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            10,
+            8
+          ],
+          "actualMm": [
+            6.123233995736766e-16,
+            10,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower turns opposite",
+          "timeSeconds": 1,
+          "expectedMm": [
+            36,
+            -22,
+            8
+          ],
+          "actualMm": [
+            36,
+            22,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Follower ends at half turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            14,
+            0,
+            8
+          ],
+          "actualMm": [
+            14,
+            2.6942229581241772e-15,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "transfer-rig",
+      "subject": "slide-without-drive",
+      "passed": false,
+      "nativeDriveChain": false,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 450,
+          "actualDeg": 0,
+          "passed": false
+        },
+        {
+          "timeSeconds": 3,
+          "expectedDeg": 900,
+          "actualDeg": 0,
+          "passed": false
+        },
+        {
+          "timeSeconds": 4,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Motor housing stays fixed",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -30,
+            -10,
+            9
+          ],
+          "actualMm": [
+            -30,
+            -10,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Shaft witness turns",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -25,
+            -10,
+            12
+          ],
+          "actualMm": [
+            -25,
+            -7,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Screw witness turns with shaft",
+          "timeSeconds": 2,
+          "expectedMm": [
+            0,
+            -10,
+            12
+          ],
+          "actualMm": [
+            0,
+            -7,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Carriage at half travel",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            9
+          ],
+          "actualMm": [
+            3,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload before pickup",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at pickup",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload follows carriage",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            17
+          ],
+          "actualMm": [
+            3,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at release",
+          "timeSeconds": 3,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload remains at drop after carriage returns",
+          "timeSeconds": 4,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage returns alone",
+          "timeSeconds": 4,
+          "expectedMm": [
+            -12,
+            0,
+            9
+          ],
+          "actualMm": [
+            -12,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "transfer-rig",
+      "subject": "missing-release",
+      "passed": false,
+      "nativeDriveChain": true,
+      "nativeHandoffs": false,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 450,
+          "actualDeg": 450,
+          "passed": true
+        },
+        {
+          "timeSeconds": 3,
+          "expectedDeg": 900,
+          "actualDeg": 900,
+          "passed": true
+        },
+        {
+          "timeSeconds": 4,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Motor housing stays fixed",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -30,
+            -10,
+            9
+          ],
+          "actualMm": [
+            -30,
+            -10,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Shaft witness turns",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -25,
+            -10,
+            12
+          ],
+          "actualMm": [
+            -25,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Screw witness turns with shaft",
+          "timeSeconds": 2,
+          "expectedMm": [
+            0,
+            -10,
+            12
+          ],
+          "actualMm": [
+            0,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage at half travel",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            9
+          ],
+          "actualMm": [
+            3,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload before pickup",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at pickup",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload follows carriage",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            17
+          ],
+          "actualMm": [
+            3,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at release",
+          "timeSeconds": 3,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload remains at drop after carriage returns",
+          "timeSeconds": 4,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Carriage returns alone",
+          "timeSeconds": 4,
+          "expectedMm": [
+            -12,
+            0,
+            9
+          ],
+          "actualMm": [
+            -12,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "spinning-wheel",
+      "subject": "spin-between-samples",
+      "passed": false,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 0.25,
+          "expectedDeg": 45,
+          "actualDeg": 405,
+          "passed": false
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Quarter-turn witness",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            18,
+            7
+          ],
+          "actualMm": [
+            15.58845726811989,
+            -9.000000000000007,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": false
+        },
+        {
+          "label": "Half-turn witness",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -18,
+            0,
+            7
+          ],
+          "actualMm": [
+            -18,
+            2.204364238465236e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "One full turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            18,
+            0,
+            7
+          ],
+          "actualMm": [
+            18,
+            -4.408728476930472e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Stationary axle cap",
+          "timeSeconds": 1,
+          "expectedMm": [
+            5,
+            0,
+            14
+          ],
+          "actualMm": [
+            5,
+            0,
+            14
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "gear-pair",
+      "subject": "uncoupled-matching-poses",
+      "passed": false,
+      "nativeDriveChain": false,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Pinion quarter turn",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            10,
+            8
+          ],
+          "actualMm": [
+            6.123233995736766e-16,
+            10,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower turns opposite",
+          "timeSeconds": 1,
+          "expectedMm": [
+            36,
+            -22,
+            8
+          ],
+          "actualMm": [
+            36,
+            -22,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower ends at half turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            14,
+            0,
+            8
+          ],
+          "actualMm": [
+            14,
+            -2.6942229581241772e-15,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "sparkCandidateRegrade": [
+    {
+      "id": "gear-pair",
+      "subject": "spark",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Pinion quarter turn",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            10,
+            8
+          ],
+          "actualMm": [
+            6.123233995736766e-16,
+            10,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower turns opposite",
+          "timeSeconds": 1,
+          "expectedMm": [
+            36,
+            -22,
+            8
+          ],
+          "actualMm": [
+            36,
+            -22,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Follower ends at half turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            14,
+            0,
+            8
+          ],
+          "actualMm": [
+            14,
+            -2.6942229581241772e-15,
+            8
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "spinning-wheel",
+      "subject": "spark",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 180,
+          "actualDeg": 180,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 360,
+          "actualDeg": 360,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Quarter-turn witness",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            0,
+            18,
+            7
+          ],
+          "actualMm": [
+            1.102182119232618e-15,
+            18,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Half-turn witness",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -18,
+            0,
+            7
+          ],
+          "actualMm": [
+            -18,
+            2.204364238465236e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "One full turn",
+          "timeSeconds": 2,
+          "expectedMm": [
+            18,
+            0,
+            7
+          ],
+          "actualMm": [
+            18,
+            -4.408728476930472e-15,
+            7
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Stationary axle cap",
+          "timeSeconds": 1,
+          "expectedMm": [
+            5,
+            0,
+            14
+          ],
+          "actualMm": [
+            5,
+            0,
+            14
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "transfer-rig",
+      "subject": "spark",
+      "passed": true,
+      "nativeDriveChain": true,
+      "nativeHandoffs": true,
+      "driver": [
+        {
+          "timeSeconds": 0,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 1,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        },
+        {
+          "timeSeconds": 2,
+          "expectedDeg": 450,
+          "actualDeg": 450,
+          "passed": true
+        },
+        {
+          "timeSeconds": 3,
+          "expectedDeg": 900,
+          "actualDeg": 900,
+          "passed": true
+        },
+        {
+          "timeSeconds": 4,
+          "expectedDeg": 0,
+          "actualDeg": 0,
+          "passed": true
+        }
+      ],
+      "checks": [
+        {
+          "label": "Motor housing stays fixed",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -30,
+            -10,
+            9
+          ],
+          "actualMm": [
+            -30,
+            -10,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Shaft witness turns",
+          "timeSeconds": 2,
+          "expectedMm": [
+            -25,
+            -10,
+            12
+          ],
+          "actualMm": [
+            -25,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Screw witness turns with shaft",
+          "timeSeconds": 2,
+          "expectedMm": [
+            0,
+            -10,
+            12
+          ],
+          "actualMm": [
+            0,
+            -9.999999999999998,
+            12
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage at half travel",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            9
+          ],
+          "actualMm": [
+            3,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload before pickup",
+          "timeSeconds": 0.5,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at pickup",
+          "timeSeconds": 1,
+          "expectedMm": [
+            -12,
+            0,
+            17
+          ],
+          "actualMm": [
+            -12,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload follows carriage",
+          "timeSeconds": 2,
+          "expectedMm": [
+            3,
+            0,
+            17
+          ],
+          "actualMm": [
+            3,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload pose at release",
+          "timeSeconds": 3,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Payload remains at drop after carriage returns",
+          "timeSeconds": 4,
+          "expectedMm": [
+            18,
+            0,
+            17
+          ],
+          "actualMm": [
+            18,
+            0,
+            17
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        },
+        {
+          "label": "Carriage returns alone",
+          "timeSeconds": 4,
+          "expectedMm": [
+            -12,
+            0,
+            9
+          ],
+          "actualMm": [
+            -12,
+            0,
+            9
+          ],
+          "toleranceMm": 0.001,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "sparkReceipt": "spark-2026-11-26-r4.json",
+  "sourceSha256": {
+    "apps/workshop/tests/motion-eval.unit.test.ts": "cc69b65a0d9be739a1ca5eaefe426102309b846a11a32265de941cd74a47b7b7",
+    "apps/workshop/agent-evals/motion/fixtures.ts": "791f63af815292b232a45456386b13ff4a4dada2d555d8cc4339d3e2bfee87b4",
+    "apps/workshop/agent-evals/motion/grade.ts": "0da7babb98875397d72fb7cb2f9bd7bbf9a825a317db9dd93481789d5c23bb08",
+    "apps/workshop/agent-evals/motion/regrade.ts": "bc75041264fac3ffc4672473c1acd53ac64212cfa0d70c8c18882d3c27bcfa95"
+  }
+}

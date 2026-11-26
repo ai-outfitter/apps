@@ -1,0 +1,15 @@
+{
+  "app": "workshop",
+  "appVersion": "0.1.6",
+  "sourceBase": "561bd030c24531691f89d3d147d44c4abc353e7f",
+  "mode": "operational",
+  "chromium": "157.0.8103.50",
+  "scenariosPassed": 5,
+  "capturedAt": "2026-11-26T17:06:12+00:00",
+  "sourceSha256": {
+    "apps/workshop/tests/motion-eval.browser.spec.ts": "9e5920eb646fedd895621a4588ec448df08f8105769f5de366ff71fe99575c1e",
+    "apps/workshop/tests/operation-playback.browser.spec.ts": "1b9d7bfe6ceaea9774c8a58cb0b9a4da13cf55bce8f2d8d37490e417fc516d08",
+    "apps/workshop/agent-evals/motion/fixtures.ts": "791f63af815292b232a45456386b13ff4a4dada2d555d8cc4339d3e2bfee87b4",
+    "apps/workshop/agent-evals/motion/evidence/spark-2026-11-26-r2.json": "47a8cfa97f9ce69cce08f7e02f270611669107f069b2b07eea80d98d07f87a8b"
+  }
+}

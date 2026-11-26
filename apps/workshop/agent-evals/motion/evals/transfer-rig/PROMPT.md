@@ -1,0 +1,3 @@
+A chamber robotics team is demonstrating a payload transfer on a horizontal bench rig. The motor housing and frame stay fixed. The motor shaft drives the screw directly in the same direction at the same speed. The screw moves the carriage +12 mm per full positive revolution. Only the shaft gets a direct track. Use native couplings for both stages.
+
+From 0 to 1 second stay at rest. At 1 second pick up the payload with the carriage. From 1 to 3 seconds turn the shaft to +900 degrees at constant speed. At 3 seconds release the payload in place, then return the shaft to its start at constant speed until 4 seconds. Use native handoffs to track pickup and release. The payload should stay at the drop position as the carriage returns.
