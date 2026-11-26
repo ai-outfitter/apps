@@ -13,6 +13,7 @@ import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
 import { core, type Graph } from "../lib/graph";
 import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
+import { isRepositoryEvidence } from "./enrichment-source";
 import { guardedBatch } from "./graph-batch";
 import { readGraph } from "./graph";
 import { type Database, loadOperations, resolveCommitted, batchContentDigest, batchRowsUnchanged, approveAfterReview, type StewardDecision } from "./graph-batches";
@@ -373,6 +374,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   const graphFacts = reviewGraphContext(graph, rows, root);
   const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks, partBudget, root);
   const refs = new Set(rows.map((row) => row.ref));
+  const privateInput = rows.some(row => Array.isArray(row.evidence) && row.evidence.some(isRepositoryEvidence));
   let runId: string | null = null;
   let review: BatchReview;
   try {
@@ -387,6 +389,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
         const { output } = await host.call("inference.generate", {
           runId: runId!, step: reviewStep, instructions: stewardPrompt, schema: answerSchema,
           data: JSON.parse(JSON.stringify({ ...part.data, prompt })),
+          ...(privateInput ? { privateInput: true } : {}),
         });
         return [{ answer: stewardAnswer.parse(output), refs: part.refs }];
       } catch (error) {

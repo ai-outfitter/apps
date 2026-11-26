@@ -1,3 +1,5 @@
+import { enrichGraph, enrichmentInput } from "./graph-enrichment";
+import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import {creativeAddressQueries,creativeAddressMutations,creativeQueries,creativeMutations} from './creative';
 import { ontologyGuide } from "./ontology-guide";
 import { and, asc, count, eq, gt, inArray, like, ne, sql } from "drizzle-orm";
@@ -13,7 +15,7 @@ import { batchGroups } from "./batch-groups";
 // Wiki's graph.graphql serves changeQueries beside its generated types, so the
 // printed schema (graph/schema.graphql) answers through both.
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { mutationField } from "@ai-outfitter/app-sdk/app-graphql";
+import { fieldError, mutationField } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, type GraphContext, groupBy, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { installationDatabase } from "@ai-outfitter/app-sdk/cloudflare/database";
 import {
@@ -348,6 +350,21 @@ const Mutation = new GraphQLObjectType<unknown, MutationContext>({
       run: async (context: MutationContext,input) => view(await reviewBatch(context.db(),context.identity,context.actor,context.originActor,input))}),
     ...creativeMutations,
     ...creativeAddressMutations,
+    enrichGraph: {
+      type: nonNull(JSONScalar), args: {
+        prompt: { type: GraphQLString }, node: { type: GraphQLID },
+        repositories: { type: new GraphQLList(nonNull(GraphQLString)) },
+      },
+      description: "Propose reviewed enrichment for an existing node or one to four authorized repositories. A Repository node resolves the same repository and anchor as its URL. Omit targets to explore recent scoped thread activity.",
+      resolve: async (_root, args, context: MutationContext) => {
+        try {
+          if (!context.host) throw new Response("Workflow host unavailable", { status: 503 });
+          const input = enrichmentInput.safeParse({ prompt: args.prompt ?? undefined, node: args.node ?? undefined, repositories: args.repositories ?? undefined });
+          if (!input.success) throw new Response(input.error.issues.map(issue => issue.message).join("; "), { status: 400 });
+          return await enrichGraph(context.db(), context.identity, context.host() as WorkflowHost<"interactive">, input.data);
+        } catch (error) { throw await fieldError(error); }
+      },
+    },
     stageChanges: mutationField({
       name: "StageChanges", output: nonNull(ChangeBatch),
       description: "Stage up to 100 proposals, opening a batch a member reviews when batchId is omitted; a batch that commits by policy (Forerunner's) takes proposals only from whoever opened it. Each proposal is one graph.apply operation with evidence citations, confidence (0-1) and a short reason: {\"operation\":{\"operation\":\"create\",\"ref\":\"$ada\",\"type\":\"graph-node\",\"attributes\":{\"typeId\":\"Person\",\"title\":\"Ada\"}},\"evidence\":[{\"provider\":\"gmail\",\"recordId\":\"<account email>/<message id>\",\"quote\":\"...\"}],\"reason\":\"...\"}. Name existing records by address: typeId takes a type name (Person), fromId and toId take node addresses (Organization:sunny) or refs staged earlier in the batch, and an update names its record (Person, Organization:sunny or works_on(Person:ada → Project:sunny), with @<validFrom> when the edge has a start) as id with its revision. A new batch is anchored to the root (the organization's Organization node, or the owner's Person in a personal graph): every new node must connect to it. Pass anchors (node addresses) only when the member asks for a narrower scope; [] removes the requirement. Re-adding an identical proposal does nothing; a ref already used for another is a conflict unless replace:true explicitly replaces it, including evidence and reason. Read validation in the result and repair until valid before submitting. advice holds Onto's plain checks on the draft; the steward's review of the draft follows in review.",

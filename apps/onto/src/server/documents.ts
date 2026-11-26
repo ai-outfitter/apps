@@ -46,6 +46,8 @@ const changeDocuments = defineDocuments({
       }
     }`,
   },
+  EnrichGraph: { executionTimeoutMs: 840000, story: "As an editor, I want to enrich an existing node or authorized repository, so that sourced proposals reach Onto review.",
+    document: `mutation EnrichGraph($node: ID, $repositories: [String!], $prompt: String) { enrichGraph(node: $node, repositories: $repositories, prompt: $prompt) }` },
   CreativeRecords:{story:"As a member or agent, I want to reuse creative records across apps, so that descriptions stay consistent.",document:`query CreativeRecords($kind:String,$after:String,$limit:Int){creativeRecordViews(kind:$kind,after:$after,limit:$limit)}`},
   StageCreativeRecord:{story:"As an agent, I want to propose a brief, prompt, storyboard, candidate or selection through ordinary graph review, so that shared edits follow existing permissions.",document:`mutation StageCreativeRecord($input:StageCreativeRecordAtAddressInput!){stageCreativeRecordAtAddress(input:$input)}`},
   FreezeCreativeInputs:{story:"As an agent, I want to freeze the exact committed prompt dependencies before generation, so that each output has reproducible inputs.",document:`mutation FreezeCreativeInputs($input:FreezeCreativeInputsAtAddressInput!){freezeCreativeInputsAtAddress(input:$input)}`},
@@ -127,6 +129,7 @@ const changeDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(changeDocuments, graphqlSchema, batchGroups), {
+  EnrichGraph: { description: "Enrich an existing node with node (its ID), or name one to four authorized repositories with repositories (canonical HTTPS URLs, or unique owner/name). A Repository node reads its canonical source and the same graph anchor as its URL. Optional prompt narrows the subject. Returns review batches; accepts no changes." },
   WikiPassageSearch: { description: "Search indexed excerpts in a readable Wiki in this organization. Returns text, revision pins, locators and a continuation cursor." },
   WikiPassageStatus: { description: "Read Wiki passage indexing progress, extraction issues and held suggestion reasons in this organization." },
   EnableWikiPassageIndex: { description: "Organization editors can explicitly enable six-hour passage indexing for an accessible Wiki. Returns the schedule receipt." },

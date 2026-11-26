@@ -1,3 +1,4 @@
+import { isEnrichmentSource } from "./enrichment-source";
 import {
   type AppActor,
   type AppIdentity,
@@ -96,6 +97,7 @@ export const actorRef = (actor: AppActor) => `${actor.kind}:${actor.id}`;
 
 export async function openBatch(db: Database, who: AppIdentity, actor: AppActor, input: z.infer<typeof batchOpenInput>, id: string = crypto.randomUUID()) {
   requireEntityWriter(who);
+  if (isEnrichmentSource(input.source)) fail("The enrichment source is reserved", 403);
   if (isPassageBatch({ id, source: input.source ?? null })) {
     if (actor.kind !== "app" || actor.id !== who.installationId) fail("The Wiki passage source is reserved", 403);
     await requirePassageBatchAccess(db, { id, source: input.source ?? null }, true);
@@ -665,6 +667,8 @@ type BatchSubmissionInput = z.infer<typeof mutateBatchSubmissionInput>;
 
 export async function mutateBatchSubmission(db: Database, who: AppIdentity, actor: AppActor, origin: AppActor, input: BatchSubmissionInput) {
   requireEntityWriter(who);
+  if (isEnrichmentSource(input.source) && (actor.kind !== "app" || actor.id !== who.installationId || actorRef(actor) !== actorRef(origin)))
+    fail("The enrichment source is reserved", 403);
   // Two digests keep this receipt outside graph.apply's 128-character key space.
   const caller = JSON.stringify([actorRef(actor), actorRef(origin)]);
   const requestKey = `batch-submission:${await sha256Hex(caller)}:${await sha256Hex(input.requestKey)}`;

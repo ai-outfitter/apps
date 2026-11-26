@@ -1,3 +1,4 @@
+import { enrichGraph, enrichmentInput, enrichmentWorkflow } from "../../../../server/graph-enrichment";
 import {dailyUpdate,dailyWorkflow} from "../../../../server/daily-update";
 import { processScheduledReview, reviewWorkflow } from "../../../../server/batch-review";
 import { auditOnSchedule, auditWorkflow } from "../../../../server/ontology-audit";
@@ -19,6 +20,14 @@ export const POST: APIRoute = ({ request, locals }) =>
       const identity = requestIdentity(request);
       const host = workflowHost<"schedule">(locals);
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
+      if (schedule.workflowId === enrichmentWorkflow) {
+        if (["node", "repositories", "explore.inputs.node", "explore.inputs.repositories"].some(key => key in schedule.inputs))
+          return { outcome: "declined", reason: "Targeted Onto enrichment requires an interactive document" };
+        const inputs = enrichmentInput.safeParse({ prompt: schedule.inputs["explore.inputs.prompt"] ?? schedule.inputs.prompt });
+        if (!inputs.success) return { outcome: "declined", reason: "Invalid Onto enrichment schedule input" };
+        await enrichGraph(installationDatabase(), identity, host, inputs.data, runId);
+        return { outcome: "started" };
+      }
       if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);
       if (schedule.workflowId === passageWorkflow)
         return withPassageReviewHost(() => identity, () => host, () => passageOnSchedule(identity, host, input));

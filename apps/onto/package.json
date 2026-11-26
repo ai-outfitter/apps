@@ -27,6 +27,7 @@
     "@ai-outfitter/server": "*",
     "@ai-outfitter/ui": "*",
     "@ai-outfitter/workflow-batch-review": "0.1.0",
+    "@ai-outfitter/workflow-graph-enrichment": "0.1.0",
     "@ai-outfitter/workflow-ontology-audit": "0.1.0",
     "@ai-outfitter/workflow-wiki-passage-index": "0.1.0",
     "@astrojs/cloudflare": "^14.3.3",

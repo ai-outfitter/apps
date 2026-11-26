@@ -67,6 +67,8 @@ Projects have a Repositories section and a Link repository action. A Repository 
 
 ## Useful workflows
 
+[Enrich an existing node or an authorized repository](docs/enrichment.md).
+
 - **Create/link project** can document an external project directly in Wiki, or create or select a canonical Planning project and
   its documentation in one flow. It uses the existing scoped workflow-host entity
   operations with `entities.read` and `entities.write`. If documentation saving
