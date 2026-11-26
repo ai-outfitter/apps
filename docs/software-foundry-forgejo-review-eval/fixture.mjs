@@ -118,3 +118,16 @@ export async function inventory(auth) {
       })),
     }))) };
 }
+
+export async function grantReviewerReadOnly(auth) {
+  await api(auth.admin, `${repoPath}/collaborators/reviewer`, "DELETE");
+  const team = await api(auth.admin, "/orgs/box/teams", "POST", {
+    name: "fixture-reviewers", permission: "read",
+    units_map: { "repo.code": "read", "repo.pulls": "read" },
+  });
+  await api(auth.admin, `/teams/${team.id}/repos/${issue.repository}`, "PUT");
+  await api(auth.admin, `/teams/${team.id}/members/reviewer`, "PUT");
+  const access = await api(auth.reviewer, repoPath);
+  assert.deepEqual(access.permissions, { admin: false, push: false, pull: true });
+  return access.permissions;
+}

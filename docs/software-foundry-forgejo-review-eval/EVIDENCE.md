@@ -1,5 +1,11 @@
 # Local replay evidence
 
+## Historical checkout failure and migration fixture
+
+The archived Ocean record used Webapp #1029 at commit `84221cc34526b6e42fac49060b31b0d713a3fe7d` and platform OCI digest `sha256:3cb6635ae7fac2e41b6e25a43df811de81338fecd0cbcac0537e7f0d35000e74`. The installed Software Foundry revision was 2. Its failed run retained one failed implementer attempt with an absent output hash and one session artifact. The underlying runtime reported `Pinned checkout could not initialize.` with zero stages. The app recorded no candidate, review, draft observation or commit proof. A separate native read confirmed the independent reviewer had pull access and push disabled.
+
+The fixture reproduces those persisted facts with a synthetic issue and local identities. The checkout failure is in `workflow_node_attempts.receipt.failure`. The fixture preserves the original app row through migration 0014 and checks the index permits one original target and one recovery child per original. The fixture uses the installed application's candidate schema and package while exercising the migrated prior row through authenticated MCP.
+
 ## Coordinated reviewer authority callback
 
 Apps `3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee` and Webapp `9c3c3e6a6c7eda6151501e7e1e3df0b240ac53ce` ran through installed OAuth MCP in fresh network-disabled boxes with native Forgejo. The exact local image `ddd173210ad87a95a39ccfe80944e77d2cc9a07b01415d93d75225245825a0d7` layers the pinned Webapp changes onto the verified final wire image below. Loaded workflow SDK, host, transport, callback route, gateway and reviewer bytes matched their Git blobs. The offline Apps package is byte-identical to the prior wire replay. [Launch pins](launch-pins-3fb7-9c3c.json) · [Sanitized case receipts](receipts-3fb7-9c3c.json)
