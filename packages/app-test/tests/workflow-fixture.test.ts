@@ -59,6 +59,7 @@ const answers: Record<string, unknown> = {
     communityTemplates: { checks: { pullRequest: { status: "missing", sources: [] } } },
   },
   "repository.request": { ok: true },
+  "repository.pinned-commit": { oid: "b".repeat(40) },
   "workspace.control": { ok: true },
   "binding.approve": { id: "binding", revision: "one", reused: false },
   "subscription.save": { id: "subscription" },
@@ -153,7 +154,7 @@ test("the fixture implements every phase and calls every exported operation", as
     schedule: { runId, scheduledFor: 1, schedule: { id: "schedule", workflowId: "flow", inputs: {}, connectionId: null, resource: null } },
     publish: { png: "cG5n", runId },
     prepare: { node, inputs: { event }, outputs: {}, settings: {} },
-    finalize: { node, inputs: { event }, outputs: { result: { ready: true, summary: "Done" } }, coordinator: false, session: {}, settings: {} },
+    finalize: { node, inputs: { event }, outputs: { result: { ready: true, summary: "Done" } }, coordinator: false, session: {}, settings: { pinnedCommit: true } },
     invocation: { invocation: { id: "invocation", name: "fixture.tick" }, scheduledFor: 1 },
   };
   for (const [name, input] of Object.entries(inputs)) {
@@ -174,6 +175,8 @@ test("the fixture implements every phase and calls every exported operation", as
   assert.deepEqual(calls.find((call) => call.operation === "repository.request" && (call.input as { method?: string }).method === "POST" &&
     (call.input as { path: string }).path.includes("comments"))?.input,
     { method: "POST", path: "/repos/acme/widgets/issues/3/comments", body: { body: "Done" } }, "finalize reads the node's own inputs");
+  assert.deepEqual(calls.find(call => call.operation === "repository.pinned-commit")?.input,
+    { expectedHeadSha: "a".repeat(40), message: "Fixture commit", files: [{ path: "README.md", text: "Done" }] });
 });
 
 test("platform phases answer the explicit result shapes", async () => {
