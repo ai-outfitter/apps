@@ -57,6 +57,10 @@ const phase = z.enum(workflowPhases);
 
 const id = z.string().min(1).max(128);
 const runId = z.uuid();
+
+/** Positive proof that this pinned Forgejo invocation stopped before dispatch. */
+export const forgejoMutationNotDispatched = { status: 425, message: "Pinned Forgejo mutation was not dispatched" } as const;
+
 /** The only remote branch a pinned Forgejo workspace may publish for this run. */
 export function forgejoWorkspaceBranch(id: string) {
   return `outfitter-review-${runId.parse(id)}`;

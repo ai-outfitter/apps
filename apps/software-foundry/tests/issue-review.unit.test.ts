@@ -30,6 +30,7 @@ function fixture(t: TestContext) {
   sqlite.exec(readFileSync(new URL("../migrations/0010_foundry_forgejo_issue_reviews.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../migrations/0011_foundry_forgejo_commit_proof.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../migrations/0012_foundry_forgejo_review_selection.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../migrations/0013_foundry_forgejo_dispatch.sql", import.meta.url), "utf8"));
   const key = createHash("sha256").update(JSON.stringify(["installation", origin, pin.repositoryId])).digest("hex");
   sqlite.prepare(`INSERT INTO foundry_forgejo_issue_review_bindings
     (key, revision, connectionId, implementer, reviewer, reviewerName, reviewerId, workerId)
@@ -587,4 +588,91 @@ test("another Forgejo author cannot publish or suppress the pinned reviewer's re
   await f.finalize(f.phase("review", true));
   assert.equal((await f.start()).review?.id, 60);
   assert.equal(f.state.reviewWrites, 1);
+});
+
+const noSendMessage = "Pinned Forgejo mutation was not dispatched";
+
+function isEffectCall(path: string, operation: string, input: Record<string, any>) {
+  return path === "review"
+    ? operation === "workspace.control" && input.operation === "publish-review"
+    : operation === "repository.request" && input.method === "POST" && input.path === `${repo.path}/${path}`;
+}
+
+test("only the reserved no-send proof reopens each frozen effect for one provider POST", async t => {
+  for (const path of ["branches", "contents", "pulls", "review"]) {
+    const f = fixture(t);
+    await f.start();
+    const role = path === "review" ? "review" : "implement";
+    if (role === "review") await f.finalize(f.phase("implement"));
+    let refusedPayload: unknown;
+    let sends = 0;
+    f.intercept((operation, input) => {
+      if (!isEffectCall(path, operation, input)) return;
+      const payload = input.body ?? input;
+      if (!refusedPayload) {
+        refusedPayload = structuredClone(payload);
+        throw new Response(noSendMessage, { status: 425 });
+      }
+      assert.deepEqual(payload, refusedPayload);
+      sends++;
+    });
+    await assert.rejects(f.finalize(f.phase(role)), refused(503));
+    assert.equal(sends, 0);
+    const retry = f.phase(role, true);
+    assert.equal((await f.prepare(retry)).mode, "coordinator");
+    await f.finalize(retry);
+    await f.finalize(f.phase(role, true));
+    assert.equal(sends, 1, path);
+  }
+});
+
+test("ambiguous failures and unmatched signals never replace a claimed effect", async t => {
+  const errors = [
+    new Response(noSendMessage + ".", { status: 425 }),
+    new Response(noSendMessage, { status: 503 }),
+    new DOMException("Provider request timed out", "TimeoutError"),
+    new Error("Connection closed during dispatch"),
+  ];
+  for (const [index, path] of ["branches", "contents", "pulls", "review"].entries()) {
+    const f = fixture(t);
+    await f.start();
+    const role = path === "review" ? "review" : "implement";
+    if (role === "review") await f.finalize(f.phase("implement"));
+    let attempts = 0;
+    f.intercept((operation, input) => {
+      if (!isEffectCall(path, operation, input)) return;
+      attempts++;
+      throw errors[index];
+    });
+    await assert.rejects(f.finalize(f.phase(role)), refused(503));
+    await assert.rejects(f.finalize(f.phase(role, true)), refused(503));
+    assert.equal(attempts, 1, path);
+  }
+});
+
+test("concurrent retries consume the same affirmative refusal only once", async t => {
+  const f = fixture(t);
+  await f.start();
+  let attempts = 0;
+  let entered!: () => void;
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { entered = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  f.intercept(async (operation, input) => {
+    if (!isEffectCall("contents", operation, input)) return;
+    if (++attempts === 1) throw new Response(noSendMessage, { status: 425 });
+    entered();
+    await held;
+  });
+  await assert.rejects(f.finalize(f.phase("implement")), refused(503));
+  const outcome = f.finalize(f.phase("implement", true));
+  await waiting;
+  try {
+    await assert.rejects(f.finalize(f.phase("implement", true)), refused(503));
+  } finally {
+    release();
+  }
+  await outcome;
+  assert.equal(attempts, 2);
+  assert.equal((await f.start()).candidate?.number, 8);
 });

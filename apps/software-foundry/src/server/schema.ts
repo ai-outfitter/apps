@@ -1,3 +1,4 @@
+import type { ReviewEffect } from "./workspace/issue-review-effect";
 export { graphChangeReceipts } from "@ai-outfitter/app-sdk/batch-receipts";
 import {
   index,
@@ -109,6 +110,7 @@ export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", 
   installationId: text().notNull(),
   createdBy: text().notNull(),
   inputs: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  effectDispatch: text({ mode: "json" }).$type<ReviewEffect>(),
   branchClaim: text(),
   commitClaim: text(),
   commitProof: text({ mode: "json" }).$type<{

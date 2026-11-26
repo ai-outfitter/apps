@@ -7,6 +7,7 @@ import type { IntakeContext } from "../intake";
 import { forgejoIssueReviewBindings, forgejoIssueReviews } from "../schema";
 import { hostAPI } from "./forge";
 import { PhaseMismatch, phaseMismatch, readBlobContent, verifyCommitTree, type CommitProof } from "./issue-review-commit";
+import { dispatchEffect, newEffect, readyEffect, retryEffect, type ChangeFile, type ReviewEffect } from "./issue-review-effect";
 
 export const issueReviewWorkflow = "foundry-forgejo-issue-review";
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
@@ -242,7 +243,6 @@ const changes = z.strictObject({
 }).refine(({ files }) => new Set(files.map(file => file.path)).size === files.length &&
   files.reduce((total, file) => total + new TextEncoder().encode(file.content ?? "").length, 0) <= 100_000);
 type Changes = z.infer<typeof changes>;
-type ChangeFile = { path: string; operation: "create" | "update"; content: string; sha?: string };
 
 const implemented = z.object({ headSha: sha, summary: z.string().trim().min(1).max(16_000) });
 const reviewed = implemented.extend({ verdict: z.enum(["approved", "changes-requested"]) });
@@ -402,7 +402,7 @@ export async function prepareIssueReview(host: WorkflowHost<"prepare">, db: Inta
   phase: z.infer<typeof prepareInput>): Promise<z.input<typeof prepareResult>> {
   const { row, pins, api } = await phaseSource(host, db, phase);
   if (phase.node.nodeId === "implement") {
-    if (row.commitClaim || row.publication) return { mode: "coordinator" };
+    if (row.commitClaim || row.publication || row.effectDispatch?.kind === "branch") return { mode: "coordinator" };
     return {
       mode: "agent", role: "implement", checkout: { sha: pins.baseSha },
       guidance: [
@@ -436,39 +436,51 @@ async function fileOperation(api: ReviewRepository, pins: Target, file: Changes[
 async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaited<ReturnType<typeof phaseSource>>,
   phase: z.infer<typeof finalizeInput>) {
   const { runId, attemptId } = phase.node;
-  if (row.commitClaim) return stagedCommit(api, pins, row);
-  if (phase.coordinator) throw phaseMismatch("An implementation result is required");
-  const proposed = changes.safeParse(phase.outputs.result);
-  if (!proposed.success) throw phaseMismatch("Implementation must propose a bounded set of added or updated text files");
-  const result = proposed.data;
-  const files: ChangeFile[] = [];
-  for (const proposedFile of result.files) {
-    const file = await fileOperation(api, pins, proposedFile);
-    if (file) files.push(file);
-  }
-  if (!files.length) throw phaseMismatch("Implementation proposal leaves the pinned base unchanged");
-  if (!row.branchClaim) {
-    if (await reviewBranchTip(api, pins)) throw phaseMismatch("The assigned branch already exists");
+  if (row.commitClaim) {
+    const ready = readyEffect(row.effectDispatch, "commit");
+    if (!ready || await reviewBranchTip(api, pins) !== pins.baseSha) return stagedCommit(api, pins, row);
     await verifySource(api, pins, pins.origin, phaseMismatch);
-    const [claimed] = await db().update(forgejoIssueReviews).set({ branchClaim: attemptId })
-      .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.branchClaim))).returning();
-    if (claimed) {
-      try {
-        await api.createBranch(pins.branch, pins.baseSha);
-      } catch {
-        // The write may have succeeded. Only the assigned branch can reconcile it.
-      }
-    }
+    const effect = await retryEffect(db, runId, ready);
+    return effect ? publishCommit(db, api, pins, row, effect) : stagedCommit(api, pins, row);
   }
+
+  let branchEffect = row.effectDispatch?.kind === "branch" ? row.effectDispatch : null;
+  if (!branchEffect) {
+    if (phase.coordinator) throw phaseMismatch("An implementation result is required");
+    const proposed = changes.safeParse(phase.outputs.result);
+    if (!proposed.success) throw phaseMismatch("Implementation must propose a bounded set of added or updated text files");
+    const files: ChangeFile[] = [];
+    for (const proposedFile of proposed.data.files) {
+      const file = await fileOperation(api, pins, proposedFile);
+      if (file) files.push(file);
+    }
+    if (!files.length) throw phaseMismatch("Implementation proposal leaves the pinned base unchanged");
+    branchEffect = newEffect("branch", { branch: pins.branch, base: pins.baseSha, files, summary: proposed.data.summary });
+  }
+
+  const { branch: branchName, base, files, summary } = branchEffect.payload;
   const tip = await reviewBranchTip(api, pins);
-  if (tip !== pins.baseSha) {
+  if (!row.branchClaim) {
+    if (tip) throw phaseMismatch("The assigned branch already exists");
+    await verifySource(api, pins, pins.origin, phaseMismatch);
+    const [claimed] = await db().update(forgejoIssueReviews).set({ branchClaim: attemptId, effectDispatch: branchEffect })
+      .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.branchClaim))).returning();
+    if (!claimed) throw unconfirmed("Another finalizer claimed the branch");
+    await dispatchEffect(db, runId, branchEffect, () => api.createBranch(branchName, base));
+  } else if (!tip && branchEffect.retryable) {
+    await verifySource(api, pins, pins.origin, phaseMismatch);
+    const effect = await retryEffect(db, runId, branchEffect);
+    if (effect) await dispatchEffect(db, runId, effect, () => api.createBranch(branchName, base));
+  }
+  const currentTip = await reviewBranchTip(api, pins);
+  if (currentTip !== pins.baseSha) {
     const latest = await savedReview(db, runId);
     if (latest?.commitClaim) return stagedCommit(api, pins, latest);
-    if (tip) throw phaseMismatch("The assigned branch does not point at the pinned base");
+    if (currentTip) throw phaseMismatch("The assigned branch does not point at the pinned base");
     throw unconfirmed("Branch creation is unconfirmed at the pinned base");
   }
   const proof: CommitProof = {
-    summary: result.summary,
+    summary,
     nonce: crypto.randomUUID(),
     files: await Promise.all(files.map(async file => ({
       path: file.path, beforeSha: file.sha ?? null,
@@ -481,26 +493,26 @@ async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaite
     throw phaseMismatch("The assigned branch moved before committing");
   }
   await verifySource(api, pins, pins.origin, phaseMismatch);
-  const [claimed] = await db().update(forgejoIssueReviews).set({ commitClaim: attemptId, commitProof: proof })
+  const effect = newEffect("commit", { branch: branchName, message: commitMessage(runId, proof), files });
+  const [claimed] = await db().update(forgejoIssueReviews).set({ commitClaim: attemptId, commitProof: proof, effectDispatch: effect })
     .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.commitClaim))).returning();
-  if (claimed) {
-    let written: unknown;
-    try {
-      written = await api.commitFiles({ branch: pins.branch, message: commitMessage(runId, proof), files });
-    } catch {
-      // A partially observed write is reconciled without issuing a second write.
-    }
-    const receipt = z.object({ commit: z.object({ sha }) }).safeParse(written);
-    if (receipt.success) {
-      proof.headSha = receipt.data.commit.sha;
-      await db().update(forgejoIssueReviews).set({ commitProof: proof })
-        .where(and(eq(forgejoIssueReviews.runId, runId), eq(forgejoIssueReviews.commitClaim, attemptId)));
-      claimed.commitProof = proof;
-    }
-  }
-  const current = claimed ?? await savedReview(db, runId);
+  if (claimed) return publishCommit(db, api, pins, claimed, effect);
+  const current = await savedReview(db, runId);
   if (!current) throw phaseMismatch("The durable Forgejo commit claim changed");
   return stagedCommit(api, pins, current);
+}
+
+async function publishCommit(db: IntakeContext["db"], api: ReviewRepository, pins: Target, row: Row,
+  effect: ReviewEffect<"commit">) {
+  const written = await dispatchEffect(db, row.runId, effect, () => api.commitFiles(effect.payload));
+  const receipt = z.object({ commit: z.object({ sha }) }).safeParse(written);
+  if (receipt.success) {
+    const proof = { ...requireCommitProof(row), headSha: receipt.data.commit.sha };
+    await db().update(forgejoIssueReviews).set({ commitProof: proof })
+      .where(and(eq(forgejoIssueReviews.runId, row.runId), eq(forgejoIssueReviews.effectDispatch, effect)));
+    row = { ...row, commitProof: proof };
+  }
+  return stagedCommit(api, pins, row);
 }
 
 /** A blocked observation establishes identity, not acceptance of the refs. */
@@ -526,6 +538,10 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
   let claim = row.publication;
   let proof = row.commitProof;
   let observed: z.infer<typeof pull> | undefined;
+  const sendDraft = async (effect: ReviewEffect<"draft">) => {
+    const created = pull.safeParse(await dispatchEffect(db, runId, effect, () => api.createPull(effect.payload)));
+    if (created.success && ownedDraft(created.data, pins, runId)) observed = created.data;
+  };
   if (!claim) {
     const staged = await publishBranch(db, source, phase);
     proof = staged.proof;
@@ -537,26 +553,21 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
       await verifyCommit(api, pins, staged.headSha, runId, proof);
       await verifySource(api, pins, pins.origin, phaseMismatch);
       const next = { attemptId, headSha: staged.headSha };
-      const [claimed] = await db().update(forgejoIssueReviews).set({ publication: next,
+      const effect = newEffect("draft", {
+        head: pins.branch,
+        base: pins.baseRef,
+        title: `WIP: Review for issue #${pins.issueNumber}`,
+        body: `Review of issue #${pins.issueNumber}.\n\n${marker(runId)}`,
+      });
+      const [claimed] = await db().update(forgejoIssueReviews).set({ publication: next, effectDispatch: effect,
         draftObservation: { status: "ambiguous", branch: pins.branch, expectedHeadSha: next.headSha, expectedBaseSha: pins.baseSha },
       }).where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.publication))).returning();
       claim = claimed ? next : (await savedReview(db, runId))?.publication ?? null;
-      if (claimed) {
-        try {
-          const created = pull.safeParse(await api.createPull({
-            head: pins.branch,
-            base: pins.baseRef,
-            title: `WIP: Review for issue #${pins.issueNumber}`,
-            body: `Review of issue #${pins.issueNumber}.\n\n${marker(runId)}`,
-          }));
-          if (created.success && ownedDraft(created.data, pins, runId)) observed = created.data;
-        } catch {
-          // A claimed POST without a proven pre-dispatch refusal is read-only from here.
-        }
-      }
+      if (claimed) await sendDraft(effect);
     }
   }
   if (!claim || !proof) throw phaseMismatch("The durable Forgejo draft claim changed");
+  const expectedHeadSha = claim.headSha;
 
   const observation = (status: "ambiguous" | "blocked", reason?: string) => ({
     status, branch: pins.branch, expectedHeadSha: claim.headSha, expectedBaseSha: pins.baseSha,
@@ -573,13 +584,28 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
   const saveObservation = (value: ReturnType<typeof observation>) => db().update(forgejoIssueReviews)
     .set({ draftObservation: value }).where(draftPending);
 
-  try {
+  const checkObserved = async () => {
     if (observed) {
       await saveObservation(observation("ambiguous"));
       // A returned exact-run draft with stale refs is evidence of a conflict.
-      verifyPull(observed, pins, claim.headSha, runId);
+      verifyPull(observed, pins, expectedHeadSha, runId);
     }
-    const existing = await findPull(api, pins);
+  };
+
+  try {
+    await checkObserved();
+    let existing = await findPull(api, pins);
+    const ready = readyEffect(row.effectDispatch, "draft");
+    if (!existing && ready) {
+      await verifySource(api, pins, pins.origin, phaseMismatch);
+      await verifyCommit(api, pins, claim.headSha, runId, proof);
+      const effect = await retryEffect(db, runId, ready);
+      if (effect) {
+        await sendDraft(effect);
+        await checkObserved();
+      }
+      existing = await findPull(api, pins);
+    }
     if (existing && !ownedDraft(existing, pins, runId))
       throw phaseMismatch("The assigned branch has an unowned pull request");
     observed = existing ?? observed;
@@ -589,7 +615,7 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
     await verifyCommit(api, pins, claim.headSha, runId, proof);
     if (!existing) throw unconfirmed("Draft publication is unconfirmed; reconciling the run branch");
     const candidate = verifyPull(existing, pins, claim.headSha, runId);
-    const [accepted] = await db().update(forgejoIssueReviews).set({ candidate, draftObservation: null })
+    const [accepted] = await db().update(forgejoIssueReviews).set({ candidate, draftObservation: null, effectDispatch: null })
       .where(draftPending).returning({ runId: forgejoIssueReviews.runId });
     if (accepted) return { candidate, summary: proof.summary };
     const latest = await savedReview(db, runId);
@@ -623,31 +649,33 @@ async function reconcileReview(api: ReviewRepository, candidate: Candidate, pins
 async function publishReview(host: WorkflowHost<"finalize">, db: IntakeContext["db"],
   { row, pins, api }: Awaited<ReturnType<typeof phaseSource>>, phase: z.infer<typeof finalizeInput>) {
   const candidate = await currentCandidate(api, row, pins);
-  const result = phase.coordinator ? null : reviewed.parse(phase.outputs.result);
+  const ready = readyEffect(row.effectDispatch, "review");
+  const result = phase.coordinator || ready ? null : reviewed.parse(phase.outputs.result);
   if (result && result.headSha !== candidate.headSha) throw phaseMismatch("Review reported a different commit");
   await verifyReviewer(host, pins, candidate);
   let claim = row.reviewPublication;
-  if (!claim && result) {
+  if (claim && ready) {
+    await verifySource(api, pins, pins.origin, phaseMismatch);
+    const next = { attemptId: phase.node.attemptId, verdict: claim.verdict };
+    const effect = await retryEffect(db, row.runId, ready, { reviewPublication: next });
+    if (effect) {
+      claim = next;
+      await sendReview(host, db, row.runId, effect);
+    } else {
+      claim = (await savedReview(db, row.runId))?.reviewPublication ?? null;
+    }
+  } else if (!claim && result) {
     await verifySource(api, pins, pins.origin, phaseMismatch);
     claim = { attemptId: phase.node.attemptId, verdict: result.verdict };
-    const [claimed] = await db().update(forgejoIssueReviews).set({ reviewPublication: claim })
+    const effect = newEffect("review", {
+      operation: "publish-review", reviewer: pins.reviewer, expectedReviewerId: pins.reviewerId,
+      candidate: { number: candidate.number, headSha: candidate.headSha },
+      verdict: result.verdict, summary: result.summary.replaceAll("<!--", "&lt;!--"),
+    });
+    const [claimed] = await db().update(forgejoIssueReviews).set({ reviewPublication: claim, effectDispatch: effect })
       .where(and(eq(forgejoIssueReviews.runId, row.runId), isNull(forgejoIssueReviews.reviewPublication))).returning();
     if (claimed) {
-      let published: unknown;
-      try {
-        published = await host.call("workspace.control", {
-          operation: "publish-review", reviewer: pins.reviewer, expectedReviewerId: pins.reviewerId,
-          candidate: { number: candidate.number, headSha: candidate.headSha },
-          verdict: result.verdict, summary: result.summary.replaceAll("<!--", "&lt;!--"),
-        });
-      } catch {
-        // Independently reconcile the pinned marker, including a lost response.
-      }
-      if (published !== undefined) {
-        const receipt = reviewReceipt.parse(published);
-        if (receipt.reviewer.id !== pins.reviewerId || receipt.headSha !== candidate.headSha || receipt.verdict !== result.verdict)
-          throw phaseMismatch("Unexpected broker review receipt");
-      }
+      await sendReview(host, db, row.runId, effect);
     } else {
       claim = (await savedReview(db, row.runId))?.reviewPublication ?? null;
     }
@@ -656,9 +684,20 @@ async function publishReview(host: WorkflowHost<"finalize">, db: IntakeContext["
   const review = await reconcileReview(api, candidate, pins, claim);
   await currentCandidate(api, row, pins);
   await verifySource(api, pins, pins.origin, phaseMismatch);
-  await db().update(forgejoIssueReviews).set({ review })
+  await db().update(forgejoIssueReviews).set({ review, effectDispatch: null })
     .where(and(eq(forgejoIssueReviews.runId, row.runId), isNull(forgejoIssueReviews.review)));
   return review;
+}
+
+async function sendReview(host: WorkflowHost<"finalize">, db: IntakeContext["db"], runId: string,
+  effect: ReviewEffect<"review">) {
+  const { payload } = effect;
+  const published = await dispatchEffect(db, runId, effect, () => host.call("workspace.control", payload));
+  if (published === undefined) return;
+  const receipt = reviewReceipt.parse(published);
+  if (receipt.reviewer.id !== payload.expectedReviewerId || receipt.headSha !== payload.candidate.headSha ||
+      receipt.verdict !== payload.verdict)
+    throw phaseMismatch("Unexpected broker review receipt");
 }
 
 export async function finalizeIssueReview(host: WorkflowHost<"finalize">, db: IntakeContext["db"],
