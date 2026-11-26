@@ -84,7 +84,7 @@ export async function assemblyGuard(db: WorkshopDatabase, next: AssemblySource, 
     for (const id of affected) {
       if (deleting && id===next.id) continue;
       const source = await load({projectId:id});
-      if(source.assembly.items.some(i=>i.reference || i.operations?.length)) await resolveAssembly(source,load);
+      if(source.assembly.items.some(i=>i.reference || i.operations?.length || i.couplings?.length)) await resolveAssembly(source,load);
       for (const item of source.assembly.items) if (item.cotsEvidenceRef) {
         await canonicalCotsPart(load, { projectId: source.id, itemId: item.id, revision: source.revision });
       }
