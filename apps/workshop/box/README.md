@@ -80,7 +80,7 @@ Design work also starts with one GraphQL mutation, `StartWorkshopDesign`
 starts a `workshop-design` task run through the workflow host's `task.start`
 and answers at once; the platform then dispatches the task to Workshop, which
 runs the same design turn on that run. The platform's own `StartTasks` starts
-the same task. An organization owner or admin may start it.
+the same task. An editor of the installation may start it: an organization owner or admin, or the owner of a personal Workshop.
 
 A request with `"via": "graphql"` sends every turn that way: the driver calls
 `graph_mutate` on the platform's MCP dispatch as the signed-in member (the

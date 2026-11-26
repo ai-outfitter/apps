@@ -141,7 +141,7 @@ const mutation = new GraphQLObjectType<unknown, WorkshopContext>({
     finishWorkshopBuild: mutationField<typeof finishBuildInput, WorkshopContext>({name:"FinishWorkshopBuild",description:"Finish a project workspace build and preserve revision provenance.",input:finishBuildInput,run:(context,input)=>finishBuild(context,input,true)}),
     startWorkshopDesign: mutationField<typeof startDesignInput, WorkshopContext>({
       name: "StartWorkshopDesign",
-      description: "Start Workshop's design agent on a part or project request without waiting for the model: a new project from `message`, or a follow-up to `projectId` at the `revision` the caller saw (a stale revision is refused before anything starts). The work runs as a workshop-design task run; an organization owner or admin may start it. Answers the run { id, status, design, created }: read WorkshopDesignRun with that id until status is complete (design names the saved projectId and revision) or failed. Pass `id` to make a retry start nothing twice.",
+      description: "Start Workshop's design agent on a part or project request without waiting for the model: a new project from `message`, or a follow-up to `projectId` at the `revision` the caller saw (a stale revision is refused before anything starts). The work runs as a workshop-design task run; an editor of the installation (an organization owner or admin, or the person who owns a personal Workshop) may start it. Answers the run { id, status, design, created }: read WorkshopDesignRun with that id until status is complete (design names the saved projectId and revision) or failed. Pass `id` to make a retry start nothing twice.",
       input: startDesignInput,
       run: (context, input) => startDesign(context, input),
     }),
