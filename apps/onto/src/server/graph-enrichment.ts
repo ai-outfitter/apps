@@ -1,5 +1,6 @@
 import { batchAddInput } from "@ai-outfitter/app-sdk/graph-contracts";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
+import { repositoryEnrichmentLabel } from "./enrichment-source";
 import { evidenceItem, type EvidenceItem } from "@ai-outfitter/app-sdk/evidence";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
@@ -207,8 +208,8 @@ async function explicitTargets(graph: Graph, host: Host, input: EnrichmentInput)
 function repositoryEvidence(repo: RepoSource): EvidenceItem[] {
   return repo.files.flatMap(file => {
     const recordId = `${repo.repository}/${file.path}`;
-    const path = decodeURIComponent(new URL(file.url).pathname);
-    if (!file.text.trim() || recordId.length > 500 || !path.endsWith(`/${repo.revision}/${file.path}`)) return [];
+    const path = new URL(file.url).pathname;
+    if (!file.text.trim() || recordId.length > 500 || !path.endsWith(`/${repo.revision}/${file.path.split("/").map(encodeURIComponent).join("/")}`)) return [];
     return [{ provider: repo.provider, recordId, version: repo.revision, uri: file.url, quote: file.text }];
   });
 }
@@ -232,7 +233,7 @@ async function enrichTarget(db: Database, who: AppIdentity, host: Host, runId: s
   try {
     const result = await mutateBatchSubmission(db, who, actor, actor, {
       batchId, title: `Enrich ${anchor.title}`.slice(0, 200), purpose: prompt || (target.repo ? "Enrich from the authorized repository." : "Expand graph context surfaced by recent threads."),
-      anchors: [anchor.id], source: { kind: "agent-task", ref, label: target.repo ? "Repository enrichment" : "Graph enrichment" }, proposals: changes,
+      anchors: [anchor.id], source: { kind: "agent-task", ref, label: target.repo ? repositoryEnrichmentLabel : "Graph enrichment" }, proposals: changes,
       remove: [], requestKey: batchId,
     });
     return state(result.state, result.id);
