@@ -1,0 +1,150 @@
+{
+  "id": "transfer-rig",
+  "subject": "spark",
+  "browser": "157.0.8103.50",
+  "toleranceMm": 0.001,
+  "playback": "once",
+  "finalTimeSeconds": 4,
+  "observations": [
+    {
+      "label": "Motor housing stays fixed",
+      "timeSeconds": 2,
+      "expectedMm": [
+        -30,
+        -10,
+        9
+      ],
+      "renderedMm": [
+        -30,
+        -10,
+        9
+      ]
+    },
+    {
+      "label": "Shaft witness turns",
+      "timeSeconds": 2,
+      "expectedMm": [
+        -25,
+        -10,
+        12
+      ],
+      "renderedMm": [
+        -25,
+        -9.999999999999998,
+        12
+      ]
+    },
+    {
+      "label": "Screw witness turns with shaft",
+      "timeSeconds": 2,
+      "expectedMm": [
+        0,
+        -10,
+        12
+      ],
+      "renderedMm": [
+        0,
+        -9.999999999999998,
+        12
+      ]
+    },
+    {
+      "label": "Carriage at half travel",
+      "timeSeconds": 2,
+      "expectedMm": [
+        3,
+        0,
+        9
+      ],
+      "renderedMm": [
+        3,
+        0,
+        9
+      ]
+    },
+    {
+      "label": "Payload before pickup",
+      "timeSeconds": 0.5,
+      "expectedMm": [
+        -12,
+        0,
+        17
+      ],
+      "renderedMm": [
+        -12,
+        0,
+        17
+      ]
+    },
+    {
+      "label": "Payload pose at pickup",
+      "timeSeconds": 1,
+      "expectedMm": [
+        -12,
+        0,
+        17
+      ],
+      "renderedMm": [
+        -12,
+        0,
+        17
+      ]
+    },
+    {
+      "label": "Payload follows carriage",
+      "timeSeconds": 2,
+      "expectedMm": [
+        3,
+        0,
+        17
+      ],
+      "renderedMm": [
+        3,
+        0,
+        17
+      ]
+    },
+    {
+      "label": "Payload pose at release",
+      "timeSeconds": 3,
+      "expectedMm": [
+        18,
+        0,
+        17
+      ],
+      "renderedMm": [
+        18,
+        0,
+        17
+      ]
+    },
+    {
+      "label": "Payload remains at drop after carriage returns",
+      "timeSeconds": 4,
+      "expectedMm": [
+        18,
+        0,
+        17
+      ],
+      "renderedMm": [
+        18,
+        0,
+        17
+      ]
+    },
+    {
+      "label": "Carriage returns alone",
+      "timeSeconds": 4,
+      "expectedMm": [
+        -12,
+        0,
+        9
+      ],
+      "renderedMm": [
+        -12,
+        0,
+        9
+      ]
+    }
+  ]
+}

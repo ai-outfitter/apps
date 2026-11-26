@@ -1,0 +1,1 @@
+A robotics team is demonstrating a reduction stage on a fixed base. The 12-tooth pinion drives the 24-tooth gear directly. Turn the pinion one full positive revolution at constant speed over two seconds. Express how the driven gear moves with a native coupling from the pinion.

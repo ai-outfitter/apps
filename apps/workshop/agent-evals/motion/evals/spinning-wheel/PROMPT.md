@@ -1,0 +1,1 @@
+A robotics team is demonstrating its first moving joint with a fixed stand, a wheel and a stationary retaining cap. Turn the wheel one full positive revolution at constant speed in two seconds. Only the wheel has a joint. The player repeats the operation.

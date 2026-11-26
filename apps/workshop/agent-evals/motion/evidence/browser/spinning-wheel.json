@@ -1,0 +1,66 @@
+{
+  "id": "spinning-wheel",
+  "subject": "reference",
+  "browser": "157.0.8103.50",
+  "toleranceMm": 0.001,
+  "playback": "loop",
+  "finalTimeSeconds": 0.487,
+  "observations": [
+    {
+      "label": "Quarter-turn witness",
+      "timeSeconds": 0.5,
+      "expectedMm": [
+        0,
+        18,
+        7
+      ],
+      "renderedMm": [
+        1.102182119232618e-15,
+        18,
+        7
+      ]
+    },
+    {
+      "label": "Half-turn witness",
+      "timeSeconds": 1,
+      "expectedMm": [
+        -18,
+        0,
+        7
+      ],
+      "renderedMm": [
+        -18,
+        2.204364238465236e-15,
+        7
+      ]
+    },
+    {
+      "label": "One full turn",
+      "timeSeconds": 2,
+      "expectedMm": [
+        18,
+        0,
+        7
+      ],
+      "renderedMm": [
+        18,
+        -4.408728476930472e-15,
+        7
+      ]
+    },
+    {
+      "label": "Stationary axle cap",
+      "timeSeconds": 1,
+      "expectedMm": [
+        5,
+        0,
+        14
+      ],
+      "renderedMm": [
+        5,
+        0,
+        14
+      ]
+    }
+  ]
+}

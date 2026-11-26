@@ -1,0 +1,52 @@
+{
+  "id": "gear-pair",
+  "subject": "reference",
+  "browser": "157.0.8103.50",
+  "toleranceMm": 0.001,
+  "playback": "once",
+  "finalTimeSeconds": 2,
+  "observations": [
+    {
+      "label": "Pinion quarter turn",
+      "timeSeconds": 0.5,
+      "expectedMm": [
+        0,
+        10,
+        8
+      ],
+      "renderedMm": [
+        6.123233995736766e-16,
+        10,
+        8
+      ]
+    },
+    {
+      "label": "Follower turns opposite",
+      "timeSeconds": 1,
+      "expectedMm": [
+        36,
+        -22,
+        8
+      ],
+      "renderedMm": [
+        36,
+        -22,
+        8
+      ]
+    },
+    {
+      "label": "Follower ends at half turn",
+      "timeSeconds": 2,
+      "expectedMm": [
+        14,
+        0,
+        8
+      ],
+      "renderedMm": [
+        14,
+        -2.6942229581241772e-15,
+        8
+      ]
+    }
+  ]
+}
