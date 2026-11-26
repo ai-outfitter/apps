@@ -17,8 +17,8 @@ export const POST: APIRoute = ({ request, locals }) =>
     const ownerRoot = await initializeOwnerRoot(installationDatabase(), who);
     // Existing Wikis get their stored documents compiled over the types they have now.
     await refreshKnowledgeGraphQueries(installationDatabase());
-    const enrichmentSchedule = await installEnrichment(locals);
-    return { ...result, ownerRoot, enrichmentSchedule, sealTimer: await sealTimer(locals) };
+    const seal = await sealTimer(locals);
+    return { ...result, ownerRoot, enrichmentSchedule: await installEnrichment(locals), sealTimer: seal };
   });
 
 /** Review windows close on time through an hourly invocation. A host that cannot
@@ -34,12 +34,12 @@ async function sealTimer(locals: App.Locals) {
   }
 }
 
-
 async function installEnrichment(locals: App.Locals) {
   try {
     return await ensureEnrichmentSchedule(workflowHost<"interactive">(locals));
   } catch (error) {
-    if (error instanceof Response && [403, 503].includes(error.status)) return "unavailable";
-    throw error;
+    if (!(error instanceof Response)) throw error;
+    console.warn("onto enrichment schedule unavailable", error.status);
+    return "unavailable";
   }
 }

@@ -151,6 +151,10 @@ test("the published EnrichGraph document converges repository URLs and repositor
   assert.ok(operation.mcp);
   assert.notEqual(operation.hidden, true);
   const mutate = (variables: object) => call("graph.mutate", { operationName: "EnrichGraph", query: operation.query, variables });
+  const reservedSource = await call("batch.open", { title: "Spoofed enrichment", source: {
+    kind: "agent-task", ref: `enrichment/${repoId}`,
+  } });
+  assert.equal(reservedSource.status, 403, await reservedSource.clone().text());
   const direct = (await json(await mutate({ repositories: ["synthetic/heliorepo"] }))).data.enrichGraph;
   assert.equal(direct.state, "awaiting_review");
   assert.equal(direct.targets[0].node, repoId);
@@ -168,6 +172,14 @@ test("the published EnrichGraph document converges repository URLs and repositor
     && row.evidence[0].version === revision && row.evidence[0].recordId.endsWith("/README.md")
     && row.evidence[0].quote === fact && !row.operation.attributes.body));
   assert.equal((await json(await call("graph.read", {}))).nodes.some((row: Json) => row.title === "Helio Monitor"), false);
+  const decision = await json(await call("graph.mutate", {
+    query: "mutation($input:ReviewBatchInput!){reviewBatch(input:$input){state}}",
+    variables: { input: { batchId: direct.batchId, verdict: "reject" } },
+  }));
+  assert.notEqual(decision.data.reviewBatch.state, "awaiting_review");
+  const afterDecision = (await json(await mutate({ repositories: ["synthetic/heliorepo"] }))).data.enrichGraph;
+  assert.equal(afterDecision.batchId, direct.batchId);
+  assert.equal(afterDecision.state, decision.data.reviewBatch.state);
   grant = false;
   await mutate({ node: repoId }).then(async response => assert.match(await response.text(), /grant unavailable/));
   grant = true;

@@ -235,18 +235,24 @@ async function enrichTarget(db: Database, who: AppIdentity, host: Host, runId: s
   if (overlap) return state("pending", overlap.batchId);
   const actor = { kind: "app" as const, id: who.installationId! };
   const batchId = await stableGraphId("onto:enrichment:batch", who.installationId!, anchor.id, target.repo?.revision ?? null, ...changes.map(p => p.operation.ref).sort());
+  const currentBatch = async () => {
+    const [batch] = await db.select({ state: graphBatches.state, source: graphBatches.source }).from(graphBatches).where(eq(graphBatches.id, batchId));
+    return batch?.source?.ref === ref && isEnrichmentSource(batch.source) ? state(batch.state, batchId) : undefined;
+  };
+  const prior = await currentBatch();
+  if (prior) return prior;
   try {
     const result = await mutateBatchSubmission(db, who, actor, actor, {
       batchId, title: `Enrich ${anchor.title}`.slice(0, 200), purpose: prompt || (target.repo ? "Enrich from the authorized repository." : "Expand graph context surfaced by recent threads."),
       anchors: [anchor.id], source: { kind: "agent-task", ref, label: target.repo ? "Repository enrichment" : "Graph enrichment" }, proposals: changes,
       remove: [], requestKey: batchId,
     });
-    return state(result.state, result.id);
+    return await currentBatch() ?? state(result.state, result.id);
   } catch (error) {
-    const active = (await pending(db)).find(row => row.source?.ref === ref);
+    const active = (await pending(db)).find(row => row.source?.ref === ref && isEnrichmentSource(row.source));
     if (active) return state("pending", active.batchId);
-    const [prior] = await db.select().from(graphBatches).where(eq(graphBatches.id, batchId));
-    if (prior) return state(prior.state, prior.id);
+    const concurrent = await currentBatch();
+    if (concurrent) return concurrent;
     throw error;
   }
 }

@@ -23,8 +23,9 @@ export const POST: APIRoute = ({ request, locals }) =>
       if (schedule.workflowId === enrichmentWorkflow) {
         if (["node", "repositories", "explore.inputs.node", "explore.inputs.repositories"].some(key => key in schedule.inputs))
           return { outcome: "declined", reason: "Targeted Onto enrichment requires an interactive document" };
-        const input = enrichmentInput.parse({ prompt: schedule.inputs["explore.inputs.prompt"] ?? schedule.inputs.prompt });
-        await enrichGraph(installationDatabase(), identity, host, input, runId);
+        const inputs = enrichmentInput.safeParse({ prompt: schedule.inputs["explore.inputs.prompt"] ?? schedule.inputs.prompt });
+        if (!inputs.success) return { outcome: "declined", reason: "Invalid Onto enrichment schedule input" };
+        await enrichGraph(installationDatabase(), identity, host, inputs.data, runId);
         return { outcome: "started" };
       }
       if(schedule.workflowId===dailyWorkflow)return dailyUpdate(host,identity,input);
