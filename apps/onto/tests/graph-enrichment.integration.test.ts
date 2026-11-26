@@ -165,7 +165,8 @@ test("the published EnrichGraph document converges repository URLs and repositor
   assert.deepEqual(batch.batch.anchors, [repoId]);
   assert.equal(batch.operations.length, 2);
   assert.ok(batch.operations.every((row: Json) => row.evidence[0].uri === fileUrl
-    && row.evidence[0].version === revision && row.evidence[0].recordId.endsWith("/README.md")));
+    && row.evidence[0].version === revision && row.evidence[0].recordId.endsWith("/README.md")
+    && row.evidence[0].quote === fact && !row.operation.attributes.body));
   assert.equal((await json(await call("graph.read", {}))).nodes.some((row: Json) => row.title === "Helio Monitor"), false);
   grant = false;
   await mutate({ node: repoId }).then(async response => assert.match(await response.text(), /grant unavailable/));

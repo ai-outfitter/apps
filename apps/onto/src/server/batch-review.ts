@@ -7,13 +7,13 @@ import { isPassageBatch, requirePassageBatchAccess } from "./passage-review";
 // is a new run. Once a submitted batch's review finishes, the steward approves what it
 // found clean and leaves the rest for a member (stewardApprove, docs/batch-review.md).
 import { type AppIdentity, sha256Hex } from "@ai-outfitter/app-sdk/server";
-import { repositoryEnrichmentLabel } from "./enrichment-source";
 import { type WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, eq, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import stewardPrompt from "../../agent/ontology-steward.md?raw";
 import { core, type Graph } from "../lib/graph";
 import { batchAdvice, finding, type Finding, stageTypes } from "./batch-advice";
+import { isRepositoryEvidence } from "./enrichment-source";
 import { guardedBatch } from "./graph-batch";
 import { readGraph } from "./graph";
 import { type Database, loadOperations, resolveCommitted, batchContentDigest, batchRowsUnchanged, approveAfterReview, type StewardDecision } from "./graph-batches";
@@ -374,7 +374,7 @@ async function executeReview(db: Database, who: AppIdentity, host: WorkflowHost<
   const graphFacts = reviewGraphContext(graph, rows, root);
   const { parts, complete, coverage } = reviewParts(graph, who, batch, rows, checks, partBudget, root);
   const refs = new Set(rows.map((row) => row.ref));
-  const privateInput = batch.source?.kind === "agent-task" && batch.source.label === repositoryEnrichmentLabel;
+  const privateInput = rows.some(row => Array.isArray(row.evidence) && row.evidence.some(isRepositoryEvidence));
   let runId: string | null = null;
   let review: BatchReview;
   try {

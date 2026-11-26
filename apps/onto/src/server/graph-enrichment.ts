@@ -1,12 +1,12 @@
 import { batchAddInput } from "@ai-outfitter/app-sdk/graph-contracts";
 import { stableGraphId } from "@ai-outfitter/app-sdk/graph-client";
-import { repositoryEnrichmentLabel } from "./enrichment-source";
 import { evidenceItem, type EvidenceItem } from "@ai-outfitter/app-sdk/evidence";
 import { requireEditor, type AppIdentity } from "@ai-outfitter/app-sdk/server";
 import type { OperationOutput, WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { Graph, GraphNode } from "../lib/graph";
+import { isRepositoryEvidence } from "./enrichment-source";
 import { readGraph } from "./graph";
 import { mutateBatchSubmission, type Database } from "./graph-batches";
 import { graphBatches, graphBatchOperations } from "./schema";
@@ -98,7 +98,8 @@ async function explore(host: Host, runId: string, prompt: string, graph: Graph, 
   // Send only a public hostname already linked by this record to the search provider.
   // The graph, prompt, thread contents and organization-specific names stay in the installation.
   const urls = [node.website, ...sources.filter(item => item.provider === "web").map(item => item.uri), ...(node.body.match(/https?:\/\/[^\s)\]>]+/g) ?? [])].filter((url): url is string => !!url);
-  for (const link of fromRepository ? [] : [...new Set(urls)].slice(0, 2)) {
+  const isRepositoryNode = graph.types.some(type => type.id === node.typeId && type.name === "Repository");
+  for (const link of fromRepository || isRepositoryNode ? [] : [...new Set(urls)].slice(0, 2)) {
     if (!URL.canParse(link)) continue;
     const hostName = new URL(link).hostname;
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(hostName) || /\.(?:internal|local|localhost|test)$/i.test(hostName)) continue;
@@ -138,7 +139,9 @@ async function proposalsFor(graph: Graph, anchor: GraphNode, factsToAdd: z.infer
   for (const f of factsToAdd) {
     const edge = types.get(f.relationship), ends = edge?.ontology?.endpoints;
     if (edge?.category !== "edge" || !ends || (edge.ontology?.version === 2 && edge.ontology.projection)) continue;
-    const evidence = [{ ...sources[f.source], quote: f.quote }];
+    const source = sources[f.source];
+    const evidence = [{ ...source, quote: f.quote }];
+    const body = isRepositoryEvidence(source) ? "" : f.quote;
     const resolve = async (item: typeof f.from, accepts: string[] | "any") => {
       const type = types.get(item.type);
       if (!type || type.category !== "node" || (accepts !== "any" && !accepts.includes(type.id))) return;
@@ -147,7 +150,7 @@ async function proposalsFor(graph: Graph, anchor: GraphNode, factsToAdd: z.infer
       if (matches.length) return matches.length === 1 && !matches[0].archived ? matches[0].id : undefined;
       if (type.jsonSchema || type.properties.some(p => p.required)) return;
       const id = await stableGraphId("onto:enrichment:node", installationId, type.id, normalize(item.title));
-      proposals.set(id, { operation: { operation: "create", type: "graph-node", ref: `$n${id}`, attributes: { id, typeId: type.id, title: item.title, body: f.quote } }, evidence });
+      proposals.set(id, { operation: { operation: "create", type: "graph-node", ref: `$n${id}`, attributes: { id, typeId: type.id, title: item.title, body } }, evidence });
       return id;
     };
     const from = await resolve(f.from, ends.from), to = await resolve(f.to, ends.to);
@@ -155,7 +158,7 @@ async function proposalsFor(graph: Graph, anchor: GraphNode, factsToAdd: z.infer
     const id = await stableGraphId("onto:enrichment:edge", installationId, edge.id, from, to);
     links.push({ from, to, id });
     if (!graph.edges.some(e => !e.archived && e.typeId === edge.id && e.fromId === from && e.toId === to))
-      proposals.set(id, { operation: { operation: "create", type: "graph-edge", ref: `$e${id}`, attributes: { id, fromId: from, toId: to, typeId: edge.id, body: f.quote } }, evidence });
+      proposals.set(id, { operation: { operation: "create", type: "graph-edge", ref: `$e${id}`, attributes: { id, fromId: from, toId: to, typeId: edge.id, body } }, evidence });
   }
   // Keep only facts reachable from the chosen existing record, including transitive new offerings.
   const mentioned = new Set([anchor.id, ...links.flatMap(link => [link.from, link.to])]);
@@ -221,8 +224,8 @@ async function enrichTarget(db: Database, who: AppIdentity, host: Host, runId: s
   const ref = `enrichment/${anchor.id}`;
   const state = (state: string, batchId: string | null = null) => ({ state, batchId });
   const held = await pending(db);
-  const existing = held.find(row => row.source?.ref === ref ||
-    [row.operation?.attributes?.fromId, row.operation?.attributes?.toId].includes(anchor.id));
+  const existing = held.find(row => row.source?.ref === ref || (!target.repo &&
+    [row.operation?.attributes?.fromId, row.operation?.attributes?.toId].includes(anchor.id)));
   if (existing) return state("pending", existing.batchId);
   const sources = target.repo ? repositoryEvidence(target.repo) : [...await priorEvidence(db, anchor.id), ...activitySources].slice(0, 20);
   const facts = await explore(host, runId, prompt, graph, anchor, sources, !!target.repo);
@@ -235,7 +238,7 @@ async function enrichTarget(db: Database, who: AppIdentity, host: Host, runId: s
   try {
     const result = await mutateBatchSubmission(db, who, actor, actor, {
       batchId, title: `Enrich ${anchor.title}`.slice(0, 200), purpose: prompt || (target.repo ? "Enrich from the authorized repository." : "Expand graph context surfaced by recent threads."),
-      anchors: [anchor.id], source: { kind: "agent-task", ref, label: target.repo ? repositoryEnrichmentLabel : "Graph enrichment" }, proposals: changes,
+      anchors: [anchor.id], source: { kind: "agent-task", ref, label: target.repo ? "Repository enrichment" : "Graph enrichment" }, proposals: changes,
       remove: [], requestKey: batchId,
     });
     return state(result.state, result.id);
@@ -265,7 +268,7 @@ async function priorEvidence(db: Database, nodeId: string) {
   return history.flatMap(row => row.evidence).flatMap(item => {
     const read = evidenceItem.safeParse(item);
     // Repository text is only read through the live grant and confidential inference path.
-    return read.success && read.data.quote && !["forgejo", "github"].includes(read.data.provider) ? [read.data] : [];
+    return read.success && read.data.quote && !isRepositoryEvidence(read.data) ? [read.data] : [];
   });
 }
 
