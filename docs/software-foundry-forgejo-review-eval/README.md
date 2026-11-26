@@ -49,11 +49,11 @@ cp apps/software-foundry/graph/schema.graphql apps/software-foundry/graph/docume
 git rev-parse 'HEAD^{tree}' > "$PACKAGE/apps-tree.txt"
 ```
 
-Apply the committed Webapp #1029 source and its pinned Apps connector to the prior native eval box. The selected source image is distinct from the OCI digest that ran on Ocean.
+Apply the reviewed Webapp source and its pinned Apps connector to the prior native eval box. The candidate host and the historical Ocean OCI digest are recorded separately in the evidence.
 
 ```sh
-HOST=localhost/outfitter/foundry-forgejo-recovery:platform-84221cc3
-./build-recovery-host.sh /path/to/webapp 84221cc34526b6e42fac49060b31b0d713a3fe7d   "$HOST" "$OUT/recovery-host"
+HOST=localhost/outfitter/foundry-forgejo-recovery:candidate-dac7bddb
+./build-recovery-host.sh /path/to/webapp dac7bddb3ccdb55ef13de849c6c04c73369ff513   "$HOST" "$OUT/recovery-host"
 for case in recovery-lost recovery-unknown; do
   ./run.sh "$HOST" "$case" "$OUT/$case" "$PACKAGE" || exit
 done
@@ -64,7 +64,7 @@ done
 | `recovery-lost` | Wrong scope, unknown ID and read-only member checks pass before recovery. One OAuth caller loses its accepted response while concurrent callers reconcile to one child. Forgejo accepts one branch, one commit, one draft and one exact-head review while the relay discards each response. Repeated progress queries preserve host, app and Forgejo state. The original run, issue and base stay unchanged. |
 | `recovery-unknown` | Seed an unreceipted original-lineage branch in native Forgejo. Recovery observes the branch and refuses to start. The original lineage and native state are preserved. |
 
-For the provider-neutral candidate pair, use the archived harness and exact Forgejo launch pins shown in the evidence. Run the GitHub cases with the same operational package and the fixture-specific instructions. [Candidate launch pins](launch-pins-01bf-89ce.json) · [GitHub fixture](GITHUB.md)
+For the provider-neutral candidate pair, use the archived harness and exact Forgejo launch pins shown in the evidence. Run the GitHub cases with the same operational package and the fixture-specific instructions. [Candidate launch pins](launch-pins-430d-dac7.json) · [GitHub fixture](GITHUB.md)
 
 ## Exact release replay
 

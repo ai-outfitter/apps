@@ -2,7 +2,9 @@
 
 ## Provider-neutral candidate replay
 
-Apps `01bfabbb` and Webapp `89ce827f` passed five installed OAuth MCP cases. Both provider runs used the same literal `ReviewIssue` document hash. The three Forgejo runs used native Git and REST in a disposable instance. The two GitHub runs exercised the same installed mutation and real Git against a local GitHub API and credential fixture. [Exact Forgejo launch pins](launch-pins-01bf-89ce.json) · [Expected and observed results](receipts-01bf-89ce.json) · [GitHub fixture](GITHUB.md)
+Apps `430d03eb` and Webapp `dac7bddb` passed five installed OAuth MCP cases. All five used the same literal `ReviewIssue` document hash. The three Forgejo runs used a disposable native instance. The two GitHub runs exercised real Git against a local GitHub API and credential fixture that omitted optional GitHub App installation permission metadata and required a scoped pull request lookup. [Exact Forgejo launch pins](launch-pins-430d-dac7.json) · [Expected and observed results](receipts-430d-dac7.json) · [GitHub fixture](GITHUB.md)
+
+The preceding Apps `01bfabbb` and Webapp `89ce827f` pair also passed the same workflow scenarios before the provider compatibility refinements. [Preceding receipts](receipts-01bf-89ce.json)
 
 - Fresh `START` produced one open draft and one formal review on the checkout head for each provider. Both repositories retained their immutable base and open issue.
 - Forgejo `RECOVER` preserved the original failed run and its migrated app row. The first caller lost its accepted acknowledgement while four contenders converged on the same child. The relay also discarded the successful native branch, commit, draft and review responses. Native readback found one open draft with one independent approval, and three concurrent progress reads added zero writes.
