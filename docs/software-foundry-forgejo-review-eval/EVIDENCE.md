@@ -1,5 +1,14 @@
 # Local replay evidence
 
+## Provider-neutral candidate replay
+
+Apps `01bfabbb` and Webapp `89ce827f` passed five installed OAuth MCP cases. Both provider runs used the same literal `ReviewIssue` document hash. The three Forgejo runs used native Git and REST in a disposable instance. The two GitHub runs exercised the same installed mutation and real Git against a local GitHub API and credential fixture. [Exact Forgejo launch pins](launch-pins-01bf-89ce.json) · [Expected and observed results](receipts-01bf-89ce.json) · [GitHub fixture](GITHUB.md)
+
+- Fresh `START` produced one open draft and one formal review on the checkout head for each provider. Both repositories retained their immutable base and open issue.
+- Forgejo `RECOVER` preserved the original failed run and its migrated app row. The first caller lost its accepted acknowledgement while four contenders converged on the same child. The relay also discarded the successful native branch, commit, draft and review responses. Native readback found one open draft with one independent approval, and three concurrent progress reads added zero writes.
+- Forgejo recovery refused an unreceipted provider branch after reading it from the native instance. Wrong tenant, unknown run and read-only member checks established the authorization boundary.
+- GitHub `RECOVER` retained the failed lineage and completed one child on the original slash-qualified ref. The fixture ledger recorded one branch, one commit, one draft and one approval by an independent reviewer. Both recovery cases verified reviewer pull access with push disabled.
+
 ## Historical checkout failure and migration fixture
 
 The archived Ocean record used Webapp #1029 at commit `84221cc34526b6e42fac49060b31b0d713a3fe7d` and platform OCI digest `sha256:3cb6635ae7fac2e41b6e25a43df811de81338fecd0cbcac0537e7f0d35000e74`. The installed Software Foundry revision was 2. Its failed run retained one failed implementer attempt with an absent output hash and one session artifact. The underlying runtime reported `Pinned checkout could not initialize.` with zero stages. The app recorded no candidate, review, draft observation or commit proof. A separate native read confirmed the independent reviewer had pull access and push disabled.

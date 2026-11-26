@@ -1,0 +1,49 @@
+{
+  "appsCommit": "01bfabbb2ea5caab3f37bf4d21689926a339d13f",
+  "appsTree": "57e6323798ff214d0ef7db78cebc5afaa542662b",
+  "cases": [
+    "happy",
+    "recovery-lost",
+    "recovery-unknown"
+  ],
+  "fixtureBase": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+  "harnessCommit": "1db88984ad068f093432be14d2734f87ea70bb58",
+  "harnessTree": "2013702957d9c00473682858514391bddb4bea11",
+  "image": {
+    "imageId": "1cb7d2ff7b24ffa5195c4ca1a9ae264f887c1eb76a5fa50233fc40af9e8e76db",
+    "webappTree": "649b36c62757767fe9a0b88f2cfc735a6cea19db",
+    "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7",
+    "webappCommit": "89ce827fcaf0ce58c03bb2ed9f62e513ad30f6da"
+  },
+  "packageSha256": {
+    "apps-tree.txt": "1fe3607be057f6e89338afb71f740fe414b869fc8b5c4ff4ea76e3ba6c9f8f50",
+    "documents.json": "77c970175471a5ccb5c542e1feb09256a4890e4115145b2cac9ccbc05016b2a5",
+    "schema.graphql": "bd5919ef81746bbeff9110bb0ceafafa739eec5a5385c733d086db16e97214fb",
+    "software-foundry.operational.json": "28074b8fa819269dff277962ccac2bad87623a3861bbf121cedcce4ec3582b36"
+  },
+  "sourceSha256": {
+    "eval/GITHUB.md": "8775d4c9f2a184bf1cf3af892dbc1fcc782433d832d53b9dbe88f5671de50f57",
+    "eval/authority-observer.mjs": "68e5d9ab3f1a75a9bf8acf1318677cc6a950cb4ba92b00babdd914bec18efb79",
+    "eval/bin/forgejo": "251e9883ee23c75d5a59b48ff55917b11c9b4106864f046bcce8d4e87d87f2cb",
+    "eval/bootstrap.mjs": "c5c5c692020ab810e1f57aa29bf0785128dc17f584038c0d1e08995f329d172b",
+    "eval/check-launch.mjs": "68ac99c2ad1f3009eb08fd4e4475327a14bdce047e711ddc9d25f9fcfad9a0d1",
+    "eval/driver.mjs": "842e1e569ec358db71c4d3bd6bf2d6a2683612b3e7fbeff4f6ca860738411074",
+    "eval/fixture.mjs": "3900c769a95b08d27867ddb41daa07658d3eb7c2952f8a65ed45bf5a88cfceb3",
+    "eval/fixtures/issue.json": "775b521ed5562ddaf209e4da777bd9c030ee96e0f6311605d5d400a4343ce2df",
+    "eval/github-bin/git": "13d2bcadfeee6d71a7e7256c59c30e0d44d891b21c70fc66b27e4bd8d506d6aa",
+    "eval/github-eval.mjs": "8c39613ad72b470fdf9224b0d9355169c3328b99b427ab91f37f96d83e19ef15",
+    "eval/github-fetch.mjs": "4dd99f313c6bfd5779f1df93d09d452ed8382715ee94a3ebac3df3d921cfae27",
+    "eval/github-fixture.mjs": "cabce0ec6a202252a51ad08095c0b407afa34ef128e1f3a11e3ba98b9a6cccd1",
+    "eval/grants.mjs": "51486340b22e55e469a3da36088af46146b9dd2eb00e52103196b7ff834f9310",
+    "eval/installed.mjs": "97e0b30fb2c4952c72f86f14363c94378cfb9864c2c0471c9ec42b3644344286",
+    "eval/provider.mjs": "edf4125958ab794b37ce4dda7b552561747333e83e220f57d65885879037ae80",
+    "eval/recovery-seed.mjs": "bfed70d2662a757504739049ce577ce42d46c4093163094a3acdb1e071f610c9",
+    "eval/recovery.mjs": "f52a4ed04fdee0b6a93b8dc69184b2ff3c8424d84c9f7d240f94e2b959692754",
+    "eval/relay.mjs": "848f12eab7b5baea7d17fd9682f5519c0f694a54be5a27301913d0b7ba3ab211",
+    "eval/resolution.mjs": "bad9d847599dd0958d49aa38dc488f796d81d6562fa668830229015c716a52a8",
+    "eval/run.sh": "f9ecec2aba3e58eea4ba1638a6a9a43ce126750c60b64570f6145cd8d2b12507",
+    "eval/seed-git.sh": "07dc28194263e15af44f96d35c500201f0f490550daa7603246a0049a81ba0ae",
+    "planwork/mcp.mjs": "4895516b60f2e895c24258fb2a8382ae65f115151e03322a7859272249db2e73",
+    "planwork/pins.json": "9b4949b98db6054c3b5b9acdbd28d178b054d08ce56c5d2581107a232d8f7dbd"
+  }
+}

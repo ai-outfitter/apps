@@ -64,6 +64,8 @@ done
 | `recovery-lost` | Wrong scope, unknown ID and read-only member checks pass before recovery. One OAuth caller loses its accepted response while concurrent callers reconcile to one child. Forgejo accepts one branch, one commit, one draft and one exact-head review while the relay discards each response. Repeated progress queries preserve host, app and Forgejo state. The original run, issue and base stay unchanged. |
 | `recovery-unknown` | Seed an unreceipted original-lineage branch in native Forgejo. Recovery observes the branch and refuses to start. The original lineage and native state are preserved. |
 
+For the provider-neutral candidate pair, use the archived harness and exact Forgejo launch pins shown in the evidence. Run the GitHub cases with the same operational package and the fixture-specific instructions. [Candidate launch pins](launch-pins-01bf-89ce.json) · [GitHub fixture](GITHUB.md)
+
 ## Exact release replay
 
 [Launch pins](launch-pins-27b-87ab.json) identify the local image, package, fixtures, and tested harness. Keep the image and all four original package files for byte-identical replay. Source builds made with other caches or retained layers can produce different bytes.
