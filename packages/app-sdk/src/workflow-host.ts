@@ -1,3 +1,4 @@
+import { discoveryChangesInput, discoveryChangesPage, discoveryGrant } from "./discovery-content";
 import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { appActor, readJSON } from "./server";
 import { threadOperations } from "./threads";
 import { sessionEntry, workflowSession } from "./workflow-session";
 
+export { discoveryConnectInput, discoveryConnectOutput, discoveryConnectPath, platformDiscoveryCapability } from "./discovery-content";
 export { type HostOperation, hostOperation, runningPhases } from "./host-operation";
 
 /** Installed-app workflow host contract. The platform dispatches a workflow phase
@@ -399,6 +401,8 @@ const coreOperations = {
     runId: runId,
     step: slug.optional(),
     checkpointId: z.string().max(128).optional(),
+    /** Own-member provider only; no workflow watches, checkpoints or adopted guidance. */
+    privateInput: z.literal(true).optional(),
     instructions: z.string().min(1).max(64000),
     data: json,
     schema: jsonObject,
@@ -521,6 +525,10 @@ const coreOperations = {
   /** Read only the factual context for an assigned work item as the verified resident. */
   "agent-work.context": operation(agentWork, workContextInput.extend({ delegation: workDelegation, installationId: id }),
     z.object({ principalId: z.string(), result: workContextResult })),
+  /** Only the acting member's explicit, active personal content grants. */
+  "discovery.grants": operation(["interactive", "schedule"], z.strictObject({}), z.object({ grants: z.array(discoveryGrant) })),
+  /** Changed content under one grant, pinned to a provider revision during pagination. */
+  "discovery.changes": operation(["interactive", "schedule"], discoveryChangesInput, discoveryChangesPage),
   /** Verified connector inbox metadata for a run; never the provider payload or lease. */
   "connector.receipts": operation(memberPhases, z.strictObject({ runId: id }),
     z.array(z.object({ deliveryId: z.string(), provider: z.string(), receivedAt: z.number(), status: z.string() }))),

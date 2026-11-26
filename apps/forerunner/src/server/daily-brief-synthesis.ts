@@ -1,3 +1,4 @@
+import type { ContentDiscovery } from "./content-discovery";
 import { sha256Hex } from "@ai-outfitter/app-sdk/server";
 import { cut } from "@ai-outfitter/app-sdk/untrusted-text";
 import { z } from "zod";
@@ -25,11 +26,13 @@ export type BriefInputs = {
   work?: PlanningWork;
   appUpdates?: AppUpdates;
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
+  content?: ContentDiscovery;
+  contentMetadataOnly?: boolean;
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
 };
-type Kind = "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery";
+type Kind = "app-update" | "priority" | "work" | "report" | "overview" | "completion" | "goal" | "responsibility" | "discovery" | "source-change";
 export type Evidence = {
   ref: string; kind: Kind;
   /** What the member reads in the source list. */
@@ -39,6 +42,7 @@ export type Evidence = {
   scope?: string; status?: string;
   /** The exact saved revision, when the source has one. */
   href?: string | null; revision?: number; recordId?: string;
+  sourceRevision?: string; sourcePath?: string;
 };
 
 const reportText = (source: ReportSource) => [source.summary, ...(source.projects ?? []).slice(0, 12).map(project => `${project.name}: ${project.update || "no update saved"}`)]
@@ -89,6 +93,18 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
   if (overview && usable(overview) && !input.review.organizations.includes(overview)) add("overview", "o", { label: `Personal planning overview for ${input.review.period.date}`, text: reportText(overview), scope: overview.scope, status: overview.status, href: overview.href });
   else if (overview && !usable(overview)) gaps.push(`Personal planning: ${overview.status === "missing" ? "no overview was saved" : "the saved overview could not be read"} for ${input.review.period.date}.`);
   for (const done of input.review.completions.slice(0, 30)) add("completion", "c", { label: `Completed: ${cut(done.title, 160)}`, text: cut(`${done.title} (${done.category})`, 240), recordId: done.itemId });
+  for (const item of input.content?.items ?? []) {
+    add("source-change", "src", {
+      label: `${cut(item.repository, 180)} · ${cut(item.path, 300)}`,
+      text: cut(item.excerpt, 600), scope: "personal", href: item.href, recordId: item.id,
+      sourceRevision: item.revision, sourcePath: item.path,
+    });
+  }
+  if (input.contentMetadataOnly) gaps.push("Authorized content: the brief cites file changes only because you have no approved personal inference provider for excerpts.");
+  if (input.content?.status === "partial") gaps.push("Authorized content: some sources were unavailable, had more changes to read, or exceeded the brief limit.");
+  if (input.content?.status === "unavailable") gaps.push("Authorized content: access could not be verified for this brief.");
+  if (input.content?.status === "no-grants") gaps.push("Authorized content: no sources were granted to Forerunner.");
+  if (input.content?.status === "ready" && !input.content.items.length) gaps.push("Authorized content: no accessible changes were found for the reporting days.");
   if (input.discovery) {
     const stale = input.now - Date.parse(input.discovery.savedAt) > discoveryFreshMs;
     if (stale) gaps.push(`Discovery: the last saved daily run is from ${input.discovery.savedAt.slice(0, 10)}; nothing newer was saved, so it is not included.`);
@@ -142,7 +158,7 @@ export const modelData = (input: BriefInputs, evidence: Evidence[], gaps: string
 });
 /** Identifies the evidence a brief was written from, so an unchanged rerun reuses the saved revision. */
 export const evidenceDigest = async (input: BriefInputs, evidence: Evidence[], gaps: string[]) =>
-  (await sha256Hex(JSON.stringify([input.date, input.timezone, evidence.map(row => [row.ref, row.text, row.revision ?? null, row.href ?? null]), gaps]))).slice(0, 16);
+  (await sha256Hex(JSON.stringify([input.date, input.timezone, evidence.map(row => [row.ref, row.text, row.revision ?? row.sourceRevision ?? null, row.href ?? null, row.sourcePath ?? null]), gaps]))).slice(0, 16);
 export const digestMarker = (digest: string) => `Evidence digest ${digest}`;
 
 // Model text is shown as Markdown in the Wiki and on Today. It never carries its own links or markup.
@@ -162,8 +178,12 @@ export function renderBrief(input: BriefInputs, evidence: Evidence[], gaps: stri
   }).join("\n"));
   lines.push("## Not known", [...gaps, ...answer.unsupported.map(text => `Not supported by the saved evidence: ${plain(text)}`)].map(gap => `- ${gap}`).join("\n"));
   lines.push("## Sources", evidence.map(row => {
-    const href = localLink(row.href), revision = row.revision ? `, revision ${row.revision}` : "";
-    return `- ${row.ref}: ${href ? `[${plain(row.label)}](${href})` : plain(row.label)}${revision}${row.status && row.status !== "complete" ? ` (${row.status})` : ""}`;
+    const href = row.kind === "source-change" && /^https?:\/\//.test(row.href ?? "")
+      ? row.href!.replace(/[()<>\s]/g, character => `%${character.charCodeAt(0).toString(16).padStart(2, "0")}`)
+      : localLink(row.href);
+    const revision = row.revision ?? row.sourceRevision;
+    const exactRevision = revision ? `, revision ${plain(String(revision))}` : "";
+    return `- ${row.ref}: ${href ? `[${plain(row.label)}](${href})` : plain(row.label)}${exactRevision}${row.status && row.status !== "complete" ? ` (${row.status})` : ""}`;
   }).join("\n"));
   lines.push(input.previous ? `[Previous daily brief](./${input.previous.slug}?revision=${input.previous.revision})` : "No previous daily brief is saved; this starts the series.", digestMarker(digest));
   return lines.join("\n\n");
