@@ -117,7 +117,7 @@ export async function githubFixture(req, res) {
       if (status !== 200) return output(status, value);
       const repo = { ...value, owner, full_name: issue.repository, html_url: origin,
         clone_url: `${origin}.git`, archived: false, disabled: false,
-        permissions: { pull: true, push: actor === "member", admin: false } };
+        permissions: actor === "installation" ? undefined : { pull: true, push: actor === "member", admin: false } };
       if (path === "/user/repos" && actor === "member") return output(200, [repo]);
       if (path === "/installation/repositories" && actor === "installation") return output(200, { total_count: 1, repositories: [repo] });
       if (path === repoPath) return output(200, repo);
@@ -167,6 +167,19 @@ export async function githubFixture(req, res) {
       if (method === "GET" && /^\/(git\/(trees|blobs)\/|contents\/)/.test(suffix))
         return output(...await fetchNative(suffix + url.search));
       if (method === "GET" && /^\/pulls(?:\/\d+)?$/.test(suffix)) {
+        if (suffix === "/pulls" && actor === "installation") {
+          const head = url.searchParams.get("head");
+          assert.match(head, /^box:outfitter-review-[0-9a-f-]+$/);
+          assert.equal(url.searchParams.get("state"), "all");
+          assert.equal(url.searchParams.get("per_page"), "50");
+          const [sourceOwner, sourceRef] = head.split(":");
+          const page = Number(url.searchParams.get("page"));
+          assert.ok(Number.isSafeInteger(page) && page > 0);
+          const [status, value] = await fetchNative("/pulls?state=all");
+          return output(status, status === 200 ? value.filter(pull =>
+            pull.head.repo.full_name.split("/")[0] === sourceOwner && pull.head.ref === sourceRef)
+            .slice((page - 1) * 50, page * 50).map(pullShape) : value, { head });
+        }
         const [status, value] = await fetchNative(suffix + url.search);
         return output(status, status !== 200 ? value : Array.isArray(value) ? value.map(pullShape) : pullShape(value));
       }
