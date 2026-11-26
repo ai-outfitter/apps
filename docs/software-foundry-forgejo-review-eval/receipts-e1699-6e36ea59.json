@@ -1,0 +1,884 @@
+{
+  "appsCommit": "6e36ea599570f5a02531320266930d787786f617",
+  "appsTree": "cfc545ce9517f6a668ca7ef99b60b5c6d8e1c901",
+  "operationalPackageSha256": "46248a396917ea1c0538c837b36ba95d11766d34fe62af402123732782c7bc23",
+  "webappCommit": "e1699c637cf798743c9538d0644f2e9078b8024a",
+  "webappTree": "f7ead738e4e4d1377cf8b8669c2a7eff270949a4",
+  "hostImageId": "d0844536e268bd17f75f520b41a66b9f40f4d40c34f95f8f7668d5fcdfdcc33a",
+  "parentImageId": "745b66d35e15ee06f1ebc48e03a23ce366b95d1b09ba27866f034b87b42bd2b3",
+  "network": "none",
+  "modelProvider": "deterministic loopback Spark stand-in",
+  "runtimeFilesSha256": {
+    "/app/workspace/gateway.mjs": "1a8e2a5cc696a5df9920c919196b14f946ac3d90766352852ac662c6e34ae8db",
+    "/opt/workspace/server.mjs": "75926d73ea1e23197e18d6626d2be91bd47c7139629b21b471aad094f08d01be",
+    "/opt/workspace/pinned-checkout.mjs": "06f70451527948d758ddbfb2e9b7b486adaa6ed55b8914e486939e322a258bf5",
+    "/opt/workspace/github-auth.mjs": "21ed5ad28d21f4654a27cfd86db0aec3b22a24865538917228801e15cdc4d57a",
+    "/opt/workspace/workspace-node.mjs": "a79e74842c9118b0146e439e3b10b33d5b628f1b456c6fc626a317078e06716b"
+  },
+  "cases": [
+    {
+      "name": "native",
+      "outputDirectory": "e1699-6e36-native",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:51:24.641Z",
+      "reportSha256": "9255be68df0eaf37f91ef8027b1d604ee84be2e51be9991965feb140aa2d4faa",
+      "forgejoJournalSha256": "167ce2a18c083181935b568b7b779a840e3e6c34ac375a45f0d36d3f982dbbcf",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "synthetic-review",
+          "head": "91b39a01ffa78ef52f371e7b93b1b24609e2df0f",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": false,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "91b39a01ffa78ef52f371e7b93b1b24609e2df0f",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "grants",
+      "outputDirectory": "e1699-6e36-grants",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:51:24.165Z",
+      "reportSha256": "8190320fec2df16086e74726f612534c7957c7767b412c4358de6b4323c72409",
+      "forgejoJournalSha256": "3fa0ba832794f8b98ac81d65bcea6e28b31a31dc701b29a3f178f7d8e8e7fd1c",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "credentialRotated": true,
+      "grants": {
+        "box/grant-b": {
+          "repositoryId": 3,
+          "permission": "write",
+          "explicitOnly": true
+        },
+        "box/grant-a": {
+          "repositoryId": 2,
+          "permission": "write",
+          "explicitOnly": true
+        },
+        "box/grant-c": {
+          "repositoryId": 4,
+          "permission": "read"
+        }
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "grants-revoked",
+      "outputDirectory": "e1699-6e36-grants-revoked",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:51:24.291Z",
+      "reportSha256": "62429dc5388fda72f0c1e312361dc75283b4bcf929b8df5ea7ff264d5964e1f9",
+      "forgejoJournalSha256": "ce29d82c9fcf954a19824d16c06e62937a7874247dd54af47a9081ae15286008",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "refusal",
+      "outputDirectory": "e1699-6e36-refusal",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:57.535Z",
+      "reportSha256": "868123d375b5ede9f1a8c6bf0e7cd19cb6d3a34746f32ffb2d7341e6f0c00aa0",
+      "forgejoJournalSha256": "0838fe3c3d7c47145ff9c8734a11dc87bb6f4109b28841b04759ee7c201b8a17",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "happy",
+      "outputDirectory": "e1699-6e36-happy",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:48:21.565Z",
+      "reportSha256": "e9da50c0e2ea89104e8657d1ed2f37c82f59edf28e7c12df44309eb3c10b4b79",
+      "forgejoJournalSha256": "a9fd21101b2df731439c6aac3949ebe85376f0564462ae960d5d8c364939cdc6",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "6c1e7daee6ffea5ea53aa55eb125cbc324c58ea5",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "6c1e7daee6ffea5ea53aa55eb125cbc324c58ea5",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-1e2742e2-e2c4-40a9-9a4b-ecf27ca09aa2",
+            "run": "1e2742e2-e2c4-40a9-9a4b-ecf27ca09aa2"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        },
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-255631a0-7198-42d4-8d80-0ccd77706bbb",
+            "run": "255631a0-7198-42d4-8d80-0ccd77706bbb"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        }
+      ],
+      "gatewayInference": [
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "1e2742e2-e2c4-40a9-9a4b-ecf27ca09aa2",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "1e2742e2-e2c4-40a9-9a4b-ecf27ca09aa2",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "255631a0-7198-42d4-8d80-0ccd77706bbb",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "255631a0-7198-42d4-8d80-0ccd77706bbb",
+          "promptTokens": 101,
+          "completionTokens": 23
+        }
+      ],
+      "pins": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "slash-base",
+      "outputDirectory": "e1699-6e36-slash-base",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:49.131Z",
+      "reportSha256": "cda398702dcd0d03c8eb1e369da8c5221b1677aa91b7205af345b3d4455bdc8e",
+      "forgejoJournalSha256": "d193de96a6ebc18a69f25c41fcb0af400667788db860682d6f6a95d6adb431ac",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "596ed87ab708477f8d28ca3ee14c1d6ab5a09dda",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "596ed87ab708477f8d28ca3ee14c1d6ab5a09dda",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-709346a1-c296-46d5-b69f-d34fdd5b08f0",
+            "run": "709346a1-c296-46d5-b69f-d34fdd5b08f0"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        },
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-9c94d94e-7742-45f1-befb-b0d509a0cba3",
+            "run": "9c94d94e-7742-45f1-befb-b0d509a0cba3"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        }
+      ],
+      "gatewayInference": [
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "709346a1-c296-46d5-b69f-d34fdd5b08f0",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "709346a1-c296-46d5-b69f-d34fdd5b08f0",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "9c94d94e-7742-45f1-befb-b0d509a0cba3",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "9c94d94e-7742-45f1-befb-b0d509a0cba3",
+          "promptTokens": 101,
+          "completionTokens": 23
+        }
+      ],
+      "pins": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "release/review-fixture",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "before-work",
+      "outputDirectory": "e1699-6e36-before-work",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:49:43.021Z",
+      "reportSha256": "09f4c9f3d7d2fa100e2d82691ec7bb01f65e2d1801a53c8bcfb0d07dab08bbbe",
+      "forgejoJournalSha256": "199a38c9321f036c384615ca8bba63e6537276fb8b53b2918fcecaf144c2f67c",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "movedRef": {
+        "ref": "main",
+        "oldSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "movedSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "before-open",
+      "outputDirectory": "e1699-6e36-before-open",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:15.888Z",
+      "reportSha256": "7e4f54a4751046f1c609c039eec20fcb2ed64901c8904ef285210c5cdd8c9293",
+      "forgejoJournalSha256": "28c3ad99be23fd6ca85a9df012c434127a15d9cd22a1509cfb7a5e4715dc8bc0",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "movedRef": {
+        "ref": "main",
+        "oldSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "movedSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "before-review",
+      "outputDirectory": "e1699-6e36-before-review",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:44.404Z",
+      "reportSha256": "b3b768dfe4d046143fa66d58a02776b2b8cfd21cea40057bb692e0a4fedda28b",
+      "forgejoJournalSha256": "e5d0a8b3b912436555269df6a75b97057c65e52061c92ea45704949b184c5608",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "fab28cb2d43231d5a7b0ad773aca94077c1e9100",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": []
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "movedRef": {
+        "ref": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "oldSha": "cb165fc61d8afd157d58f9d2d00d8cd907f137cd",
+        "movedSha": "fab28cb2d43231d5a7b0ad773aca94077c1e9100"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "before-review-base",
+      "outputDirectory": "e1699-6e36-before-review-base",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:46.115Z",
+      "reportSha256": "6974271da746392b13d2f54f5ee567d205ac268376b1972fcfca12d351224f0d",
+      "forgejoJournalSha256": "d9a02b56e92083936acf74f424f527f96ebc6fd4c9f18886e5c57b550278cc41",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "135148e10874b1550e6f44a97a12d5e3850e33d5",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": []
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "movedRef": {
+        "ref": "main",
+        "oldSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "movedSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c"
+      },
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "race-lost",
+      "outputDirectory": "e1699-6e36-race-lost-confirmed",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:50:59.388Z",
+      "reportSha256": "8317920b5219caeeeb9c7476cf0574fee84e50876ea41faae7364ee9cde2675c",
+      "forgejoJournalSha256": "6dbe37a4845425a4f4bb5a258aa7ff02c813e663a1eca56a44c048edde67ffaf",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "191455d6f47d8a072b6e89d4e4b22a1b319d51c1",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "191455d6f47d8a072b6e89d4e4b22a1b319d51c1",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-0cc5ba0f-7c76-466b-8ee7-91824e634fd6",
+            "run": "0cc5ba0f-7c76-466b-8ee7-91824e634fd6"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        },
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-643bebed-fdd5-423a-81f9-4cca65df81ae",
+            "run": "643bebed-fdd5-423a-81f9-4cca65df81ae"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        }
+      ],
+      "gatewayInference": [
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "0cc5ba0f-7c76-466b-8ee7-91824e634fd6",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "0cc5ba0f-7c76-466b-8ee7-91824e634fd6",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "643bebed-fdd5-423a-81f9-4cca65df81ae",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "643bebed-fdd5-423a-81f9-4cca65df81ae",
+          "promptTokens": 101,
+          "completionTokens": 23
+        }
+      ],
+      "pins": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "discardedNativeReplies": [
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/branches",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/contents",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls/8/reviews",
+          "status": 200,
+          "dropped": true
+        }
+      ],
+      "harnessCommit": "77dd33b7"
+    },
+    {
+      "name": "provider-fenced",
+      "outputDirectory": "e1699-6e36-provider-fenced",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:49:18.297Z",
+      "reportSha256": "52fe5e9f6157643bff721a790b4683abb92c927e8e2afae0f0b825d3be0bd7db",
+      "forgejoJournalSha256": "329bba707fb184a8b72011355672e500b3be8e9ceda7b7b5ccb9850b5feb23a2",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-65d0d4a5-85cd-44e7-a6c7-8788cc397845",
+            "run": "65d0d4a5-85cd-44e7-a6c7-8788cc397845"
+          },
+          "status": 200,
+          "providers": [
+            "openai"
+          ]
+        }
+      ],
+      "completionEndpointCalls": 0,
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "mixed-gateway",
+      "outputDirectory": "e1699-6e36-mixed-gateway-confirmed",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:48:19.427Z",
+      "reportSha256": "fdcb987a17e312e7883579d3db46491a0ef9e34e7c3a1e314d40b1f0d3ac0e42",
+      "forgejoJournalSha256": "e4d3d2f6dc35302da585632378b9dec9600a46eeba3b89c3e654d208188a8047",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "mixedGateway": {
+        "sourceSha256": "ef07cab796bd9ce50b92d6661fba385997c64f1518df67b3e2c760b26feb4d92",
+        "pinnedInferenceUrl": "http://127.0.0.1:4040/pinned-inference/ws-eb6c8375-0c29-44bf-8f40-58c1bf6f4ca7/v1",
+        "status": 401,
+        "checkout": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "completionEndpointCalls": 0,
+      "harnessCommit": "0a9521a0"
+    },
+    {
+      "name": "draft-read-refusal",
+      "outputDirectory": "e1699-6e36-draft-read-refusal-confirmed",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:51:54.690Z",
+      "reportSha256": "21f4d51a19305e6f8a31023575fce9c93ffe5560ebacb9895050bb6d6971091d",
+      "forgejoJournalSha256": "faa8c509b9e947a31fdea6849c5fd988a9a53ace4e465c9a6918ba373fb88487",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "60cff7a601e06e5d79266c62a3ed637bf4220502",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "60cff7a601e06e5d79266c62a3ed637bf4220502",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "transientDraftRefusal": {
+        "method": "GET",
+        "path": "/api/v1/repos/box/review-fixture/pulls",
+        "status": 403,
+        "injected": "generic-draft-read-refusal"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-db607e41-b344-4698-8204-ec042f9c68db",
+            "run": "db607e41-b344-4698-8204-ec042f9c68db"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        },
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-03d49ba3-e67e-41e9-91dd-ca60354cf62c",
+            "run": "03d49ba3-e67e-41e9-91dd-ca60354cf62c"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        }
+      ],
+      "gatewayInference": [
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "db607e41-b344-4698-8204-ec042f9c68db",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "db607e41-b344-4698-8204-ec042f9c68db",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "03d49ba3-e67e-41e9-91dd-ca60354cf62c",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "03d49ba3-e67e-41e9-91dd-ca60354cf62c",
+          "promptTokens": 101,
+          "completionTokens": 23
+        }
+      ],
+      "pins": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "discardedNativeReplies": [
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls",
+          "status": 201,
+          "dropped": true
+        }
+      ],
+      "harnessCommit": "e36e5d3c"
+    }
+  ],
+  "retainedAttempts": [
+    {
+      "name": "race-lost",
+      "outputDirectory": "e1699-6e36-race-lost",
+      "result": "fail",
+      "finishedAt": "2026-11-25T23:49:40.921Z",
+      "reportSha256": "bbb1c852ea4c84cc253fbb5300066e43f690551167849e979a15e29e974ab20e",
+      "forgejoJournalSha256": "19e23059e318398abc4baeae9b94ce4d831437887db64e1dfe4b1c68769fb775",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "error": "Error: Timed out waiting for workflow settlement",
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "mixed-gateway",
+      "outputDirectory": "e1699-6e36-mixed-gateway",
+      "result": "fail",
+      "finishedAt": "2026-11-25T23:47:18.442Z",
+      "reportSha256": "d1b06eef2fd8c1e3a5904d1c8202e347f24f18903d3d4e05c7c408dbb4479ca6",
+      "forgejoJournalSha256": "0aa027ce71126bb3f460cb1c6ab95d71de20ff0e26ad00245ff42997cac9ff51",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "error": "AssertionError [ERR_ASSERTION]: Legacy gateway does not implement the route",
+      "harnessCommit": "e86a542a"
+    },
+    {
+      "name": "draft-read-refusal",
+      "outputDirectory": "e1699-6e36-draft-read-refusal",
+      "result": "pass",
+      "finishedAt": "2026-11-25T23:49:45.101Z",
+      "reportSha256": "69d9a065efb25d48755da2faf77357734db6693959640ce54088bbe5cb22fd29",
+      "forgejoJournalSha256": "e937c298b68a946451c2cd71e65d74269f08df867173d15fd20b5fed6bf9f22d",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "8fe48a6302beec949e7dffabea7aa3355d1b934d",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "8fe48a6302beec949e7dffabea7aa3355d1b934d",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "run": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "transientDraftRefusal": {
+        "method": "GET",
+        "path": "/api/v1/repos/box/review-fixture/pulls",
+        "status": 403,
+        "injected": "generic-draft-read-refusal"
+      },
+      "resolutions": [
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-f9fcc3a4-ee97-4893-93d3-8679b0b8f34b",
+            "run": "f9fcc3a4-ee97-4893-93d3-8679b0b8f34b"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        },
+        {
+          "principal": {
+            "kind": "workspace",
+            "workspace": "ws-6b8315ec-6a05-4537-9f18-68a0a8168c66",
+            "run": "6b8315ec-6a05-4537-9f18-68a0a8168c66"
+          },
+          "status": 200,
+          "providers": [
+            "openai",
+            "spark"
+          ]
+        }
+      ],
+      "gatewayInference": [
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "f9fcc3a4-ee97-4893-93d3-8679b0b8f34b",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "f9fcc3a4-ee97-4893-93d3-8679b0b8f34b",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "6b8315ec-6a05-4537-9f18-68a0a8168c66",
+          "promptTokens": 101,
+          "completionTokens": 23
+        },
+        {
+          "provider": "spark",
+          "model": "GLM-5.3-Flash-EXL3",
+          "run": "6b8315ec-6a05-4537-9f18-68a0a8168c66",
+          "promptTokens": 101,
+          "completionTokens": 23
+        }
+      ],
+      "pins": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "discardedNativeReplies": [
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls",
+          "status": 201,
+          "dropped": true
+        }
+      ],
+      "harnessCommit": "e86a542a"
+    }
+  ]
+}

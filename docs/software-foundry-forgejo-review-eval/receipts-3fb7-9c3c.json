@@ -1,0 +1,155 @@
+{
+  "appsCommit": "3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee",
+  "webappCommit": "9c3c3e6a6c7eda6151501e7e1e3df0b240ac53ce",
+  "imageId": "ddd173210ad87a95a39ccfe80944e77d2cc9a07b01415d93d75225245825a0d7",
+  "parentImageId": "9e48d229adc68c7d7b5ed8ad38a264f9d6825666d7821ce302fdfb663401c894",
+  "hostOverlaySha256": "df8d6032fd6cbbc1b634fbb3dae7f90f2e5ecb21e61e51a9683f0d33ce383de7",
+  "hostRuntimeSha256": {
+    "/app/packages/app-sdk/src/workflow-host.ts": "6507136e0a4be8970293646db9f8149b2f3b6d0bcf6304b1432416e84d9a65c0",
+    "/app/src/lib/workflow-app-host.ts": "660a9ed2fed0817f69b19fe27a12d8bea5947393271a0e7be5f5ca8c292c542f",
+    "/app/src/lib/workflow-workspace-transport.ts": "df6256da78cbf0b9f42f7e00797959bb79f0b011d27afb682387634b3527ace2",
+    "/app/src/pages/api/internal/workspace-review-authority.ts": "24911ec873e37280bc68126be9a6a0c610aaf916988c6e506da1bbe6b9a8bb71",
+    "/app/workspace/gateway.mjs": "af56567caebd93e89fe044c74960110fb11c83a5aae7b1718c547af9d8ba6b52",
+    "/app/workspace/workspace-reviewer.mjs": "215350b00c9e42c6c8df88c133ccec1000155163edd64c017ee7d5f19b2c26a2"
+  },
+  "launchPins": "launch-pins-3fb7-9c3c.json",
+  "launchPinsSha256": "7d16275811ee935be73093f3bceb45b530d584d7201ffc158d71eec2fb1a7906",
+  "harnessCommit": "64c965bca09c932d118a9cf790e6a113034a3e96",
+  "network": "none",
+  "cases": [
+    {
+      "case": "happy",
+      "outcome": "pass",
+      "outputDirectory": "callback-3fb7-9c3c-happy",
+      "launchSha256": "6eabd63afa5ad588426f2e15fa432e59ece6a04471b8ae056219217e59c90c66",
+      "reportSha256": "3a7af35a374d1b2afc3fac9bcbd645baf46c3d59d301a5082c69bad381f7eeac",
+      "forgejoJournalSha256": "86d30708feea0e379314dc4b1f138169c8cf2c4f5c60344c991233ec86c2bc4f",
+      "authorityJournalSha256": "832b640728b93d585b85f0e11a9b3c819cf612a7142d4e1b87a141a33284d5b5",
+      "finishedAt": "2026-11-26T00:21:39.016Z",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "callbacks": [
+        {
+          "origin": "http://127.0.0.1:8787",
+          "path": "/api/internal/workspace-review-authority",
+          "authenticated": true,
+          "staleBinding": false,
+          "status": 204,
+          "reviewPosts": 0
+        }
+      ],
+      "nativeReviewPosts": 1,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "119420f5c3c648cb9db581578b6b37f19b34ebd4",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "119420f5c3c648cb9db581578b6b37f19b34ebd4",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      }
+    },
+    {
+      "case": "race-lost",
+      "outcome": "pass",
+      "outputDirectory": "callback-3fb7-9c3c-race-lost",
+      "launchSha256": "02d46bc2b42159b980a2f4cb50cfb75fd1bc5812837009369ae65f6bb415a685",
+      "reportSha256": "06a85b8f55b0ba909eaa84947659a8cc0df6febdc2d20c61a9fd1b7e0db8cf4c",
+      "forgejoJournalSha256": "f79b7994eaffaa3654f7a6981d625d50a295ccfde66ea4127082c2857cb0a5c7",
+      "authorityJournalSha256": "feec03055e964fe1bd2a77909a3765b5be240f89d1ea8fd5378eadec573f8f15",
+      "finishedAt": "2026-11-26T00:21:38.896Z",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "callbacks": [
+        {
+          "origin": "http://127.0.0.1:8787",
+          "path": "/api/internal/workspace-review-authority",
+          "authenticated": true,
+          "staleBinding": false,
+          "status": 204,
+          "reviewPosts": 0
+        }
+      ],
+      "nativeReviewPosts": 1,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "4fe169df6945d553b974e1f21d260942b3fff5a0",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "4fe169df6945d553b974e1f21d260942b3fff5a0",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      },
+      "overlappingMcpCalls": 5,
+      "discardedNativeReplies": 4
+    },
+    {
+      "case": "authority-retry",
+      "outcome": "pass",
+      "outputDirectory": "callback-3fb7-9c3c-authority-retry",
+      "launchSha256": "0151296dfe5a426bda377c0c050ce18531167fb4e203e43922904154210ef9dc",
+      "reportSha256": "3dee83579d44d964aa4eaed8f49c722ab4e5a8c69e9ffda257c75455d9b86b55",
+      "forgejoJournalSha256": "5aed53ebfd7a428cad8ef066ba199fe9ac7e22c772d3a25b1d62e77b4cca1b9d",
+      "authorityJournalSha256": "57c3d308f73b70b384230eb39b9762b44097972a5adabdbdd2fc36ffc260f2f2",
+      "finishedAt": "2026-11-26T00:23:39.773Z",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "callbacks": [
+        {
+          "origin": "http://127.0.0.1:8787",
+          "path": "/api/internal/workspace-review-authority",
+          "authenticated": true,
+          "staleBinding": true,
+          "status": 403,
+          "reviewPosts": 0
+        },
+        {
+          "origin": "http://127.0.0.1:8787",
+          "path": "/api/internal/workspace-review-authority",
+          "authenticated": true,
+          "staleBinding": false,
+          "status": 204,
+          "reviewPosts": 0
+        }
+      ],
+      "nativeReviewPosts": 1,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "865d3e06ee71c436c3f0f7ea08b062bd8a8208d9",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "865d3e06ee71c436c3f0f7ea08b062bd8a8208d9",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      },
+      "boxLogSha256": "6b73ce7551dd2f63f7bd4aac8b608a1eaba8ca86c851187472775d1d7455827a"
+    }
+  ]
+}

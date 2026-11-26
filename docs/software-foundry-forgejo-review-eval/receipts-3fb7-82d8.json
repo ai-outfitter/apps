@@ -1,0 +1,179 @@
+{
+  "appsCommit": "3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee",
+  "webappCommit": "82d8d85ef37c30399e0f1670e8c0e5ae83df9f92",
+  "imageId": "9e48d229adc68c7d7b5ed8ad38a264f9d6825666d7821ce302fdfb663401c894",
+  "parentImageId": "63241831f6637fe276fd56994c832b385318211ce8a5cb108c7f2dc1fac69e82",
+  "hostOverlaySha256": "5a5743651eeb2baae971309467458ab6ea95ad9456bf317e72ebb245454c75ac",
+  "launchPins": "launch-pins-3fb7-82d8.json",
+  "launchPinsSha256": "a278e5b39d39630d8656eeeaa2d45286d7cb61ca2106bf3e5bc5079ccb96b6ee",
+  "harnessCommit": "9c2beb44db73b1f86e2b587bddd8a4106ed0115b",
+  "harnessTree": "62e7860d8ecaf76eb0f33804febe558021de4c56",
+  "network": "none",
+  "hostRuntimeSha256": {
+    "/app/packages/app-sdk/src/workflow-host.ts": "6507136e0a4be8970293646db9f8149b2f3b6d0bcf6304b1432416e84d9a65c0",
+    "/app/src/lib/workflow-app-host.ts": "9595606a9ce6113d61ea3c768a86f08ad7d4399ee59291300dfd6c68265f19c6",
+    "/app/src/lib/workflow-workspace-transport.ts": "9b1382d582b0a52d372052dcccb1e37d6fde82e4b8717e423b3122799203f85f",
+    "/app/workspace/gateway.mjs": "c5d9c47e0069b8ed1de995a912a63f0335c572e6902abb2dd65358fa6e9f287f",
+    "/app/workspace/workspace-reviewer.mjs": "ec17f0cb1782f55efc89a10bc1832f5c8854329922e6530a5d6d4f753f97c45b",
+    "/opt/workspace/server.mjs": "75926d73ea1e23197e18d6626d2be91bd47c7139629b21b471aad094f08d01be",
+    "/opt/workspace/pinned-checkout.mjs": "06f70451527948d758ddbfb2e9b7b486adaa6ed55b8914e486939e322a258bf5"
+  },
+  "cases": [
+    {
+      "case": "review-not-sent",
+      "outcome": "pass",
+      "outputDirectory": "wire-3fb7-82d8-review-not-sent",
+      "launchSha256": "a51e7063b27154f083c1e9255565c4af91fbb5e124a21084e33cfd77897edcb1",
+      "reportSha256": "cf8664eb454c351348d1df394c2a5925874f98de961e4e21b62622b8bb365485",
+      "forgejoJournalSha256": "e57344c54b72e9408ba84cb0ccddd230b759a2ffdaeb7a91ef0a01b5545b8c48",
+      "finishedAt": "2026-11-26T00:14:06.084Z",
+      "runStatus": "complete",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "e81f0f1a87384c454e96509a16a930a272bbfc13",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "e81f0f1a87384c454e96509a16a930a272bbfc13",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      },
+      "noEffectRetry": {
+        "refusal": {
+          "method": "GET",
+          "path": "/api/v1/repos/box/review-fixture/pulls/8/reviews",
+          "status": 403,
+          "injected": "reviewer-preflight-refusal"
+        },
+        "nativeReviewPosts": 1
+      },
+      "boxLogSha256": "5ec74349854f0ba08e48289d9aea97da68cdcd45c928dda21959db9faf2e5bf0"
+    },
+    {
+      "case": "happy",
+      "outcome": "pass",
+      "outputDirectory": "wire-3fb7-82d8-happy",
+      "launchSha256": "df207a428004c258fd36424a294ac3a10e8a513330a69a48dbe964c8761e4e23",
+      "reportSha256": "8b27bcdbdb331f9b3d7ed158ad444e023a822639a5626992974c0803f3660d38",
+      "forgejoJournalSha256": "6fff463be706e9645a6992ac5c642778f00cea88d024b5ee2127bf8812703aaa",
+      "finishedAt": "2026-11-26T00:12:03.416Z",
+      "runStatus": "complete",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "8960279b252baebd1d8ef904a98c53eaa2b20113",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "8960279b252baebd1d8ef904a98c53eaa2b20113",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      }
+    },
+    {
+      "case": "race-lost",
+      "outcome": "pass",
+      "outputDirectory": "wire-3fb7-82d8-race-lost",
+      "launchSha256": "da2013a4248daaa14c140351b901ea480fc3753de48d1492703da628f0a3a9d8",
+      "reportSha256": "13c25e9c8e2cfa7ee65cfe639b7171c898809567841d6777243c50d56d7080f9",
+      "forgejoJournalSha256": "eef1a31edd48dd8dc6aa2d351e1a1d1562509ccfc24e5d4ac67dbd15730a0d5e",
+      "finishedAt": "2026-11-26T00:12:04.347Z",
+      "runStatus": "complete",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "7ffd89abd2237312994f424b56d2d8973ae9cc2a",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": [
+          {
+            "id": 1,
+            "head": "7ffd89abd2237312994f424b56d2d8973ae9cc2a",
+            "actor": 3,
+            "login": "reviewer",
+            "state": "APPROVED"
+          }
+        ]
+      },
+      "overlappingMcpCalls": 5,
+      "discardedNativeReplies": 4
+    },
+    {
+      "case": "before-review",
+      "outcome": "pass",
+      "outputDirectory": "wire-3fb7-82d8-before-review",
+      "launchSha256": "7c8e8872eaac61e23960b0be18d01b05b8e95452353ea42788c589ad47c86402",
+      "reportSha256": "00503037fe28b4361dda66901110cb18fcbac4c6827c1e53c4b7a86c2232d51a",
+      "forgejoJournalSha256": "3549dfdd56b463e5af8ab068b44f5a490fb7430746cacd6011dbabd54064e59c",
+      "finishedAt": "2026-11-26T00:12:51.400Z",
+      "runStatus": "failed",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "head": "d559ae6f01f4f1e77f8a4437fc899a8acde99ceb",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": []
+      },
+      "move": {
+        "ref": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "oldSha": "384f9856d69e4124dd4c2958b48fc547c0d47fdb",
+        "movedSha": "d559ae6f01f4f1e77f8a4437fc899a8acde99ceb"
+      }
+    },
+    {
+      "case": "before-review-base",
+      "outcome": "pass",
+      "outputDirectory": "wire-3fb7-82d8-before-review-base",
+      "launchSha256": "862676ea858e2b6a7cef775d8f958b65a6ac9a2c30243d68603fe80fbe22e5ea",
+      "reportSha256": "0cc246558f29a1ac3d25d992ba072894cbe10a9818e4aa5651fd81d2136bfe7d",
+      "forgejoJournalSha256": "db25c1d2a9bb396a85caf352d6ed12fdfbcdcfab26aecb994914be6b5c85848c",
+      "finishedAt": "2026-11-26T00:12:52.550Z",
+      "runStatus": "failed",
+      "issueMutations": 0,
+      "forbiddenForgejoRequests": 0,
+      "pull": {
+        "number": 8,
+        "baseRef": "main",
+        "baseSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c",
+        "head": "1031c150d5fdf8c145b573b2fb63cfb36a9254a8",
+        "state": "open",
+        "draft": true,
+        "author": 2,
+        "reviews": []
+      },
+      "move": {
+        "ref": "main",
+        "oldSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "movedSha": "a8ad9c7f5350de73b43bd8c5fe15f821fac5e24c"
+      }
+    }
+  ]
+}

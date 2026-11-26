@@ -1,0 +1,7 @@
+{
+  "repository": "box/review-fixture",
+  "number": 7,
+  "title": "Record the synthetic lamp setting",
+  "body": "Update the README to record that the synthetic lamp is amber. Keep the change confined to the README.",
+  "unixTime": 1767225600
+}
