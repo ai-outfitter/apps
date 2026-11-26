@@ -48,7 +48,9 @@ async function fixture() {
 test("every activation keeps one hourly, installation-owned seal timer", async (t) => {
   const f = await fixture();
   t.after(() => f.worker.dispose());
-  assert.equal((await json(await f.initialize())).sealTimer, "saved");
+  const initialized = await json(await f.initialize());
+  assert.equal(initialized.sealTimer, "saved");
+  assert.equal(initialized.enrichmentSchedule, "unavailable");
   assert.equal((await json(await f.initialize())).sealTimer, "kept");
   assert.deepEqual(f.saved, [{ name: "batches.seal", owner: "installation", intervalMinutes: 60, enabled: true }]);
 });

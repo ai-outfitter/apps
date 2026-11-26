@@ -39,7 +39,7 @@ async function installEnrichment(locals: App.Locals) {
   try {
     return await ensureEnrichmentSchedule(workflowHost<"interactive">(locals));
   } catch (error) {
-    if (error instanceof Response && error.status === 503) return "unavailable";
+    if (error instanceof Response && [403, 503].includes(error.status)) return "unavailable";
     throw error;
   }
 }
