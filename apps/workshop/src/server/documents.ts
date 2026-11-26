@@ -124,6 +124,9 @@ const legacyDocuments = defineDocuments({
   },
 });
 
+// Only these reach MCP clients, on the platform's /mcp and on Workshop's own /mcp/workshop;
+// the single-action documents stay for Workshop's own pages. Design turns and concept
+// images are Workshop workflows: platform StartTasks and WorkflowRuns with app workshop.
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups), {
   WorkshopCotsEvidence:{description:"Read resolved evidence for the selected assembly or COTS item. Returns the canonical owner, verified original photo locations, nominal and measured dimensions, tolerance and fit observations. Use includeIdentifiers:true; pass itemId for a focused read. An unpinned evidence reference follows the owner's current revision even when reading a historical consumer."},
   RecordWorkshopCotsEvidence:{description:"Record reference photos and structured per-interface evidence on the owning COTS item at expectedRevision. Photos reference existing original JPEG/PNG uploads by filename, digest and historical attachment revision. Use attachmentOwner {projectId,itemId} when the original was attached to another item. Distinguish nominal, measured and unknown dimensions; only record a fit observation against the tested project revision and configuration. Workshop records which matching owner revision was resolved when the observation was entered. An untested interface may carry a reason and exact historical trial without asserting fit. Reuse evidence from another item through cotsEvidenceRef in WorkshopAssembly."},
@@ -138,14 +141,19 @@ export const documents = publishDocuments(withBatchDocuments(legacyDocuments, gr
   VerifyWorkshopAssemblyFile:{description:"Supply projectId, itemId and fileName; pass revision to verify a historical attachment. Rehash the stored original and return its digest, size and downloadPath. To read original bytes through MCP, pass byteOffset:0 and includeIdentifiers:true. Decode each base64 page and follow nextByteOffset with expectedSha256 set to the receipt digest until null."},
   SubmitWorkshopPcb: { description: "Import a KiCad PCB review package. Send projectId, observed revision, stable snapshotId, reviewPath and Workshop build manifest. PUT raw files to each returned URL with its headers, then repeat the same input to verify the bytes and read the PCB page path." },
   DescribeWorkshopProject: { description: "Set model purpose to product (hardware to manufacture) or component (purchased/reference library model), and optionally update name, phase, brief or requirements. Supply input.id and observed input.revision; fields omitted remain unchanged. Classification preserves geometry and cross-model references." },
-  WorkshopProjects: { description: "Find products or reusable component library models and their current revision. Filter purpose to product or component; references can use either." },
+  WorkshopProjects: { description: "Find products or reusable component library models (filter purpose to product or component) by name, product revision or creator, with their current revision, before changes, references or PCB imports. Use includeIdentifiers:true for IDs and revisions.", collection: true },
+  WorkshopProjectHandoff: { description: "Read one project as persisted: brief, requirements, stage, product revision and its whole assembly with usage lines. Changes nothing." },
+  WorkshopUnits: { description: "Find physical units (boards, parts) by part number, MAC, status or project.", collection: true },
   CreateWorkshopProject: { description: "Create a Workshop project for a product or PCB package and return its ID and revision." },
+  ProjectChanges: { description: "Create a project from a starter example, write its brief, requirements and stage, or delete it. Edits and deletes need the id and revision from WorkshopProjects; stable item keys make retries safe." },
+  UnitChanges: { description: "Record, update or delete physical units by MAC address or serial. Updates and deletes need the id and revision from WorkshopUnits." },
+  ConceptChanges: { description: "Publish a project's concept mockups to its product revision in the Wiki, or remove one mockup, at the project's current revision." },
+  ProductRevisionChanges: { description: "Name the Wiki product revision a project builds, at the project's current revision." },
   StartWorkshopDesign: { description: "Start Workshop's design agent on a part or project request (a new project, or a follow-up to one at the revision you saw) without waiting for the model. Answers the run id and status; follow it with WorkshopDesignRun." },
   WorkshopDesignRun: { description: "Read a design run started with StartWorkshopDesign: running, complete (with the projectId and revision it saved) or failed." },
   AcceptCreativeHandoff: { description: "Attach a selected mockup as a design request without modifying CAD." },
   AttachCreativeResult: { description: "Link a committed result candidate back to its design request." },
 });
-
 
 /** Run one of these documents in process, as a page or route does (documentRunner). */
 export const runDocument = documentRunner<WorkshopContext>(() => graphqlSchema);

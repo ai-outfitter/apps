@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "astro dev",
     "prebuild": "npm --prefix ../.. run graph:compose -- --apps-only",
+    "standalone": "OUTFITTER_STANDALONE=1 astro dev",
     "build": "outfitter-app-build",
     "check": "astro check",
     "test": "npm run test:unit && npm run test:integration",

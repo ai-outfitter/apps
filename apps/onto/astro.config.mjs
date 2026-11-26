@@ -23,6 +23,7 @@ export default defineConfig({
     react(),
     outfitterApp({
       app: "onto",
+      name: "Onto",
       // Pages are GET only; every /api/* request must carry the member identity the
       // platform forwards. Images load from the app's own files.
       contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -43,7 +44,8 @@ export default defineConfig({
     },
   },
   session: false,
-  adapter: cloudflare({ imageService: "compile" }),
+  // Standalone mode (OUTFITTER_STANDALONE=1) binds its own database and bucket.
+  adapter: cloudflare({ imageService: "compile", ...(process.env.OUTFITTER_STANDALONE === "1" ? { configPath: "wrangler.standalone.jsonc" } : {}) }),
   build: { inlineStylesheets: "never" },
   vite: {
     resolve: scriptedAgentResolution(),
