@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
-import { executeForgejoOperation } from "../src/operations";
+import { executeForgejoOperation, forgejoOperation } from "../src/operations";
 
 const token = "a".repeat(40);
 const config = { origin: "http://127.0.0.1:3300", token, botUserId: 2 };
@@ -44,7 +44,7 @@ function forgejo(t: test.TestContext) {
 
 test("issue create and comment are idempotent by request marker", async (t) => {
   const stub = forgejo(t);
-  
+
   const create = { title: "Add subtract", body: "Please.", marker: "request:ABCDEF12" };
   const first = await executeForgejoOperation(config, covered, "issues.create", create);
   const again = await executeForgejoOperation(config, covered, "issues.create", create);
@@ -116,7 +116,7 @@ test("repository evidence reads tracked text and directories at one immutable co
     assert.ok(fixtures.has(path), path);
     return Response.json(fixtures.get(path));
   });
-  
+
   const evidence = z.object({
     defaultBranch: z.string(), commitSha: z.string(), commitUrl: z.string(), truncated: z.boolean(),
     tree: z.array(z.object({path: z.string(), kind: z.string()})),
@@ -158,7 +158,7 @@ test("marker lookup enumerates the bot's open and closed issues and distinguishe
     const index = Number(url.searchParams.get("page")) - 1;
     return Response.json(pages[index] ?? [], { status: providerStatus, headers: total ? { "x-total-count": total } : {} });
   });
-  
+
   const lookup = () => executeForgejoOperation(config, covered, "issues.find-by-marker", { marker: "request:ABCDEF12" });
   assert.deepEqual(await lookup(), { number: 2, url: `${config.origin}/box/repo/issues/2`, state: "closed", created: false });
   assert.equal(calls.length, 3);
@@ -203,7 +203,7 @@ test("read-only preflight checks issue availability and needs an independent cre
     assert.equal(url.pathname + url.search, `${repoPath}/issues?state=all&type=issues&limit=1`);
     return Response.json([], { status: providerStatus });
   });
-  
+
   const check = () => executeForgejoOperation(config, covered, preflight, {});
   assert.deepEqual(await check(), { allowed: true, botUserId: 2 });
   assert.equal(calls.length, 4);
@@ -238,4 +238,11 @@ test("read-only preflight checks issue availability and needs an independent cre
     await assert.rejects(check(), status(403));
   }
   await assert.rejects(executeForgejoOperation(config, covered, preflight, { route: "/issues" }), status(400));
+});
+
+test("permissions and prerequisites travel with the registered handler", () => {
+  assert.equal(forgejoOperation("repositories.evidence.read")?.permission, "read");
+  assert.equal(forgejoOperation("issues.create")?.permission, "write");
+  assert.deepEqual(forgejoOperation("issues.preflight-create")?.requires, ["issues.create"]);
+  assert.equal(forgejoOperation("toString"), undefined);
 });

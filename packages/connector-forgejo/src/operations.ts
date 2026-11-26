@@ -346,15 +346,15 @@ const operations = new Map<string, Operation>([
   }],
 ]);
 
-export function forgejoOperation(name: string): Readonly<Operation> {
-  const operation = operations.get(name);
-  if (!operation) throw new Response("Operation is not available on Forgejo", { status: 403 });
-  return operation;
+export function forgejoOperation(name: string): Readonly<Operation> | undefined {
+  return operations.get(name);
 }
 
 export async function executeForgejoOperation(authority: ForgejoAuthority, repo: CoveredRepository, name: string, input: unknown) {
+  const operation = forgejoOperation(name);
+  if (!operation) throw new Response("Operation is not available on Forgejo", { status: 403 });
   try {
-    return await forgejoOperation(name).execute(authority, repo, input);
+    return await operation.execute(authority, repo, input);
   } catch (error) {
     if (error instanceof ForgejoReadLimit) throw upstream();
     throw error;
