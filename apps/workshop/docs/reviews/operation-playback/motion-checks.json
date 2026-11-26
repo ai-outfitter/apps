@@ -47,7 +47,23 @@
       "panelText": "Pass · Right jaw at closureActual 10, 3, 10 mm · Expected 10, 3, 10 mm ± 0.01 mmView at 2 s"
     }
   ],
-  "deliberateMismatchControl": "Fail · Left stop targetActual 2, 3, 10 mm · Expected 3, 3, 10 mm ± 0.01 mmView at 2 s",
-  "loopAfter2_5Seconds": 0.5,
+  "deliberateMismatchControl": {
+    "operation": "Deliberate target mismatch",
+    "timeSeconds": 2,
+    "passed": false,
+    "expectedMm": [
+      3,
+      3,
+      10
+    ],
+    "renderedMm": [
+      2,
+      3,
+      10
+    ],
+    "toleranceMm": 0.01,
+    "panelText": "Fail · Left stop targetActual 2, 3, 10 mm · Expected 3, 3, 10 mm ± 0.01 mmView at 2 s"
+  },
+  "loopAfter2_5Seconds": 0.487,
   "oneShotFinalSeconds": 4
 }

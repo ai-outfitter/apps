@@ -64,7 +64,7 @@ test("replay an installed jaw cycle and inspect the modeled checks", async ({ pa
     };
     const consumer = await save("Parallel gripper test stand", { rootId: fixture.id, items: [
       { ...fixture, uses: [mounted], operations: [operation, {
-        ...operation, name: "Check misaligned stop",
+        ...operation, name: "Deliberate target mismatch",
         expectations: [{ ...operation.expectations[0], label: "Left stop target", expected: [3, 3, 10] }],
       }] },
       { ...mount, reference: { projectId: grip.id } },
@@ -130,10 +130,15 @@ test("replay an installed jaw cycle and inspect the modeled checks", async ({ pa
     expect(closed).toEqual([[2, 3, 10], [10, 3, 10]]);
     const checkResults = await rows.allTextContents();
     await capture("jaw-closure");
-    await select.selectOption({label: "Test stand · Check misaligned stop"});
+    await select.selectOption({label: "Test stand · Deliberate target mismatch"});
     await page.getByText("Modeled checks · 0/1 passed").click();
     await expect(rows).toContainText("Fail · Left stop target");
+    await rows.first().getByRole("button", {name: "View at 2 s"}).click();
+    expect(await positions()).toEqual(closed);
     const failure = await rows.first().textContent();
+    const failureView = info.outputPath("deliberate-target-mismatch.png");
+    await page.screenshot({path: failureView});
+    await info.attach("deliberate-target-mismatch", {path: failureView, contentType: "image/png"});
 
     // Advance the actual player clock beyond one full child cycle. A one-shot would have stopped.
     await select.selectOption({label: "Parallel gripper · Jaw cycle"});
@@ -168,7 +173,10 @@ test("replay an installed jaw cycle and inspect the modeled checks", async ({ pa
         label: check.label, timeSeconds: check.time, expectedMm: check.expected, renderedMm: closed[i],
         toleranceMm: check.tolerance, panelText: checkResults[i],
       })),
-      deliberateMismatchControl: failure,
+      deliberateMismatchControl: {
+        operation: "Deliberate target mismatch", timeSeconds: 2, passed: false,
+        expectedMm: [3, 3, 10], renderedMm: closed[0], toleranceMm: 0.01, panelText: failure,
+      },
       loopAfter2_5Seconds: loopAt,
       oneShotFinalSeconds: Number(await page.locator("#operation-time").inputValue()),
     }, null, 2));
