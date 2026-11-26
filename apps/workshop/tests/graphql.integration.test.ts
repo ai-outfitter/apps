@@ -83,6 +83,43 @@ test("a project's Wiki product revision is saved with it and served, filterable,
   }
 });
 
+test("agents list projects and open one by slug through the published documents", async () => {
+  const { documents } = await import("../src/server/documents");
+  const { projectSlug } = await import("../src/lib/sections");
+  const app = await appWorker("workshop", artifact(), "model-reads");
+  try {
+    const run = async (name: "WorkshopProjects" | "WorkshopProject", variables: Record<string, unknown>) => {
+      const response = await app.call(`${actionPath}/call`, member, {
+        method: "POST", body: { action: "graph.graphql", input: { query: documentText(documents[name].document), variables }, access: "read" },
+      });
+      assert.equal(response.status, 200, await response.clone().text());
+      const body = (await response.json()) as { data: Record<string, { nodes: Record<string, unknown>[] }>; errors?: unknown };
+      assert.equal(body.errors, undefined, JSON.stringify(body.errors));
+      return body.data.workshopProjects.nodes;
+    };
+    const node = (await (await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "node", name: "SNY-1 soil sensor node" } })).json()) as Project;
+    await app.call("/api/apps/workshop/projects", member, { method: "POST", body: { example: "cube" } });
+
+    const listed = await run("WorkshopProjects", { search: "soil" });
+    assert.deepEqual(listed.map(({ name, slug, phase, kind }) => ({ name, slug, phase, kind })),
+      [{ name: "SNY-1 soil sensor node", slug: projectSlug(node), phase: "concept", kind: "electronics" }]);
+    assert.equal((await run("WorkshopProjects", { filter: { createdBy: { equalTo: "someone-else" } } })).length, 0);
+    // The page's project list is the same document.
+    const page = (await (await app.call("/api/apps/workshop/projects", member)).json()) as { slug: string; phase: string }[];
+    assert.deepEqual(page.map((row) => row.slug).sort(), (await run("WorkshopProjects", {})).map((row) => row.slug).sort());
+    assert.equal(page.length, 2);
+
+    // A renamed project keeps its old slug working: only the id's tail is matched.
+    const [model] = await run("WorkshopProject", { slug: `old-name-${node.id.slice(-12)}` });
+    assert.equal(model.slug, projectSlug(node));
+    assert.equal(model.requirements, node.requirements);
+    assert.deepEqual(model.builds, []);
+    assert.deepEqual(await run("WorkshopProject", { slug: "no-such-project" }), []);
+  } finally {
+    await app.dispose();
+  }
+});
+
 // Tier 2: the owner classifies a purchased motherboard without replacing its model.
 test("the model purpose control saves revision-checked classification through the installed route", async () => {
   const app = await appWorker("workshop", artifact(), "project-purpose");

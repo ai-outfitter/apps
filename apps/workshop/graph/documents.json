@@ -3651,6 +3651,241 @@
     }
   },
   {
+    "name": "WorkshopProject",
+    "kind": "query",
+    "story": "As a member or an agent working for one, I want to open one Workshop project by its slug with its requirements, notes, workspace builds with their tests and artifacts, and bench evidence, so that I can review or check the project from stored state instead of the page.",
+    "query": "query WorkshopProject($slug: String!) {\n  workshopProjects(slugs: [$slug], first: 1) {\n    nodes {\n      id\n      slug\n      name\n      purpose\n      revision\n      phase\n      kind\n      brief\n      requirements\n      measurementNotes\n      circuitNotes\n      updatedAt\n      productRevision {\n        id\n        title\n        url\n      }\n      builds {\n        id\n        status\n        current\n        stale\n        repository\n        sourceDir\n        sourceCommit\n        runner\n        compiler\n        createdAt\n        finishedAt\n        error\n        tests {\n          name\n          status\n          detail\n        }\n        artifacts {\n          path\n          bytes\n          contentType\n        }\n      }\n      evidence {\n        stage\n        outcome\n        note\n        operator\n        at\n      }\n      research {\n        name\n        kind\n        url\n        notes\n        decision\n      }\n      concepts {\n        caption\n        model\n        createdAt\n      }\n    }\n  }\n}",
+    "hash": "77371976ab1056e8ac06d1fe219d118c0705133a12ea43222e3f074b45155c39",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "GraphQL String!"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "mcp": {
+      "description": "Read one project by slug: requirements, measurement and circuit notes, workspace builds (newest first) with their tests and artifacts, bench evidence, research and concepts. Read the model, BOM and build price with ResolvedWorkshopAssembly."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopProjects": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "number"
+                  },
+                  "phase": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "brief": {
+                    "type": "string"
+                  },
+                  "requirements": {
+                    "type": "string"
+                  },
+                  "measurementNotes": {
+                    "type": "string"
+                  },
+                  "circuitNotes": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  },
+                  "productRevision": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "nullable": true
+                  },
+                  "builds": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "current": {
+                          "type": "boolean"
+                        },
+                        "stale": {
+                          "type": "boolean"
+                        },
+                        "repository": {
+                          "type": "string"
+                        },
+                        "sourceDir": {
+                          "type": "string"
+                        },
+                        "sourceCommit": {
+                          "type": "string"
+                        },
+                        "runner": {
+                          "type": "string"
+                        },
+                        "compiler": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "description": "DateTime"
+                        },
+                        "finishedAt": {
+                          "description": "DateTime",
+                          "nullable": true
+                        },
+                        "error": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "artifacts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "bytes": {
+                                "type": "integer"
+                              },
+                              "contentType": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "stage": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "type": "string"
+                        },
+                        "operator": {
+                          "type": "string"
+                        },
+                        "at": {
+                          "description": "DateTime"
+                        }
+                      }
+                    }
+                  },
+                  "research": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        },
+                        "decision": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "concepts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "caption": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "description": "DateTime"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "name": "WorkshopProjectHandoff",
     "kind": "query",
     "story": "As a Planning agent or member, I want to read back one Workshop project's persisted brief, requirements, stage and whole assembly, so that I can verify a hardware handoff from stored state instead of a summary.",
@@ -3672,9 +3907,9 @@
   {
     "name": "WorkshopProjects",
     "kind": "query",
-    "story": "As a caller, I want to search workshopProjects with compact results, so that I can select records and continue through every page.",
-    "query": "query WorkshopProjects($first: Int = 20, $after: String, $ids: [ID!], $orderBy: WorkshopProjectOrder, $filter: WorkshopProjectFilter, $search: String) {\n  workshopProjects(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      name\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "f970eaa1dca83dba58fb2018532b8b083757e6d1542414909c273dc5189624af",
+    "story": "As a member or an agent working for one, I want to list the organization's Workshop projects with their slug, stage, brief and the product revision each builds, so that I can find the project to open without loading every model.",
+    "query": "query WorkshopProjects($first: Int = 100, $after: String, $search: String, $filter: WorkshopProjectFilter, $orderBy: WorkshopProjectOrder) {\n  workshopProjects(\n    first: $first\n    after: $after\n    search: $search\n    filter: $filter\n    orderBy: $orderBy\n  ) {\n    nodes {\n      id\n      slug\n      name\n      purpose\n      revision\n      phase\n      kind\n      brief\n      productRevisionId\n      productRevisionTitle\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "7b3f442bf43f39083b204617b56da7a7020614836d163f95ebb662c15959c692",
     "variables": {
       "type": "object",
       "properties": {
@@ -3686,25 +3921,28 @@
           "type": "string",
           "description": "GraphQL String"
         },
-        "ids": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
-        },
-        "orderBy": {
-          "description": "GraphQL WorkshopProjectOrder"
+        "search": {
+          "type": "string",
+          "description": "GraphQL String"
         },
         "filter": {
           "description": "GraphQL WorkshopProjectFilter"
         },
-        "search": {
-          "type": "string",
-          "description": "GraphQL String"
+        "orderBy": {
+          "description": "GraphQL WorkshopProjectOrder"
         }
       },
       "required": []
     },
     "mcp": {
-      "description": "Find products or reusable component library models and their current revision. Filter purpose to product or component; references can use either."
+      "description": "List Workshop products and reusable component library models (filter purpose: product or component) with slug, stage, brief and the Wiki product revision each builds; open one with WorkshopProject by slug. With includeIdentifiers:true it gives the id and revision that ResolvedWorkshopAssembly, WorkshopAssembly and PCB imports take.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "workshopProjects",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
     },
     "outputSchema": {
       "type": "object",
@@ -3720,11 +3958,34 @@
                   "id": {
                     "type": "string"
                   },
+                  "slug": {
+                    "type": "string"
+                  },
                   "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
                     "type": "string"
                   },
                   "revision": {
                     "type": "number"
+                  },
+                  "phase": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "brief": {
+                    "type": "string"
+                  },
+                  "productRevisionId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "productRevisionTitle": {
+                    "type": "string",
+                    "nullable": true
                   },
                   "updatedAt": {
                     "description": "DateTime"
@@ -3782,9 +4043,9 @@
   {
     "name": "WorkshopUnits",
     "kind": "query",
-    "story": "As a caller, I want to search workshopUnits with compact results, so that I can select records and continue through every page.",
-    "query": "query WorkshopUnits($first: Int = 20, $after: String, $ids: [ID!], $orderBy: WorkshopUnitOrder, $filter: WorkshopUnitFilter, $search: String) {\n  workshopUnits(\n    first: $first\n    after: $after\n    ids: $ids\n    orderBy: $orderBy\n    filter: $filter\n    search: $search\n  ) {\n    nodes {\n      id\n      status\n      revision\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
-    "hash": "3e40b43492abcb1ae1c801e2ab946711ccabc0621f49f54f0cb8f6668882ab26",
+    "story": "As a member or an agent working for one, I want to list the physical units in stock by part number, MAC address, status or project with the firmware each last flashed, so that a build or test names the exact board it ran on.",
+    "query": "query WorkshopUnits($first: Int = 100, $after: String, $search: String, $filter: WorkshopUnitFilter) {\n  workshopUnits(first: $first, after: $after, search: $search, filter: $filter) {\n    nodes {\n      id\n      partNumber\n      mpn\n      mac\n      serial\n      status\n      location\n      projectId\n      firmware\n      notes\n      updatedAt\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}",
+    "hash": "b6d59596471b8bddd741ae4d1c3e0ca10bec901ccc242e4486ff05c2df6a23c8",
     "variables": {
       "type": "object",
       "properties": {
@@ -3796,23 +4057,91 @@
           "type": "string",
           "description": "GraphQL String"
         },
-        "ids": {
-          "type": "array",
-          "description": "GraphQL [ID!]"
-        },
-        "orderBy": {
-          "description": "GraphQL WorkshopUnitOrder"
-        },
-        "filter": {
-          "description": "GraphQL WorkshopUnitFilter"
-        },
         "search": {
           "type": "string",
           "description": "GraphQL String"
+        },
+        "filter": {
+          "description": "GraphQL WorkshopUnitFilter"
         }
       },
       "required": []
     },
-    "hidden": true
+    "mcp": {
+      "description": "List physical units, filtered by partNumber, mac, status or projectId, with location and the firmware last flashed.",
+      "collection": true,
+      "provenance": "organizationSlug"
+    },
+    "federation": {
+      "collection": "workshopUnits",
+      "cursorVariable": "after",
+      "provenance": "organizationSlug"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "workshopUnits": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "partNumber": {
+                    "type": "string"
+                  },
+                  "mpn": {
+                    "type": "string"
+                  },
+                  "mac": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "serial": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "firmware": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "description": "DateTime"
+                  }
+                }
+              }
+            },
+            "pageInfo": {
+              "type": "object",
+              "properties": {
+                "endCursor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "hasNextPage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 ]

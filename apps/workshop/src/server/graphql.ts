@@ -25,7 +25,8 @@ import {
   assemblyInput, assemblyUpdateBody, createWorkshopProject, deleteInput, deleteWorkshopProject, describeInput, describeWorkshopProject, exampleInput, linkInput,
   getWorkshopProject, nameWorkshopProductRevision, projectFrom, saveWorkshopAssembly, type WorkshopDatabase, workshopProjectRow,
 } from "./projects";
-import { workshopProjects, workshopUnits } from "./schema";
+import { projects, WorkshopProject } from "./read";
+import { workshopUnits } from "./schema";
 import { createWorkshopUnit, deleteWorkshopUnit, UnitDelete, UnitInput, UnitUpdate, updateWorkshopUnit } from "./units";
 
 /** The services every action and document runs with (src/server/context.ts builds them). */
@@ -43,16 +44,6 @@ export type WorkshopContext = ActionContext & WorkshopServices;
 
 const cotsWarnings = {type:JSONScalar,description:"Nonblocking purchased-part warnings with the visible item and canonical interface provenance."};
 const printFindings = {type:JSONScalar,description:"Machine-readable print findings on an assembly mutation receipt, with checked part, digest, profile, state and layer location."};
-const projects = tableType(workshopProjects, {
-  field: "workshopProjects", type: "WorkshopProject",
-  fields: ["name", "purpose", "revision", "wikiInstallationId", "productRevisionId", "productRevisionTitle", "createdBy", "updatedBy", "createdAt", "updatedAt"],
-  dates: ["createdAt", "updatedAt"],
-  ids: ["wikiInstallationId", "productRevisionId", "createdBy", "updatedBy"],
-  filters: ["createdBy", "productRevisionId", "purpose"],
-  extraFields:{printFindings},
-  // workshop_projects_updated_idx.
-  orders: ["updatedAt"],
-});
 /** The inventory: one row per physical unit, told apart by MAC address or serial. */
 const units = tableType(workshopUnits, {
   field: "workshopUnits", type: "WorkshopUnit",
@@ -64,7 +55,7 @@ const units = tableType(workshopUnits, {
 /** The row type a tableType collection pages (`<Type>Connection.nodes`), so a mutation returns the same record a read does. */
 const rowType = (collection: GraphQLFieldConfig<unknown, TableContext>) =>
   getNamedType((getNamedType(collection.type) as GraphQLObjectType).getFields().nodes.type) as GraphQLObjectType;
-const row = new GraphQLNonNull(rowType(projects.workshopProjects));
+const row = new GraphQLNonNull(WorkshopProject);
 const unitRow = new GraphQLNonNull(rowType(units.workshopUnits));
 
 const projectId = { type: new GraphQLNonNull(GraphQLID) };
