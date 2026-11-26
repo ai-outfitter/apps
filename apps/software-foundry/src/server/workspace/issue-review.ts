@@ -147,10 +147,9 @@ async function stableRunId(key: readonly unknown[]) {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 
-function startReceipt(row: Row, status: string, existing: boolean) {
+function publicationReceipt(row: Row) {
   const pins = target.parse(row.inputs["implement.inputs.target"]);
   return {
-    run: { id: row.runId, workflow: issueReviewWorkflow, status, existing },
     target: reviewForgejoIssueInput.parse(Object.fromEntries(
       Object.keys(reviewForgejoIssueInput.shape).map(key => [key, pins[key as keyof Target]]))),
     candidate: row.candidate,
@@ -159,14 +158,28 @@ function startReceipt(row: Row, status: string, existing: boolean) {
   };
 }
 
-export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<typeof reviewForgejoIssueInput>) {
+function startReceipt(row: Row, status: string, existing: boolean) {
+  return { run: { id: row.runId, workflow: issueReviewWorkflow, status, existing }, ...publicationReceipt(row) };
+}
+
+function reviewCaller(context: IntakeContext, access: "read" | "write") {
   const identity = requireOrganization(context.identity);
-  requireAccess(identity, "write");
+  requireAccess(identity, access);
   if (identity.role === "external" || identity.callerOrganizationId) throw denied("Current organization access required");
-  const host = context.host();
+  return identity;
+}
+
+async function reviewSnapshot(host: WorkflowHost<"interactive">, installationId: string) {
   const snapshot = await host.call("snapshot", {});
-  if (snapshot.installation.id !== identity.installationId || !snapshot.installation.workflows.includes(issueReviewWorkflow))
+  if (snapshot.installation.id !== installationId || !snapshot.installation.workflows.includes(issueReviewWorkflow))
     throw denied("Forgejo issue review workflow is unavailable");
+  return snapshot;
+}
+
+export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<typeof reviewForgejoIssueInput>) {
+  const identity = reviewCaller(context, "write");
+  const host = context.host();
+  const snapshot = await reviewSnapshot(host, identity.installationId);
   const connectionId = organizationConnection(snapshot, input.repository);
   const metadata = await repositoryMetadata(host, input, connectionId);
 
@@ -227,13 +240,11 @@ function jsonInputs(input: Record<string, unknown>) {
   return z.record(z.string(), z.json()).parse(input);
 }
 
-const runIdInput = z.uuid();
+export const issueReviewRunInput = z.strictObject({ runId: z.uuid() });
 
 async function originalReview(context: IntakeContext, runId: string, access: "read" | "write") {
-  const identity = requireOrganization(context.identity);
-  requireAccess(identity, access);
-  if (identity.role === "external" || identity.callerOrganizationId) throw denied("Current organization access required");
-  const row = await savedReview(context.db, runIdInput.parse(runId));
+  const identity = reviewCaller(context, access);
+  const row = await savedReview(context.db, runId);
   if (!row || row.recoveryOf !== null || row.installationId !== identity.installationId)
     throw new Response("Original Forgejo issue review not found", { status: 404 });
   return { identity, row };
@@ -253,28 +264,36 @@ function runHistory(run: WorkflowRun | null, row: Row) {
     : { id: row.runId, status: "pending", attempts: [] };
 }
 
+function recoveryReceipt(row: Row, original: WorkflowRun | null, recovery?: Row, child: WorkflowRun | null = null) {
+  return {
+    original: runHistory(original, row),
+    recovery: recovery ? runHistory(child, recovery) : null,
+    ...publicationReceipt(recovery ?? row),
+  };
+}
+
 export async function readForgejoIssueReview(context: IntakeContext, runId: string) {
-  const { row } = await originalReview(context, runId, "read");
+  const { row, identity } = await originalReview(context, runId, "read");
   const host = context.host();
   const recovery = await savedRecovery(context.db, runId);
   const [originalRun, recoveryRun] = await Promise.all([
     readReviewRun(host, row),
     recovery ? readReviewRun(host, recovery) : null,
   ]);
-  const { target, candidate, review, draftObservation } = startReceipt(recovery ?? row, "", false);
-  return {
-    original: runHistory(originalRun, row),
-    recovery: recovery ? runHistory(recoveryRun, recovery) : null,
-    target, candidate, review, ...(draftObservation ? { draftObservation } : {}),
-  };
+  if (row.createdBy !== identity.userId && (!originalRun || (recovery && !recoveryRun)))
+    throw new Response("Forgejo issue review not available", { status: 404 });
+  return recoveryReceipt(row, originalRun, recovery, recoveryRun);
 }
+
+// Compatibility with retained failures created before recovery was available.
+const checkoutInitializationFailure = "Pinned checkout could not initialize.";
 
 function requirePreCheckoutFailure(row: Row, run: WorkflowRun | null) {
   const attempt = run?.attempts[0];
   // The host records this exact runtime-owned error only when its pinned
   // checkout worker exits during initialization, before it launches an agent.
   if (run?.run.status !== "failed" || run.attempts.length !== 1 || attempt?.nodeId !== "implement" ||
-      attempt.state !== "failed" || attempt.failure !== "Pinned checkout could not initialize." ||
+      attempt.state !== "failed" || attempt.failure !== checkoutInitializationFailure ||
       attempt.sessionArtifact?.runId !== row.runId || Object.keys(run.outputs).length ||
       row.effectDispatch || row.branchClaim || row.commitClaim || row.commitProof || row.publication ||
       row.draftObservation || row.candidate || row.reviewPublication || row.review)
@@ -286,18 +305,6 @@ export async function recoverForgejoIssueReview(context: IntakeContext, runId: s
   if (row.createdBy !== identity.userId) throw denied("Only the original review initiator can recover this run");
   const host = context.host();
   const pins = target.parse(row.inputs["implement.inputs.target"]);
-  const snapshot = await host.call("snapshot", {});
-  if (snapshot.installation.id !== identity.installationId || !snapshot.installation.workflows.includes(issueReviewWorkflow))
-    throw denied("Forgejo issue review workflow is unavailable");
-  const connectionId = organizationConnection(snapshot, pins.repository);
-  if (row.inputs["implement.inputs.connectionId"] !== connectionId)
-    throw denied("The pinned Forgejo connection changed");
-  const implementer = z.string().min(1).parse(row.inputs["implement.inputs.implementerBinding"]);
-  const reviewer = z.string().min(1).parse(row.inputs["implement.inputs.reviewerBinding"]);
-  const { worker } = await verifyPair(host, snapshot, pins, connectionId, { implementer, reviewer, reviewerName: pins.reviewer },
-    { workerId: pins.workerId, reviewerId: pins.reviewerId });
-  const original = await readReviewRun(host, row);
-  requirePreCheckoutFailure(row, original);
   if (pins.origin !== row.forgeOrigin || pins.repositoryId !== row.repositoryId || pins.issueNumber !== row.issueNumber ||
       pins.branch !== forgejoWorkspaceBranch(runId) ||
       runId !== await stableRunId([issueReviewWorkflow, row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber]))
@@ -315,22 +322,37 @@ export async function recoverForgejoIssueReview(context: IntakeContext, runId: s
     return saved;
   };
   let recovery = await existingRecovery();
-  if (recovery && await readReviewRun(host, recovery)) return readForgejoIssueReview(context, runId);
+  const original = await readReviewRun(host, row);
+  const prior = recovery ? await readReviewRun(host, recovery) : null;
+  if (prior) return recoveryReceipt(row, original, recovery, prior);
+  requirePreCheckoutFailure(row, original);
+
+  const snapshot = await reviewSnapshot(host, identity.installationId);
+  const connectionId = organizationConnection(snapshot, pins.repository);
+  if (row.inputs["implement.inputs.connectionId"] !== connectionId)
+    throw denied("The pinned Forgejo connection changed");
+  const implementer = z.string().min(1).parse(row.inputs["implement.inputs.implementerBinding"]);
+  const reviewer = z.string().min(1).parse(row.inputs["implement.inputs.reviewerBinding"]);
+  const { worker } = await verifyPair(host, snapshot, pins, connectionId, { implementer, reviewer, reviewerName: pins.reviewer },
+    { workerId: pins.workerId, reviewerId: pins.reviewerId });
 
   const api = reviewRepository(host, worker, implementer);
   try {
-    await verifyRecoverySource(api, row, pins, conflict);
+    const { issue } = await verifySource(api, pins, pins.origin);
+    if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
+      throw conflict("The original Forgejo issue changed");
     const [originalBranch, recoveryBranch, priorPull] = await Promise.all([
       reviewBranchTip(api, pins),
       reviewBranchTip(api, recoveryPins),
-      findPull(api, pins, { branches: [pins.branch, recoveryPins.branch], runs: [runId, recoveryId] }),
+      hasReviewPull(api, pins.repositoryId, [pins.branch, recoveryPins.branch], [runId, recoveryId]),
     ]);
     if (originalBranch || recoveryBranch || priorPull) throw conflict("Forgejo already has publication evidence for this review");
   } catch (error) {
     // Another caller can start the claimed run while we read Forgejo. In that
     // case report the known run and let its coordinator reconcile native writes.
     const saved = await existingRecovery();
-    if (saved && await readReviewRun(host, saved)) return readForgejoIssueReview(context, runId);
+    const active = saved ? await readReviewRun(host, saved) : null;
+    if (active) return recoveryReceipt(row, original, saved, active);
     throw error;
   }
 
@@ -345,13 +367,8 @@ export async function recoverForgejoIssueReview(context: IntakeContext, runId: s
   // The deterministic host claim can replay after a lost response or a crash
   // between the app claim and dispatch without creating another child.
   await host.call("workflow.start", { workflow: issueReviewWorkflow, id: recovery.runId, inputs: jsonInputs(recovery.inputs) });
-  return readForgejoIssueReview(context, runId);
-}
-
-async function verifyRecoverySource(api: ReviewRepository, row: Row, pins: Target, mismatch: typeof conflict) {
-  const { issue } = await verifySource(api, pins, pins.origin, mismatch);
-  if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
-    throw mismatch("The original Forgejo issue changed");
+  const started = await readReviewRun(host, recovery);
+  return recoveryReceipt(row, original, await existingRecovery() ?? recovery, started);
 }
 
 const head = z.object({ ref: branch, sha, repo: z.object({ id: number, full_name: repository }) });
@@ -396,30 +413,41 @@ function verifyPull(current: z.infer<typeof pull>, pins: Target, headSha: string
   return { number: current.number, url: current.html_url, headSha, branch: pins.branch, authorId: current.user.id };
 }
 
-async function findPull(api: ReviewRepository, pins: Target, recovery?: { branches: string[]; runs: string[] }) {
-  let found: z.infer<typeof pull> | undefined;
+async function* pullHistory(api: ReviewRepository) {
   for (let page = 1; page <= 20; page++) {
     const items = z.array(z.unknown()).parse(await api.get(`/pulls?state=all&limit=50&page=${page}`));
-    for (const item of items) {
-      if (recovery) {
-        const candidate = z.object({
-          body: z.string().nullish(),
-          head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }),
-        }).parse(item);
-        if ((recovery.branches.includes(candidate.head.ref) && (!candidate.head.repo || candidate.head.repo.id === pins.repositoryId)) ||
-            recovery.runs.some(id => candidate.body?.includes(marker(id))))
-          return pull.parse(item);
-        continue;
-      }
-      const match = z.object({ head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }) }).safeParse(item);
-      if (match.success && match.data.head.ref === pins.branch && match.data.head.repo?.id === pins.repositoryId) {
-        if (found) throw phaseMismatch("The review branch has multiple pull requests");
-        found = pull.parse(item);
-      }
-    }
-    if (items.length < 50) return found;
+    yield* items;
+    if (items.length < 50) return;
   }
   throw unconfirmed("Pull request history exceeds the reconciliation limit");
+}
+
+const pullIdentity = z.object({
+  body: z.string().nullish(),
+  head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }),
+});
+
+async function hasReviewPull(api: ReviewRepository, repositoryId: number, branches: string[], runs: string[]) {
+  for await (const item of pullHistory(api)) {
+    const match = pullIdentity.safeParse(item);
+    if (!match.success) throw unconfirmed("Forgejo pull history contains an unreadable record");
+    const { body, head } = match.data;
+    if (runs.some(id => body?.includes(marker(id))) ||
+        (branches.includes(head.ref) && (!head.repo || head.repo.id === repositoryId))) return true;
+  }
+  return false;
+}
+
+async function findPull(api: ReviewRepository, pins: Target) {
+  let found: z.infer<typeof pull> | undefined;
+  for await (const item of pullHistory(api)) {
+    const match = pullIdentity.safeParse(item);
+    if (match.success && match.data.head.ref === pins.branch && match.data.head.repo?.id === pins.repositoryId) {
+      if (found) throw phaseMismatch("The review branch has multiple pull requests");
+      found = pull.parse(item);
+    }
+  }
+  return found;
 }
 
 async function optionalRead(api: ReviewRepository, suffix: string) {
@@ -518,9 +546,7 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
     throw phaseMismatch("The pinned Forgejo execution authority changed");
   const api = reviewRepository(host, repo);
   // A claimed draft must reconcile before a ref-drift refusal can terminate it.
-  if (!reconcilingDraft && row.recoveryOf)
-    await verifyRecoverySource(api, row, pins, phaseMismatch);
-  else if (!reconcilingDraft)
+  if (!reconcilingDraft)
     await verifySource(api, pins, pins.origin, phaseMismatch);
   return { row, pins, api };
 }

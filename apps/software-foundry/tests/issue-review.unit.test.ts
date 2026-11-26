@@ -233,6 +233,7 @@ test("recovers one retained initialization failure after a lost start receipt wi
   assert.equal(recovered.recovery?.status, "running");
   assert.notEqual(recovered.recovery?.id, id);
   assert.deepEqual(recovered.target, admitted.target);
+  f.state.granted = false;
   assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => recoverForgejoIssueReview(f.context, id))),
     [recovered, recovered, recovered]);
   assert.deepEqual(f.writes(), []);
@@ -252,6 +253,9 @@ test("refuses recovery without checkout failure proof or when source and native 
   f.state.baseSha = pin.baseSha;
   f.state.branch = (f.state.inputs["implement.inputs.target"] as { branch: string }).branch;
   f.state.head = pin.baseSha;
+  await assert.rejects(recover(), refused(409));
+  f.state.head = null;
+  f.state.pull = { head: { ref: f.state.branch, repo: null }, body: null };
   await assert.rejects(recover(), refused(409));
   assert.equal((await readForgejoIssueReview(f.context, id)).recovery, null);
   assert.equal(f.calls.filter(call => call.operation === "workflow.start").length, 1);

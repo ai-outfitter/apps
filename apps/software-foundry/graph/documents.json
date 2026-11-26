@@ -491,7 +491,7 @@
       ]
     },
     "mcp": {
-      "description": "Recover a verified checkout initialization failure using the original ReviewForgejoIssue runId as the only variable. The original initiator can start one linked recovery under the current repository grant and the original issue, exact base, and approved actors. Replay returns the same recovery. Use ForgejoIssueReview to follow progress and get the local draft pull request and formal review."
+      "description": "Recover a verified checkout initialization failure using the original ReviewForgejoIssue runId as the only variable. The original initiator can start one linked recovery under the current repository grant and the original issue, exact base, and approved actors. Replay returns that recovery, even if it failed. Use ForgejoIssueReview to follow progress and get the local draft pull request and formal review."
     },
     "outputSchema": {
       "type": "object",
@@ -1037,7 +1037,7 @@
       ]
     },
     "mcp": {
-      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeat the same inputs for status, retained receipts, or a blocked draft observation. A different base conflicts with the existing run."
+      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeating the same inputs returns the original run and a different base conflicts with it. Use ForgejoIssueReview to read progress including any linked recovery."
     },
     "outputSchema": {
       "type": "object",
