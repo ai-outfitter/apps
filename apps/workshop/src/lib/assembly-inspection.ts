@@ -1,4 +1,4 @@
-import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import { Box3, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
 import { placements, worldCorners, type Assembly, type Item, type Usage } from "./assembly";
 
 export type Occurrence = {
@@ -51,7 +51,7 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
     for (const child of level.children) {
       const authored = child.usage?.explode;
       if (!authored?.offset) continue;
-      const progress = Math.max(0, Math.min(1, amount / 100 * steps - ((authored.step ?? 1) - 1)));
+      const progress = MathUtils.clamp(amount / 100 * steps - ((authored.step ?? 1) - 1), 0, 1);
       offsets.set(child.path, new Vector3(...authored.offset).applyQuaternion(rotation).multiplyScalar(progress));
     }
     return offsets;
@@ -59,7 +59,7 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
 
   const center = level.bounds.getCenter(new Vector3());
   const distance = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.52);
-  const progress = Math.max(0, Math.min(1, amount / 100));
+  const progress = MathUtils.clamp(amount / 100, 0, 1);
   const directions: Vector3[] = [];
   for (const [index, child] of level.children.entries()) {
     const delta = child.bounds.getCenter(new Vector3()).sub(center).normalize();

@@ -27,7 +27,7 @@ export const UsageSchema = z
     id: z.uuid(),
     itemId: z.uuid(),
     joint: JointSchema.optional(),
-    explode: z.object({
+    explode: z.strictObject({
       /** Inspection-only translation in parent coordinates, in mm. */
       offset: z.tuple([coordinate, coordinate, coordinate]).optional(),
       step: z.number().int().min(1).max(100).optional(),
@@ -36,7 +36,7 @@ export const UsageSchema = z
       rigid: z.boolean().optional(),
     }).refine(
       ({ offset, step, fixed }) => fixed ? offset === undefined && step === undefined : offset !== undefined,
-      "Specify an explode offset with an optional step, or fixed: true by itself. Rigid is optional in either case.",
+      "Specify an explode offset with an optional step, or fixed: true without offset or step. Rigid is optional in either case.",
     ).optional(),
     quantity: z.number().int().min(1).max(1000),
     /** Reference designators or a find number, such as "U1" or "Find 3". */
