@@ -960,6 +960,36 @@
     }
   },
   {
+    "name": "ReviewForgejoIssue",
+    "kind": "mutation",
+    "story": "As an organization editor, I want an existing Forgejo issue implemented and independently reviewed against a pinned base, so that I can assess the change before landing.",
+    "query": "mutation ReviewForgejoIssue($input: ReviewForgejoIssueInput!) {\n  reviewForgejoIssue(input: $input)\n}",
+    "hash": "68584f1c3c96c6078ee309de41c1544104e9b94291e6ff87b4748871fd5830a7",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReviewForgejoIssueInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "mcp": {
+      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeat the same inputs for status, retained receipts, or a blocked draft observation. A different base conflicts with the existing run."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "reviewForgejoIssue": {
+          "description": "JSON",
+          "nullable": true
+        }
+      }
+    }
+  },
+  {
     "name": "ShippedChanges",
     "kind": "query",
     "story": "As a stakeholder or their agent, I want every pull request merged in a window (yesterday, by default a day) with its kind and the parts of the repository it touched, so that I can read or write a daily report of what shipped.",

@@ -71,6 +71,34 @@
       "when": 1795632260823,
       "tag": "0009_foundry_plan_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795648059282,
+      "tag": "0010_foundry_forgejo_issue_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795648621120,
+      "tag": "0011_foundry_forgejo_commit_proof",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795649284754,
+      "tag": "0012_foundry_forgejo_review_selection",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1795651414620,
+      "tag": "0013_foundry_forgejo_dispatch",
+      "breakpoints": true
     }
   ]
 }

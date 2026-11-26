@@ -1,3 +1,4 @@
+import type { ReviewEffect } from "./workspace/issue-review-effect";
 export { graphChangeReceipts } from "@ai-outfitter/app-sdk/batch-receipts";
 import {
   index,
@@ -99,3 +100,42 @@ export const foundryPlans = sqliteTable("foundry_plans", {
   issue: text({ mode: "json" }).$type<{number:number;url:string;created:boolean}>(),
   message: text(),
 }, (t) => [uniqueIndex("foundry_plans_run_idx").on(t.runId)]);
+
+/** One review run and one publication claim for each installation's Forgejo issue. */
+export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", {
+  runId: text().primaryKey(),
+  repositoryId: integer().notNull(),
+  forgeOrigin: text().notNull(),
+  issueNumber: integer().notNull(),
+  installationId: text().notNull(),
+  createdBy: text().notNull(),
+  inputs: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  effectDispatch: text({ mode: "json" }).$type<ReviewEffect>(),
+  branchClaim: text(),
+  commitClaim: text(),
+  commitProof: text({ mode: "json" }).$type<{
+    nonce: string;
+    headSha?: string;
+    summary?: string;
+    files: { path: string; beforeSha: string | null; contentHash: string | null }[];
+  }>(),
+  publication: text({ mode: "json" }).$type<{ headSha: string; attemptId: string }>(),
+  draftObservation: text({ mode: "json" }).$type<Record<string, unknown>>(),
+  candidate: text({ mode: "json" }).$type<Record<string, unknown>>(),
+  reviewPublication: text({ mode: "json" }).$type<{ attemptId: string; verdict: string }>(),
+  review: text({ mode: "json" }).$type<Record<string, unknown>>(),
+}, (row) => [uniqueIndex("foundry_forgejo_issue_review_target")
+  .on(row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber)]);
+
+
+/** The current operator-selected pair for new issues. Runs freeze their own pair. */
+export const forgejoIssueReviewBindings = sqliteTable("foundry_forgejo_issue_review_bindings", {
+  key: text().primaryKey(),
+  revision: text().notNull(),
+  connectionId: text().notNull(),
+  implementer: text().notNull(),
+  reviewer: text().notNull(),
+  reviewerName: text().notNull(),
+  reviewerId: integer().notNull(),
+  workerId: integer().notNull(),
+});

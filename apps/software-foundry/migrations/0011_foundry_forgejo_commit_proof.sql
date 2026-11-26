@@ -1,0 +1,1 @@
+ALTER TABLE `foundry_forgejo_issue_reviews` ADD `commitProof` text;

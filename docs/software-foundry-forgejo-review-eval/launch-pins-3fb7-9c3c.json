@@ -1,0 +1,43 @@
+{
+  "image": {
+    "imageId": "ddd173210ad87a95a39ccfe80944e77d2cc9a07b01415d93d75225245825a0d7",
+    "webappCommit": "9c3c3e6a6c7eda6151501e7e1e3df0b240ac53ce",
+    "webappTree": "4a448017b0c298e244c7227e74a5271fd4e55c3e",
+    "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7"
+  },
+  "appsCommit": "3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee",
+  "appsTree": "022d0ff969e487aa9ca4024a1cf843f001f8d2ce",
+  "packageSha256": {
+    "apps-tree.txt": "99c8211a03546da1b90a46b36d28ef79a4c21e3ba5436af75b798d709468cdd5",
+    "documents.json": "e759dc7d39f493b1671d583ce19c25a8700469eb78303666c9ad76d281888dd0",
+    "schema.graphql": "5126f45495b13eb4f69a8b00ef4d4f3433760532badfba5ec91869ce7c1f2bf8",
+    "software-foundry.operational.json": "deb72d70489f61df300353bd17f713f2e8662432049e8c912a2b636dd10382f3"
+  },
+  "harnessCommit": "64c965bca09c932d118a9cf790e6a113034a3e96",
+  "harnessTree": "7879577818da548f654a1adbfc763ce0c434ef49",
+  "sourceSha256": {
+    "eval/provider.mjs": "edf4125958ab794b37ce4dda7b552561747333e83e220f57d65885879037ae80",
+    "eval/check-launch.mjs": "68ac99c2ad1f3009eb08fd4e4475327a14bdce047e711ddc9d25f9fcfad9a0d1",
+    "eval/relay.mjs": "28442d6e30c29ed7587d978d4544c3fd18e1dc222430053dd7a384b1143cddc7",
+    "eval/resolution.mjs": "bad9d847599dd0958d49aa38dc488f796d81d6562fa668830229015c716a52a8",
+    "eval/seed-git.sh": "07dc28194263e15af44f96d35c500201f0f490550daa7603246a0049a81ba0ae",
+    "eval/driver.mjs": "3f96d4a5d04a7535d631eebda0bb18b95cfff8b43607a52d0f0d6ddbcc4c9792",
+    "eval/bootstrap.mjs": "4a3ad5a8a9a0834ac0aaa96b48e7d4bb22abe6fed9a125cd61c33f73876d1d10",
+    "eval/grants.mjs": "51486340b22e55e469a3da36088af46146b9dd2eb00e52103196b7ff834f9310",
+    "eval/installed.mjs": "78542885d3c52c6334ff5fa6aee5bd221e2ec8a13122ad05dece8139af46cb0b",
+    "eval/run.sh": "1ba079757dbb6883850cfc34710bce359151d373fde8110727108b8fc062b885",
+    "eval/build-inputs.sh": "a32897446318ebdff752f39e0c4db1bf9098b89d7c6b5be0b9cfda5f7696e800",
+    "eval/fixture.mjs": "2193090ba12e250c2588b7cf294bb9c4675637f30f392c94f079a23fdefdf6e2",
+    "eval/bin/forgejo": "251e9883ee23c75d5a59b48ff55917b11c9b4106864f046bcce8d4e87d87f2cb",
+    "eval/fixtures/issue.json": "775b521ed5562ddaf209e4da777bd9c030ee96e0f6311605d5d400a4343ce2df",
+    "planwork/mcp.mjs": "4895516b60f2e895c24258fb2a8382ae65f115151e03322a7859272249db2e73",
+    "planwork/pins.json": "9b4949b98db6054c3b5b9acdbd28d178b054d08ce56c5d2581107a232d8f7dbd",
+    "eval/authority-observer.mjs": "68e5d9ab3f1a75a9bf8acf1318677cc6a950cb4ba92b00babdd914bec18efb79"
+  },
+  "fixtureBase": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+  "cases": [
+    "happy",
+    "race-lost",
+    "authority-retry"
+  ]
+}

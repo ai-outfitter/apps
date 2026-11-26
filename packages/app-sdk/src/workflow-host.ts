@@ -59,6 +59,14 @@ const phase = z.enum(workflowPhases);
 
 const id = z.string().min(1).max(128);
 const runId = z.uuid();
+
+/** Positive proof that this pinned Forgejo invocation stopped before dispatch. */
+export const forgejoMutationNotDispatched = { status: 425, message: "Pinned Forgejo mutation was not dispatched" } as const;
+
+/** The only remote branch a pinned Forgejo workspace may publish for this run. */
+export function forgejoWorkspaceBranch(id: string) {
+  return `outfitter-review-${runId.parse(id)}`;
+}
 const json = z.json();
 /** A JSON object: phase inputs and results, run inputs, provider payloads. */
 export const jsonObject = z.record(z.string(), json);
@@ -540,6 +548,11 @@ const coreOperations = {
     appId: z.number().int().positive(),
     /** The forge hosting the repository; absent means GitHub. */
     forge: z.enum(["github", "forgejo"]).optional(),
+    /** The approved isolated checkout path, when the binding requires it. */
+    checkout: z.literal("forgejo-pinned").optional(),
+    /** The organization's resolved Forgejo connection. */
+    connectionId: id.optional(),
+    inferenceProvider: z.enum(["spark", "openai", "openrouter"]).optional(),
   })),
   /** Audit one GitHub repository's contributor templates as the acting member. */
   "repository.community-templates": operation(["interactive", "operator"], z.strictObject({
@@ -570,6 +583,7 @@ const coreOperations = {
     ...repositoryTarget,
     operation: id,
     reviewer: id.optional(),
+    expectedReviewerId: z.number().int().positive().optional(),
     candidate: z.strictObject({ number: z.number().int().positive(), headSha: z.string().regex(/^[a-f0-9]{40}$/) }).optional(),
     verdict: z.enum(["approved", "changes-requested"]).optional(),
     summary: z.string().max(65_536).optional(),
@@ -743,6 +757,12 @@ export const prepareResult = z.discriminatedUnion("mode", [
     /** App guidance appended to the agent prompt. */
     guidance: z.array(z.string().min(1).max(4096)).max(16).optional(),
     preview: previewGrant.optional(),
+    /** Exact local Git objects prefetched by the broker for an approved pinned binding.
+     * The workspace agent starts with a detached checkout and no forge credential. */
+    checkout: z.strictObject({
+      sha: z.string().regex(/^[a-f0-9]{40}$/),
+      baseSha: z.string().regex(/^[a-f0-9]{40}$/).optional(),
+    }).optional(),
   }),
 ]);
 /** `finalize` input: the node's work is done and its attempt is leased and claimed. */
