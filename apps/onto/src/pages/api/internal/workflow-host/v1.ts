@@ -21,6 +21,8 @@ export const POST: APIRoute = ({ request, locals }) =>
       const host = workflowHost<"schedule">(locals);
       if (!identity.canEdit) return { outcome: "declined", reason: "An editor must own the Onto schedule" };
       if (schedule.workflowId === enrichmentWorkflow) {
+        if (["node", "repositories", "explore.inputs.node", "explore.inputs.repositories"].some(key => key in schedule.inputs))
+          return { outcome: "declined", reason: "Targeted Onto enrichment requires an interactive document" };
         const input = enrichmentInput.parse({ prompt: schedule.inputs["explore.inputs.prompt"] ?? schedule.inputs.prompt });
         await enrichGraph(installationDatabase(), identity, host, input, runId);
         return { outcome: "started" };

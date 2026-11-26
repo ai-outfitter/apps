@@ -208,8 +208,10 @@ async function explicitTargets(graph: Graph, host: Host, input: EnrichmentInput)
 function repositoryEvidence(repo: RepoSource): EvidenceItem[] {
   return repo.files.flatMap(file => {
     const recordId = `${repo.repository}/${file.path}`;
-    const path = new URL(file.url).pathname;
-    if (!file.text.trim() || recordId.length > 500 || !path.endsWith(`/${repo.revision}/${file.path.split("/").map(encodeURIComponent).join("/")}`)) return [];
+    const segment = repo.provider === "forgejo" ? "src/commit" : "blob";
+    const path = file.path.split("/").map(encodeURIComponent).join("/");
+    const permalink = `${repo.repository}/${segment}/${repo.revision}/${path}`;
+    if (!file.text.trim() || recordId.length > 500 || file.url !== permalink) return [];
     return [{ provider: repo.provider, recordId, version: repo.revision, uri: file.url, quote: file.text }];
   });
 }
