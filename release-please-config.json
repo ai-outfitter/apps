@@ -66,6 +66,10 @@
     "packages/creative-workflow": {
       "release-type": "node",
       "component": "creative-workflow"
+    },
+    "packages/connector-forgejo": {
+      "release-type": "node",
+      "component": "connector-forgejo"
     }
   }
 }
