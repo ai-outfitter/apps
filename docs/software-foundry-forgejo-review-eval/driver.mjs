@@ -56,12 +56,13 @@ export async function run(box) {
     assert.equal(report.actors.reviewer.login, "reviewer");
     report.repositoryId = (await seedIssue(box, auth)).repositoryId;
     report.issueNumber = issue.number;
-    if (report.case.startsWith("recovery-")) {
+    const sharedRecovery = report.case.startsWith("recovery-") || report.case.startsWith("github-");
+    if (sharedRecovery) {
       report.reviewerPermissions = await grantReviewerReadOnly(auth);
     }
     report.before = await inventory(auth.admin);
     report.baseSha = readFileSync(join(box.out, "base.sha"), "utf8").trim();
-    report.baseRef = (report.case === "slash-base" || report.case.startsWith("recovery-")) ? "release/review-fixture" : "main";
+    report.baseRef = (report.case === "slash-base" || sharedRecovery) ? "release/review-fixture" : "main";
     const expectedRefs = { main: report.baseSha, [report.baseRef]: report.baseSha };
     assert.deepEqual(report.before.refs, expectedRefs);
     assert.deepEqual(report.before.pulls, []);
@@ -86,10 +87,15 @@ export async function run(box) {
     let document = "PlanWork";
     if (report.case !== "native" && !grantCase) {
       document = await discover("ReviewIssue") ? "ReviewIssue" : "ReviewForgejoIssue";
-      if (report.case.startsWith("recovery-")) assert.equal(document, "ReviewIssue");
+      if (sharedRecovery) assert.equal(document, "ReviewIssue");
     }
     assert.ok(await discover(document), `Installed box-scope discovery advertises mutation ${document} with its schema`);
     report.discovered = document;
+    if (document === "ReviewIssue") {
+      const published = JSON.parse(readFileSync("/package/documents.json", "utf8")).find(entry => entry.name === document);
+      assert.equal(published?.query, "mutation ReviewIssue($input: ReviewIssueInput!) {\n  reviewIssue(input: $input)\n}");
+      report.reviewDocumentHash = published.hash;
+    }
     if (report.case === "native") await nativeRoundTrip(auth, report);
     else if (grantCase) {
       const exercise = report.case === "grants" ? exerciseGrants : exerciseRevokedGrant;

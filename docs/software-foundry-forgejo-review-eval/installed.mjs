@@ -8,6 +8,7 @@ import { callTool } from "/planwork/mcp.mjs";
 import { inspectCandidate, inventory, issue, pushFixtureCommit } from "./fixture.mjs";
 import { sessionRequest, waitFor } from "./grants.mjs";
 import { exerciseRecovery } from "./recovery.mjs";
+import { exerciseGitHub } from "./github-eval.mjs";
 
 const app = "software-foundry";
 const workflowId = "foundry-forgejo-issue-review";
@@ -105,7 +106,11 @@ export async function exerciseInstalled(context) {
         if (!controller.signal.aborted) box.log(`Eval workflow tick failed (${error.message})`);
       }).finally(() => { tick = undefined; });
     }, 1_000);
-    await runCase(context);
+    if (context.report.case.startsWith("github-")) {
+      await exerciseGitHub(context, workflowId, model, gradeResolution);
+    } else {
+      await runCase(context);
+    }
   } finally {
     clearInterval(interval);
     controller.abort();

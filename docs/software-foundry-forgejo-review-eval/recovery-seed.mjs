@@ -38,23 +38,25 @@ const insert = (db, table, record) => {
     .run(...Object.values(record));
 };
 
-export function seedPriorReview(box, report, pin, workflowId) {
+export function seedPriorReview(box, report, pin, workflowId, github) {
   const { id: installationId, organizationId, activeHash } = report.installation;
   const { manifest } = JSON.parse(readFileSync("/package/software-foundry.operational.json", "utf8"));
   const { definition } = manifest.workflows.find(item => item.definition.id === workflowId);
   const migrations = manifest.database.migrations;
   const recovery = migrations.findIndex(migration => migration.name === "0014_foundry_forgejo_issue_recovery");
   assert.ok(recovery > 0);
-  const origin = "http://127.0.0.1:3300";
+  const origin = github ? "https://github.com" : "http://127.0.0.1:3300";
   const { id, title, body, number } = report.before.issues[0];
   assert.ok(id);
-  const hash = digest([workflowId, installationId, origin, pin.repositoryId, pin.issueNumber]);
+  const hash = digest([workflowId, installationId, origin, pin.repositoryId, pin.issueNumber, ...(github ? ["github"] : [])]);
   const runId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   const inputs = {
     "implement.inputs.target": { ...pin, origin, branch: `outfitter-review-${runId}`,
-      workerId: report.actors.worker.id, reviewer: report.actors.reviewer.login, reviewerId: report.actors.reviewer.id },
+      workerId: github?.appId ?? report.actors.worker.id, reviewer: report.actors.reviewer.login,
+      reviewerId: github?.reviewerId ?? report.actors.reviewer.id,
+      ...(github ? { provider: "GITHUB", workerLogin: `${github.appSlug}[bot]`, githubInstallationId: github.githubInstallationId } : {}) },
     "implement.inputs.issue": { number, title, body, url: `${origin}/${pin.repository}/issues/${number}` },
-    "implement.inputs.connectionId": report.grant.connectionId,
+    "implement.inputs.connectionId": github ? "github:user" : report.grant.connectionId,
     "implement.inputs.implementerBinding": report.bindings.implementer,
     "implement.inputs.reviewerBinding": report.bindings.reviewer,
   };
