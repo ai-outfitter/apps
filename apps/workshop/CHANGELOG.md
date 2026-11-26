@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/workshop-v0.1.5...workshop-v0.1.6) (2026-11-26)
+
+
+### Features
+
+* **graph:** compose app-owned graph definitions ([fbd6e1e](https://github.com/ai-outfitter/apps/commit/fbd6e1e5425e36caaa78f662efb079afb83cf5d2))
+* **workshop:** expose shared purchased-part evidence ([c716279](https://github.com/ai-outfitter/apps/commit/c716279d8bfb7697b01248878319793b33a7b986))
+* **workshop:** honor authored assembly explosion policies ([#289](https://github.com/ai-outfitter/apps/issues/289)) ([ac50884](https://github.com/ai-outfitter/apps/commit/ac508844f6500f159e64264d462f21ee91b4bc03))
+* **workshop:** inspect exploded assembly occurrences ([f6182d9](https://github.com/ai-outfitter/apps/commit/f6182d913723ba13c7105670afc8f8a63ab074b8))
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/workshop-v0.1.4...workshop-v0.1.5) (2026-11-25)
 
 
