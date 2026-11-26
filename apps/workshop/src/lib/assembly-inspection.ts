@@ -1,8 +1,8 @@
-import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import { Box3, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
 import { placements, worldCorners, type Assembly, type Item, type Usage } from "./assembly";
 
 export type Occurrence = {
-  item: Item; path: string; matrix: Matrix4; usage?: Usage; children: Occurrence[]; bounds: Box3; label: string;
+  item: Item; path: string; matrix: Matrix4; usage?: Usage; rigid: boolean; children: Occurrence[]; bounds: Box3; label: string;
 };
 
 export function inspectionOccurrences(assembly: Assembly) {
@@ -11,7 +11,8 @@ export function inspectionOccurrences(assembly: Assembly) {
     const parent = occurrences.get(parentPath(path));
     const copy = Number(path.split("#").at(-1));
     const label = [usage?.refdes, item.name, usage && usage.quantity > 1 ? String(copy + 1) : ""].filter(Boolean).join(" · ");
-    const occurrence = { item, path, matrix, usage, children: [], bounds: new Box3(), label };
+    const rigid = Boolean(parent?.rigid || usage?.explode?.rigid);
+    const occurrence = { item, path, matrix, usage, rigid, children: [], bounds: new Box3(), label };
     occurrences.set(path, occurrence);
     parent?.children.push(occurrence);
   } });
@@ -43,26 +44,31 @@ export function immediatePath(level: string, path: string) {
 
 export function inspectionOffsets(level: Occurrence, amount: number) {
   const offsets = new Map<string, Vector3>();
+  if (level.rigid) return offsets;
+  const rotation = new Quaternion().setFromRotationMatrix(level.matrix);
+  if (level.children.some(child => child.usage?.explode)) {
+    const steps = Math.max(1, ...level.children.map(child => child.usage?.explode?.step ?? 1));
+    for (const child of level.children) {
+      const authored = child.usage?.explode;
+      if (!authored?.offset) continue;
+      const progress = MathUtils.clamp(amount / 100 * steps - ((authored.step ?? 1) - 1), 0, 1);
+      offsets.set(child.path, new Vector3(...authored.offset).applyQuaternion(rotation).multiplyScalar(progress));
+    }
+    return offsets;
+  }
+
   const center = level.bounds.getCenter(new Vector3());
   const distance = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.52);
-  const rotation = new Quaternion().setFromRotationMatrix(level.matrix);
-  const steps = Math.max(1, ...level.children.map(child => child.usage?.explode?.step ?? 1));
+  const progress = MathUtils.clamp(amount / 100, 0, 1);
   const directions: Vector3[] = [];
   for (const [index, child] of level.children.entries()) {
-    const authored = child.usage?.explode;
-    const progress = Math.max(0, Math.min(1, amount / 100 * steps - ((authored?.step ?? 1) - 1)));
-    let delta: Vector3;
-    if (authored) delta = new Vector3(...authored.offset).applyQuaternion(rotation);
-    else {
-      delta = child.bounds.getCenter(new Vector3()).sub(center).normalize();
-      if (!delta.lengthSq() || directions.some(prior => prior.dot(delta) > 0.98)) {
-        const angle = index * Math.PI * (3 - Math.sqrt(5));
-        delta.set(Math.cos(angle), Math.sin(angle), index % 2 ? 0.5 : -0.5).normalize().applyQuaternion(rotation);
-      }
-      directions.push(delta.clone());
-      delta.multiplyScalar(distance);
+    const delta = child.bounds.getCenter(new Vector3()).sub(center).normalize();
+    if (!delta.lengthSq() || directions.some(prior => prior.dot(delta) > 0.98)) {
+      const angle = index * Math.PI * (3 - Math.sqrt(5));
+      delta.set(Math.cos(angle), Math.sin(angle), index % 2 ? 0.5 : -0.5).normalize().applyQuaternion(rotation);
     }
-    offsets.set(child.path, delta.multiplyScalar(progress));
+    directions.push(delta.clone());
+    offsets.set(child.path, delta.multiplyScalar(distance * progress));
   }
   return offsets;
 }

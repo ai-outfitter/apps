@@ -719,8 +719,10 @@ enum FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemJointKind {
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemUsesItemExplode {
-  offset: [JSON!]!
+  offset: [JSON!]
   step: Int
+  fixed: Boolean
+  rigid: Boolean
 }
 
 input FinishWorkshopBuildInputManifestAssemblyConfigurationsItem {
@@ -1133,8 +1135,10 @@ enum WorkshopAssemblyInputItemsItemUsesItemJointKind {
 }
 
 input WorkshopAssemblyInputItemsItemUsesItemExplode {
-  offset: [JSON!]!
+  offset: [JSON!]
   step: Int
+  fixed: Boolean
+  rigid: Boolean
 }
 
 input WorkshopAssemblyInputConfigurationsItem {
@@ -1449,8 +1453,10 @@ enum SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemJointKind {
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemUsesItemExplode {
-  offset: [JSON!]!
+  offset: [JSON!]
   step: Int
+  fixed: Boolean
+  rigid: Boolean
 }
 
 input SaveWorkshopAssemblyInputAssemblyConfigurationsItem {
