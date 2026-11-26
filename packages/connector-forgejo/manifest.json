@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "forgejo",
+  "displayName": "Forgejo",
+  "implementationVersion": "0.1.0",
+  "contractVersion": "repository.read.v1",
+  "operations": ["repositories.verify", "issues.read", "pull-requests.read"],
+  "authentication": {
+    "type": "access-token",
+    "ownership": "organization"
+  }
+}
