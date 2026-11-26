@@ -1,29 +1,56 @@
 ---
+import type { ResolvedAssembly } from "../lib/assembly-resolution";
 import BillOfMaterials from "./BillOfMaterials.astro";
 import MotionDetails from "./MotionDetails.astro";
 import ProjectInspection from "./ProjectInspection.astro";
 import "../styles/project-inspection.css";
-interface Props { slug:string; section:string; projectId?:string; preview?:string }
-const {slug,section,projectId,preview}=Astro.props;
+interface Props {
+  slug: string; section: string; projectId?: string; productName?: string; preview?: string; occurrence?: string;
+  initial?: { name: string; crumbs: { name: string; href: string }[] };
+  resolved?: ResolvedAssembly; hasPcb: boolean;
+}
+const { slug, section, projectId, productName, preview, occurrence, initial, resolved, hasPcb } = Astro.props;
 const overview = section === "overview";
 ---
-<div class="workspace" data-slug={slug} data-project-id={projectId} data-section={section}>
-  <header><div><h1 id="project-name">Loading project…</h1></div>{!overview && <span id="revision-label"></span>}</header>
+<div class="workspace" data-slug={slug} data-project-id={projectId} data-section={section} data-level={occurrence}>
+  {resolved && <template id="resolved-assembly">{JSON.stringify(resolved)}</template>}
+  {overview ? <header class="inspection-header">
+    <div>
+      <div id="product-identity">{productName}</div>
+      <nav id="occurrence-crumbs" aria-label="Assembly hierarchy">
+        {initial?.crumbs.map(crumb => <a href={crumb.href}>{crumb.name}</a>)}
+      </nav>
+      <h1 id="project-name" tabindex="-1">{initial?.name ?? "Loading project…"}</h1>
+      <p id="level-meta"></p>
+    </div>
+    <nav class="inspection-links" aria-label="Product pages">
+      {hasPcb && <a id="product-pcb" href="#">PCB review</a>}
+      <a id="product-home" href="#" hidden>Product overview</a>
+      <a id="browse-models" href="#">Models and parts</a>
+    </nav>
+  </header> : <header><h1 id="project-name">Loading project…</h1><span id="revision-label"></span></header>}
   <nav id="project-views" aria-label="Model pages" hidden>
     <a id="project-model" hidden>View model</a><a id="project-bom" hidden>Bill of materials</a><a id="project-power" hidden>Power</a>
   </nav>
   <p id="workspace-notice" role="status"></p>
-  <label>Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label>
+  {!overview && <label id="purpose-field">Model purpose <select id="project-purpose"><option value="product">Product to manufacture</option><option value="component">Purchased / reference component</option></select></label>}
   <section id="models-panel" hidden={section !== "models"}>
     <div class="toolbar"><div><h2>Models and parts</h2><p id="models-summary" role="status"></p></div><a id="open-assembly" href="#">Project overview</a></div>
     <div class="catalog-controls"><label>Search models<input id="model-search" type="search" placeholder="Name, part number or manufacturer" /></label><label>Show<select id="model-filter"><option value="all">All items</option><option value="assembly">Assemblies</option><option value="modeled">With geometry</option><option value="cots">COTS parts</option><option value="fabricated">Fabricated parts</option><option value="unmodeled">Awaiting geometry</option></select></label></div>
     <div id="model-catalog" class="model-catalog"></div><p id="models-empty" hidden>No models match your search.</p>
   </section>
   <section id="model-panel" hidden={!overview}>
-    <div class="toolbar"><div><a id="browse-models" href="#">Browse all models</a><span id="full-assembly-link"> · <a id="full-assembly" href="#">Project overview</a></span></div></div>
-    <nav id="assembly-breadcrumbs" aria-label="Assembly hierarchy"></nav><div id="assembly-parents"></div>
-
     <div class="model-layout">
+      {overview && <section id="level-browser" class="workspace-card" aria-labelledby="level-browser-title" hidden>
+        <div class="level-browser-header">
+          <div><h2 id="level-browser-title">Assembly browser</h2><p id="level-count"></p></div>
+          <button id="level-sheet-size" type="button" aria-controls="occurrence-list">Expand list</button>
+        </div>
+        <div id="level-card"><strong id="level-card-name"></strong><small id="level-card-meta"></small></div>
+        <div id="occurrence-list" role="list" aria-label="Components at this level"></div>
+        <p id="level-empty" hidden>No child components at this level.</p>
+        <p id="occurrence-status" role="status" class="visually-hidden"></p>
+      </section>}
       <div class="model-stage workspace-card">
         <div class="stage-bar">
           <div class="view-tools" id="view-tools"><button id="top-view">Top view</button><button id="reset-view">Fit view</button><button id="explode-toggle" aria-expanded="false" aria-controls="explode-range-panel" hidden>Explode <span id="explode-value">0%</span></button><button id="explode-reset" hidden>Set to assembled</button><button id="isolate-item" aria-label="Isolate selected component" hidden>Isolate</button><button id="show-all" hidden>Show all</button><button id="restore-inspection" hidden>Restore assembly</button></div>
@@ -53,28 +80,17 @@ const overview = section === "overview";
           </details>
         </div>
         <div id="explode-range-panel" hidden>
-          <label for="explode-range">Explode amount</label>
+          <label for="explode-range">Explode amount</label><small id="explode-mode"></small>
           <div><span>0 · Assembled</span><input id="explode-range" type="range" min="0" max="100" value="0" step="1" /><span>100 · Exploded</span></div>
         </div>
         <div class="viewer-frame">
           <canvas id="assembly-viewer" tabindex="0" aria-label="Interactive assembly" aria-description="Arrow keys orbit. Plus and minus zoom."></canvas>
           <div id="assembly-poster" hidden={!preview}>{preview && <img src={preview} alt="Static assembly preview" />}</div>
         </div>
-        <section id="occurrence-inspection" hidden>
-          <nav aria-label="Inspection level" id="occurrence-crumbs"></nav>
-          <h3 tabindex="-1" id="occurrence-heading"></h3>
-          <p id="occurrence-status" role="status" class="visually-hidden"></p>
-          <button id="occurrence-back" hidden>Back</button>
-          <details><summary>Components in this level</summary><div id="occurrence-list"></div></details>
-        </section>
         <p id="assembly-status" role="status">Loading geometry…</p>
       </div>
       {overview && <ProjectInspection />}
     </div>
-    <p id="assembly-references" hidden></p>
-
-    <details><summary>Source and parameters</summary><p>Models are built in the project workspace. Parameter changes queue a new build.</p><div id="source-files"></div><pre id="source-preview"></pre><label>Parameter overrides (JSON)<textarea id="parameter-values" rows="5">{}</textarea></label></details>
-    <form id="build-request"><label for="instruction">Ask for a workspace change</label><div class="composer"><input id="instruction" required placeholder="Describe the change to this assembly" /><button>Request build</button></div><p id="runner-status"></p></form>
   </section>
   {!overview && <section id="power-panel" class="workspace-card" aria-label="Assembly power budget" hidden={section !== "power"}></section>}
   {!overview && <BillOfMaterials hidden />}
@@ -83,7 +99,7 @@ const overview = section === "overview";
 <script>import "../client/workspace";</script>
 <style is:global>
 .workspace{max-width:1440px;margin:auto;padding:0;color:var(--text);font-size:16px}.workspace header,.workspace .toolbar,.workspace .composer{display:flex;gap:16px;justify-content:space-between;align-items:center}.workspace h1{font-size:28px;margin:4px 0}.workspace p{line-height:1.5}.workspace button,.workspace select,.workspace input,.workspace textarea{font:inherit;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:inherit}.workspace button{cursor:pointer}.workspace .model-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,1fr);gap:20px}.workspace .model-stage{position:relative;min-width:0}.workspace canvas{display:block;width:100%;height:60vh;min-height:320px;touch-action:none;border-radius:10px}.workspace .view-tools{display:flex;gap:8px;flex-wrap:wrap}.workspace aside{max-height:65vh;overflow:auto}.workspace details,.workspace .bom-row,.workspace .run-row{padding:16px;margin:12px 0;border:1px solid var(--border);border-radius:8px}.workspace summary{cursor:pointer;min-height:32px}.workspace .bom-row{display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr);gap:12px}.workspace small{display:block;color:var(--muted);line-height:1.5}.workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}.workspace textarea{width:100%;box-sizing:border-box}.workspace .composer input{flex:1;min-width:0}.workspace a{overflow-wrap:anywhere}.workspace #build-request{margin:24px 0}.workspace #source-files{display:flex;gap:8px;flex-wrap:wrap}.workspace [hidden]{display:none!important}
-.workspace .inspection-children{display:flex;flex-wrap:wrap;gap:.35rem;margin-block:.5rem}
+
 @media(max-width:700px){.workspace{padding:0}.workspace header{display:block}.workspace .model-layout{display:flex;flex-direction:column}.workspace canvas{height:48vh;min-height:300px}.workspace aside{max-height:240px}.workspace .bom-row{grid-template-columns:minmax(0,1fr) auto}.workspace .bom-row>div:last-child{grid-column:1/-1}.workspace .toolbar{align-items:flex-start;flex-direction:column}.workspace .composer{gap:8px}.workspace h1{font-size:24px}}
 /* Sections group content; only explicit cards carry a surface. */
 .workspace > section { margin:20px 0; }
@@ -99,12 +115,9 @@ const overview = section === "overview";
 </style>
 
 <style is:global>
-.workspace .catalog-controls{display:flex;gap:16px;margin:20px 0;flex-wrap:wrap}.workspace .catalog-controls label{display:grid;gap:6px}.workspace .catalog-controls label:first-child{flex:1;min-width:220px}.workspace .model-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.workspace .model-card{padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow-wrap:anywhere}.workspace .model-card h3{margin:8px 0;font-size:18px}.workspace .model-card p{margin:8px 0}.workspace .model-card a{display:inline-block;min-height:32px;padding-top:8px}.workspace #model-panel>.toolbar{margin-bottom:16px}
+.workspace .catalog-controls{display:flex;gap:16px;margin:20px 0;flex-wrap:wrap}.workspace .catalog-controls label{display:grid;gap:6px}.workspace .catalog-controls label:first-child{flex:1;min-width:220px}.workspace .model-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.workspace .model-card{padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow-wrap:anywhere}.workspace .model-card h3{margin:8px 0;font-size:18px}.workspace .model-card p{margin:8px 0}.workspace .model-card a{display:inline-block;min-height:32px;padding-top:8px}
 </style>
 
-<style is:global>
-.workspace #assembly-breadcrumbs{margin:12px 0;line-height:1.8;overflow-wrap:anywhere}.workspace #assembly-parents{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-</style>
 <style is:global>
 .workspace #motion-preview label:has(input[type="checkbox"]){display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px;margin:16px 0;min-height:44px}.workspace #motion-preview input[type="checkbox"]{width:20px;height:20px;min-height:20px;margin:0;padding:0;flex:0 0 20px}.workspace #motion-preview{margin-top:16px}.workspace #motion-preview select{max-width:320px}
 </style>
@@ -119,8 +132,8 @@ const overview = section === "overview";
 .workspace .motion-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.workspace .motion-controls strong{font-size:14px;color:var(--muted)}.workspace .motion-controls label{display:contents}.workspace .motion-controls select{flex:0 1 220px;min-width:0;max-width:none}
 .workspace #motion-play{background:var(--text);color:var(--surface);border-color:var(--text);font-weight:600}
 .workspace .model-stage>p{margin:8px 12px}.workspace #drive-turns,.workspace #drive-review-status{margin-top:0;color:var(--muted);font-size:14px}
-@media(min-width:701px){.workspace .model-layout>aside{align-self:start}}.workspace #assembly-parents:empty{display:none}
-.workspace #assembly-references{margin:1rem 0 16px;font-size:14px;color:var(--muted)}.workspace #assembly-references strong{color:var(--text)}
+@media(min-width:701px){.workspace .model-layout>aside{align-self:start}}
+
 .workspace .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .workspace .model-stage canvas{border-radius:0}.workspace .stage-bar:not(:has(>:not([hidden]))){display:none}
 @media(max-width:700px){.workspace .stage-bar{padding:8px}.workspace .stage-bar button{min-height:44px;padding:6px 10px;font-size:15px}.workspace .motion-controls{width:100%}.workspace .motion-controls strong{flex-basis:100%}.workspace .motion-controls select{flex:1 1 115px}}
@@ -129,10 +142,10 @@ const overview = section === "overview";
 <style is:global>
 .workspace #project-views{display:flex;gap:1.25rem;flex-wrap:wrap;margin:1rem 0}
 .workspace #project-views a{padding:.4rem 0}
-.workspace #project-brief{max-width:72ch;color:var(--muted)}
+
 .workspace:has(#pricing:not([open])) .line-price{display:none}
 .workspace .model-stage{display:flex;flex-direction:column}
-.workspace .stage-bar:has(#motion-controls[hidden]){order:1;border-bottom:0;border-top:1px solid var(--border)}
+
 </style>
 
 <style is:global>

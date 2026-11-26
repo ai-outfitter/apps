@@ -51,8 +51,7 @@ test('power scenario stays selected after save; empty historical builds never sh
   await page.goto(origin+`/projects/${projectSlug(p)}?build=${p.workspace.requests[0].id}`);
   await expect(page.locator('#workspace-notice')).toContainText('no saved assembly');
   await expect(page.getByRole('tab',{name:'Power'})).toHaveCount(0);
-  await page.getByRole('tab',{name:'Components'}).click();
-  await expect(page.locator('#inspection-tree')).toHaveText('No child components');
+  await expect(page.locator('#selected-body')).toContainText('No saved assembly is available');
   await page.goto(origin+`/projects/${projectSlug(p)}/power?build=${p.workspace.requests[0].id}`);
   await expect(page.locator('#power-panel')).toContainText('No power budget saved');
   const consumer=await(await app.call('/api/apps/workshop/projects',member,{method:'POST',body:{example:'cube'}})).json() as any;
@@ -62,7 +61,8 @@ test('power scenario stays selected after save; empty historical builds never sh
   }});
   expect(linkReceipt.status).toBe(200);
   await page.goto(origin+`/projects/${projectSlug(consumer)}`);
-  await expect(page.locator('#assembly-references')).toContainText(p.name);
+  await page.getByRole('tab',{name:'Parameters and source'}).click();
+  await expect(page.locator('#source-record')).toContainText(p.name);
   await page.getByRole('tab',{name:'Power'}).click();
   await page.selectOption('#power-scenario','high');
   await expect(page.getByRole('spinbutton',{name:'CTRL Input peakW',exact:true})).toBeDisabled();

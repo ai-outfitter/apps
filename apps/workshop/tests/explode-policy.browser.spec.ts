@@ -109,7 +109,6 @@ test("authored explosions move rendered occurrences and preserve installed state
     await expect(page.locator("#assembly-viewer")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
     await page.getByRole("button", { name: "Explode 0%" }).click();
     const range = page.getByRole("slider", { name: "Explode amount" });
-    await page.getByText("Components in this level", { exact: true }).click();
     const snapshot = () => page.evaluate(() => {
       const scene: Object3D = Reflect.get(window, "workshopTestScene");
       scene.updateMatrixWorld(true);
@@ -139,7 +138,7 @@ test("authored explosions move rendered occurrences and preserve installed state
     async function check(deltas: Record<string, Vector>, visible = Object.values(key)) {
       const nodes = await snapshot();
       expect(Object.keys(nodes).filter(id => nodes[id].visible).sort()).toEqual([...visible].sort());
-      for (const id of Object.values(key)) {
+      for (const id of Object.keys(nodes)) {
         const matrix = nodes[id].matrix;
         for (const [index, value] of rest[id].matrix.entries()) {
           const delta = (deltas[id] ?? zero)[index - 12] ?? 0;
@@ -153,8 +152,10 @@ test("authored explosions move rendered occurrences and preserve installed state
     });
     for (const amount of amounts) { await setAmount(amount); await check(outer(amount)); }
 
-    const enter = (name: string) => page.locator("#occurrence-list").getByRole("button", { name: "Inspect " + name, exact: true }).click();
-    const back = () => page.getByRole("button", { name: "Back", exact: true }).click();
+    const ready = () => expect(page.locator("#assembly-viewer")).toHaveAttribute("data-ready", "true", { timeout: 60000 });
+    const open = async (target: ReturnType<typeof page.locator>) => { await target.click(); await ready(); };
+    const enter = (name: string) => open(page.locator("#occurrence-list").getByRole("link", { name, exact: true }));
+    const back = () => open(page.locator("#occurrence-crumbs a[data-parent]"));
     await enter("Service bay");
     for (const amount of amounts) {
       await setAmount(amount);
@@ -163,11 +164,11 @@ test("authored explosions move rendered occurrences and preserve installed state
     }
     await back();
     await expect(range).toHaveValue("100");
-    await expect(page.getByRole("button", { name: "Service bay", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("link", { name: "Service bay", exact: true })).toHaveAttribute("aria-current", "true");
     await check(outer(100));
 
     // Reference resolution uses the source's label for each mount. Enter by its occurrence row.
-    const enterPath = (id: string) => page.locator(`[data-occurrence="${id}"] + button`).click();
+    const enterPath = (id: string) => open(page.locator(`#occurrence-list a[data-focus="${id}"]`));
     await enterPath(path(rigidUse));
     for (const amount of amounts) { await setAmount(amount); await check({}, [key.sealedCase, key.sealedInner]); }
     await enter("Internal frame");
@@ -190,12 +191,11 @@ test("authored explosions move rendered occurrences and preserve installed state
     await back();
     await back();
     await enter("Legacy mount");
-    // Identical solid bounds give opposite X directions. The spread distance uses the level diagonal.
-    const [x, y, z] = size;
+    // Equal heights retain assembly order; the second part clears the first by the 10 mm gap.
     for (const amount of amounts) {
-      const spread = Math.hypot(x + 40, y, z) * 0.52 * amount / 100;
+      const spread = (size[2] + 10) * amount / 100;
       await setAmount(amount);
-      await check({ [key.autoLeft]: [-spread, 0, 0], [key.autoRight]: [spread, 0, 0] }, [key.autoLeft, key.autoRight]);
+      await check({ [key.autoLeft]: zero, [key.autoRight]: [0, 0, spread] }, [key.autoLeft, key.autoRight]);
     }
     await back();
     await check(outer(100));

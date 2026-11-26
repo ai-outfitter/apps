@@ -119,14 +119,15 @@ test("inspect one installed cover, restore its pose, and preview the enclosure s
     await page.getByRole("tab", { name: "Sizing" }).click();
     await expect(page.locator("#model-sizing")).toContainText("65 mm");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("tab", { name: "Components" }).click();
-    await page.locator("#inspection-tree").getByRole("button", { name: "Lid", exact: true }).click();
-    const leftPath = root + "/" + left + "#0";
-    await page.getByRole("combobox", { name: "Installed instance" }).selectOption(leftPath);
+    await page.locator("#occurrence-list").getByRole("link", { name: "Lid · Left", exact: true }).click();
+    await expect(page.locator("#selected-name")).toHaveText("Lid · Left");
+    await page.getByRole("tab", { name: "Overview" }).click();
     await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 60000 });
     const closed = await canvas.screenshot();
     // Reverse during the opening swing. Two animation frames give the hinge time to leave rest.
-    await page.getByRole("button", { name: "Open hinge" }).evaluate(async (node) => {
+    const openHinge = page.getByRole("button", { name: "Open hinge" });
+    await expect(openHinge).toBeVisible();
+    await openHinge.evaluate(async (node) => {
       const button = node as HTMLButtonElement;
       button.click();
       await new Promise<void>((resolve) =>
@@ -149,7 +150,7 @@ test("inspect one installed cover, restore its pose, and preview the enclosure s
     await expect(page.locator("#bom-rows")).toContainText("Qty 2");
     await page.getByRole("tab", { name: "Power" }).click();
     await expect(page.locator("#power-summary")).toContainText("4 W simultaneous");
-    await page.getByRole("tab", { name: "Selected" }).click();
+    await page.getByRole("tab", { name: "Overview" }).click();
     await page.getByRole("button", { name: "Restore assembly" }).click();
     expect(await canvas.screenshot()).toEqual(closed);
     expect(writes).toEqual([]);

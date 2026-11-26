@@ -1,4 +1,5 @@
 import { Box3, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
+import { displayName, parentPath } from "./occurrence-address";
 import { placements, worldCorners, type Assembly, type Item, type Usage } from "./assembly";
 
 export type Occurrence = {
@@ -10,7 +11,9 @@ export function inspectionOccurrences(assembly: Assembly) {
   const solids = placements(assembly, { onVisit(item, path, matrix, usage) {
     const parent = occurrences.get(parentPath(path));
     const copy = Number(path.split("#").at(-1));
-    const label = [usage?.refdes, item.name, usage && usage.quantity > 1 ? String(copy + 1) : ""].filter(Boolean).join(" · ");
+    const { name } = displayName(item);
+    const reference = usage?.refdes === name ? "" : usage?.refdes;
+    const label = [name, reference, usage && usage.quantity > 1 ? "copy " + (copy + 1) : ""].filter(Boolean).join(" · ");
     const rigid = Boolean(parent?.rigid || usage?.explode?.rigid);
     const occurrence = { item, path, matrix, usage, rigid, children: [], bounds: new Box3(), label };
     occurrences.set(path, occurrence);
@@ -34,7 +37,6 @@ export function inspectionOccurrences(assembly: Assembly) {
   }
   return occurrences;
 }
-function parentPath(path: string) { return path.slice(0, Math.max(0, path.lastIndexOf("/"))); }
 
 export function immediatePath(level: string, path: string) {
   if (!path.startsWith(level + "/")) return undefined;
@@ -57,18 +59,34 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
     return offsets;
   }
 
-  const center = level.bounds.getCenter(new Vector3());
-  const distance = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.52);
-  const progress = MathUtils.clamp(amount / 100, 0, 1);
-  const directions: Vector3[] = [];
-  for (const [index, child] of level.children.entries()) {
-    const delta = child.bounds.getCenter(new Vector3()).sub(center).normalize();
-    if (!delta.lengthSq() || directions.some(prior => prior.dot(delta) > 0.98)) {
-      const angle = index * Math.PI * (3 - Math.sqrt(5));
-      delta.set(Math.cos(angle), Math.sin(angle), index % 2 ? 0.5 : -0.5).normalize().applyQuaternion(rotation);
+  const interval = (child: Occurrence) => {
+    const z = child.matrix.elements[14];
+    return child.bounds.isEmpty() ? { low: z, high: z } : { low: child.bounds.min.z, high: child.bounds.max.z };
+  };
+  // Keep authored vectors in the parent frame. Auto separation packs the
+  // immediate units by their assembled world height, using bounds of each
+  // entire subtree. Stable ties retain assembly order (including copy index).
+  const automatic = level.children
+    .map(child => ({ child, ...interval(child) }))
+    .sort((a, b) => (a.low + a.high) - (b.low + b.high));
+  const gap = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.08);
+  const anchor = Math.floor((automatic.length - 1) / 2);
+  if (automatic.length) {
+    const { child, low, high } = automatic[anchor];
+    offsets.set(child.path, new Vector3());
+    const progress = MathUtils.clamp(amount / 100, 0, 1);
+    for (let i = anchor + 1, edge = high; i < automatic.length; i++) {
+      const row = automatic[i];
+      const dz = Math.max(gap, edge + gap - row.low);
+      offsets.set(row.child.path, new Vector3(0, 0, dz * progress));
+      edge = row.high + dz;
     }
-    directions.push(delta.clone());
-    offsets.set(child.path, delta.multiplyScalar(distance * progress));
+    for (let i = anchor - 1, edge = low; i >= 0; i--) {
+      const row = automatic[i];
+      const dz = Math.min(-gap, edge - gap - row.high);
+      offsets.set(row.child.path, new Vector3(0, 0, dz * progress));
+      edge = row.low + dz;
+    }
   }
   return offsets;
 }

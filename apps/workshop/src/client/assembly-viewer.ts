@@ -62,7 +62,7 @@ function placedNode(placement: Placement, geometry:ReturnType<typeof solidGeomet
 /** The whole assembly in one scene: each item meshed once by the CAD worker,
  * then placed wherever the BOM uses it. Printed parts are see-through so the
  * electronics inside stay visible. */
-export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string) => void, clearSelection?: () => void) {
+export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message: string) => void, inspect: (itemId: string, path: string, drill: boolean) => void, clearSelection?: () => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const engine = import.meta.env.DEV ? cadWorkerURL : new URL(cadWorkerURL.split("/").at(-1)!, import.meta.url).href;
   const scope = appBase(location.pathname);
@@ -160,6 +160,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
   });
 
   let press: { x: number; y: number; id: number } | undefined;
+  let lastTap: { path: string; time: number; x: number; y: number } | undefined;
   const raycaster = new THREE.Raycaster();
   const pointerDown = (event: PointerEvent) => {
     press = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined;
@@ -178,12 +179,18 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
         if (node.parent === group && node.userData.itemId) {
           const child = level && immediatePath(level.path, node.userData.path);
           const owner = level?.children.find(entry => entry.path === child);
-          inspect(owner?.item.id ?? node.userData.itemId, owner?.path ?? node.userData.path);
+          const path = owner?.path ?? node.userData.path;
+          const now = performance.now();
+          const drill = Boolean(lastTap && lastTap.path === path && now - lastTap.time < 350 &&
+            Math.hypot(start.x - lastTap.x, start.y - lastTap.y) < 16);
+          lastTap = drill ? undefined : { path, time: now, x: start.x, y: start.y };
+          inspect(owner?.item.id ?? node.userData.itemId, path, drill);
           return;
         }
         node = node.parent;
       }
     }
+    lastTap = undefined;
     if (selected || isolated) clearSelection?.();
   };
   const keyboardView = (event: KeyboardEvent) => {
@@ -226,7 +233,7 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     camera.position.set(center.x, center.y-0.0001, visible.max.z+Math.max(distance,1));
     controls.update();
   }
-  function reset() {
+  function fitView(direction = camera.position.clone().sub(controls.target).normalize()) {
     if (!group.children.length) return;
     const bounds = visibleBounds();
     if (bounds.isEmpty()) return;
@@ -238,9 +245,11 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     camera.far = Math.max(4000, distance * 10);
     camera.updateProjectionMatrix();
     controls.target.copy(sphere.center);
-    camera.position.set(1,-1,0.8).normalize().multiplyScalar(distance).add(sphere.center);
+    camera.position.copy(direction).multiplyScalar(distance).add(sphere.center);
     controls.update();
   }
+
+  function reset() { fitView(new THREE.Vector3(1, -1, 0.8).normalize()); }
 
   function clear() {
     invalidate();
@@ -318,7 +327,9 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
     isolated=undefined;
     isolatedPath=undefined;
     canvas.dataset.ready = "false";
-    const list = placements(assembly);
+    const scopePath = level?.path;
+    const list = placements(assembly).filter(placement => !scopePath ||
+      placement.path === scopePath || placement.path.startsWith(scopePath + "/"));
     canvas.toggleAttribute("data-empty", !list.length);
     if (!list.length) {
       clear();
@@ -387,11 +398,13 @@ export function createAssemblyViewer(canvas: HTMLCanvasElement, report: (message
       applyHinges();
       if (levelChanged) highlight();
     },
-    cameraPose() { return {position:camera.position.clone(), target:controls.target.clone()}; },
-    restoreCamera(pose:{position:THREE.Vector3;target:THREE.Vector3}) {
-      camera.position.copy(pose.position); controls.target.copy(pose.target); controls.update();
+    cameraPose() { return { position: camera.position.toArray(), target: controls.target.toArray() }; },
+    restoreCamera(pose: { position: THREE.Vector3Tuple; target: THREE.Vector3Tuple }) {
+      camera.position.fromArray(pose.position); controls.target.fromArray(pose.target); controls.update();
     },
+    onCameraChange(callback: () => void) { controls.addEventListener("change", callback); },
     reset,
+    fitView,
     topView,
     snapshot() {
       // Copy immediately after drawing. WebGL need not retain its framebuffer.

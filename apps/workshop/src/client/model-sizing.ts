@@ -32,7 +32,7 @@ export function modelSizing(
     bounds?: Bounds;
     preset?: Params;
     configurations?: Assembly["configurations"];
-    sources?: { label: string; href: string; parameters?: Record<string, number> }[];
+    configurationUrl: URL;
     inputs?: Inputs;
     requestBuild?: (values: Inputs) => void;
   },
@@ -57,7 +57,7 @@ export function modelSizing(
   }
   const configs = options.configurations;
   if (configs?.length) {
-    const url = new URL(location.href);
+    const url = options.configurationUrl;
     const form = document.createElement("form"),
       label = document.createElement("label"),
       picker = document.createElement("select");
@@ -104,21 +104,6 @@ export function modelSizing(
       location.assign(url);
     };
     host.append(form);
-  }
-  if (options.sources?.length) {
-    heading(host, "Installed configurations");
-    const list = document.createElement("ul");
-    for (const source of options.sources) {
-      const row = document.createElement("li"),
-        link = document.createElement("a");
-      link.href = source.href;
-      link.textContent = source.label;
-      row.append(link);
-      const values = Object.entries(source.parameters ?? {}).map(([name, value]) => name + " = " + value);
-      if (values.length) row.append(document.createTextNode(" · " + values.join(", ")));
-      list.append(row);
-    }
-    host.append(list);
   }
   const entries = Object.entries(options.inputs ?? {});
   if (entries.length) {

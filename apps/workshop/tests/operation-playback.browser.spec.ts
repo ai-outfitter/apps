@@ -85,7 +85,7 @@ test("replay an installed jaw cycle and inspect the modeled checks", async ({ pa
     await page.setViewportSize({width: 1680, height: 960});
     await page.goto(origin + "/projects/" + projectSlug(consumer));
     await expect(page.locator("#assembly-viewer")).toHaveAttribute("data-ready", "true", {timeout: 60000});
-    await page.getByRole("tab", {name:"Components", exact:true}).click();
+    await expect(page.getByRole("list", {name: "Components at this level"})).toBeVisible();
     // Pan the gripper clear of the controls so both jaws remain visible in the evidence.
     const canvas = await page.locator("#assembly-viewer").boundingBox();
     if (!canvas) throw Error("Missing assembly viewport");
