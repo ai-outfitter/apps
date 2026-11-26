@@ -1,0 +1,69 @@
+{
+  "fixture": "Parallel gripper test stand",
+  "operation": "Grip cycle",
+  "renderedJawOriginsAtRestMm": [
+    [
+      -2,
+      3,
+      10
+    ],
+    [
+      14,
+      3,
+      10
+    ]
+  ],
+  "checks": [
+    {
+      "label": "Left jaw at closure",
+      "timeSeconds": 2,
+      "expectedMm": [
+        2,
+        3,
+        10
+      ],
+      "renderedMm": [
+        2,
+        3,
+        10
+      ],
+      "toleranceMm": 0.01,
+      "panelText": "Pass · Left jaw at closureActual 2, 3, 10 mm · Expected 2, 3, 10 mm ± 0.01 mmView at 2 s"
+    },
+    {
+      "label": "Right jaw at closure",
+      "timeSeconds": 2,
+      "expectedMm": [
+        10,
+        3,
+        10
+      ],
+      "renderedMm": [
+        10,
+        3,
+        10
+      ],
+      "toleranceMm": 0.01,
+      "panelText": "Pass · Right jaw at closureActual 10, 3, 10 mm · Expected 10, 3, 10 mm ± 0.01 mmView at 2 s"
+    }
+  ],
+  "deliberateMismatchControl": {
+    "operation": "Deliberate target mismatch",
+    "timeSeconds": 2,
+    "passed": false,
+    "expectedMm": [
+      3,
+      3,
+      10
+    ],
+    "renderedMm": [
+      2,
+      3,
+      10
+    ],
+    "toleranceMm": 0.01,
+    "panelText": "Fail · Left stop targetActual 2, 3, 10 mm · Expected 3, 3, 10 mm ± 0.01 mmView at 2 s"
+  },
+  "loopAfter2_5Seconds": 0.487,
+  "oneShotFinalSeconds": 4
+}

@@ -17,7 +17,7 @@
  background:var(--surface);color:var(--text);padding:8px 12px;
 }
 .workspace #motion-menu {margin:0;padding:0;border:0}
-.workspace #motion-popover {position:absolute;right:0;bottom:calc(100% + 6px);width:min(320px,78vw);max-height:36vh;
+.workspace #motion-popover {position:absolute;right:0;bottom:calc(100% + 6px);width:min(320px,78vw);max-height:min(64vh,520px);
  overflow:auto;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
 .workspace #project-inspection {height:var(--panel-height);max-height:none;min-width:0;display:flex;flex-direction:column;overflow:hidden}
 .workspace #project-inspection [role="tablist"] {display:flex;flex:none;gap:2px;overflow:auto;border-bottom:1px solid var(--border)}
@@ -120,3 +120,13 @@
  .workspace #explode-range {grid-column:1/-1;grid-row:1;width:100%;}
  .workspace #explode-range-panel span:last-child {text-align:right;}
 }
+
+.workspace #operation-timeline {margin-block-start:8px;}
+.workspace #operation-clock {font-variant-numeric:tabular-nums;}
+.workspace #operation-loop,.workspace #operation-unchecked {color:var(--muted);}
+.workspace .operation-actions {display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.workspace #operation-checks {margin:8px 0 0;padding:0;border:0;}
+.workspace #operation-checks summary {font-weight:550;}
+.workspace #operation-check-list {list-style:none;padding:0;margin:0;}
+.workspace #operation-check-list li {display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);}
+.workspace #operation-check-list button {justify-self:start;}

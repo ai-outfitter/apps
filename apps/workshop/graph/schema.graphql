@@ -498,6 +498,7 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItem {
   priceKnown: Boolean
   provenance: FinishWorkshopBuildInputManifestAssemblyItemsItemProvenance
   reference: FinishWorkshopBuildInputManifestAssemblyItemsItemReference
+  couplings: [FinishWorkshopBuildInputManifestAssemblyItemsItemCouplingsItem!]
   operations: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItem!]
   driveMotion: FinishWorkshopBuildInputManifestAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
@@ -619,11 +620,33 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemReference {
   parameters: JSON
 }
 
+input FinishWorkshopBuildInputManifestAssemblyItemsItemCouplingsItem {
+  driverPath: String!
+  followerPath: String!
+  ratio: Float!
+}
+
 input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItem {
   name: String!
   durationSeconds: Float!
+  playback: FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemPlayback
+  calls: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemCallsItem!]
+  expectations: [JSON!]
   tracks: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItem!]!
   handoffs: [FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemHandoffsItem!]
+}
+
+enum FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemPlayback {
+  once
+  loop
+}
+
+input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemCallsItem {
+  path: String!
+  operation: String!
+  startSeconds: Float!
+  durationSeconds: Float
+  reverse: Boolean
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItem {
@@ -634,6 +657,8 @@ input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItem 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemTracksItemKeysItem {
   time: Float!
   value: Float!
+  parameter: String
+  scale: Float
 }
 
 input FinishWorkshopBuildInputManifestAssemblyItemsItemOperationsItemHandoffsItem {
@@ -914,6 +939,7 @@ input WorkshopAssemblyInputItemsItem {
   priceKnown: Boolean
   provenance: WorkshopAssemblyInputItemsItemProvenance
   reference: WorkshopAssemblyInputItemsItemReference
+  couplings: [WorkshopAssemblyInputItemsItemCouplingsItem!]
   operations: [WorkshopAssemblyInputItemsItemOperationsItem!]
   driveMotion: WorkshopAssemblyInputItemsItemDriveMotion
   selectAsUnit: Boolean
@@ -1035,11 +1061,33 @@ input WorkshopAssemblyInputItemsItemReference {
   parameters: JSON
 }
 
+input WorkshopAssemblyInputItemsItemCouplingsItem {
+  driverPath: String!
+  followerPath: String!
+  ratio: Float!
+}
+
 input WorkshopAssemblyInputItemsItemOperationsItem {
   name: String!
   durationSeconds: Float!
+  playback: WorkshopAssemblyInputItemsItemOperationsItemPlayback
+  calls: [WorkshopAssemblyInputItemsItemOperationsItemCallsItem!]
+  expectations: [JSON!]
   tracks: [WorkshopAssemblyInputItemsItemOperationsItemTracksItem!]!
   handoffs: [WorkshopAssemblyInputItemsItemOperationsItemHandoffsItem!]
+}
+
+enum WorkshopAssemblyInputItemsItemOperationsItemPlayback {
+  once
+  loop
+}
+
+input WorkshopAssemblyInputItemsItemOperationsItemCallsItem {
+  path: String!
+  operation: String!
+  startSeconds: Float!
+  durationSeconds: Float
+  reverse: Boolean
 }
 
 input WorkshopAssemblyInputItemsItemOperationsItemTracksItem {
@@ -1050,6 +1098,8 @@ input WorkshopAssemblyInputItemsItemOperationsItemTracksItem {
 input WorkshopAssemblyInputItemsItemOperationsItemTracksItemKeysItem {
   time: Float!
   value: Float!
+  parameter: String
+  scale: Float
 }
 
 input WorkshopAssemblyInputItemsItemOperationsItemHandoffsItem {
@@ -1232,6 +1282,7 @@ input SaveWorkshopAssemblyInputAssemblyItemsItem {
   priceKnown: Boolean
   provenance: SaveWorkshopAssemblyInputAssemblyItemsItemProvenance
   reference: SaveWorkshopAssemblyInputAssemblyItemsItemReference
+  couplings: [SaveWorkshopAssemblyInputAssemblyItemsItemCouplingsItem!]
   operations: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItem!]
   driveMotion: SaveWorkshopAssemblyInputAssemblyItemsItemDriveMotion
   selectAsUnit: Boolean
@@ -1353,11 +1404,33 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemReference {
   parameters: JSON
 }
 
+input SaveWorkshopAssemblyInputAssemblyItemsItemCouplingsItem {
+  driverPath: String!
+  followerPath: String!
+  ratio: Float!
+}
+
 input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItem {
   name: String!
   durationSeconds: Float!
+  playback: SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemPlayback
+  calls: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemCallsItem!]
+  expectations: [JSON!]
   tracks: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItem!]!
   handoffs: [SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemHandoffsItem!]
+}
+
+enum SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemPlayback {
+  once
+  loop
+}
+
+input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemCallsItem {
+  path: String!
+  operation: String!
+  startSeconds: Float!
+  durationSeconds: Float
+  reverse: Boolean
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItem {
@@ -1368,6 +1441,8 @@ input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItem {
 input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemTracksItemKeysItem {
   time: Float!
   value: Float!
+  parameter: String
+  scale: Float
 }
 
 input SaveWorkshopAssemblyInputAssemblyItemsItemOperationsItemHandoffsItem {

@@ -110,6 +110,39 @@ Play advances to the end. Drag Time to inspect an instant or choose Reset operat
 to restore the saved pose. Selecting a moving solid still opens its part details.
 Legacy drive motion is available in the same selector when both are present.
 
+### Reusing and checking motion
+
+Use `playback: "loop"` for a repeating operation such as a rotor spinning a full turn. The default is `"once"`. Play, pause, scrub and reset operate on the selected installed instance. A called operation plays one traversal of its timeline even when its own browser control loops.
+
+Define a transmission once on its common owning assembly with `couplings: [{driverPath, followerPath, ratio}]`. Both endpoints must be installed joints. Their values measure displacement from the configured rest pose. A follower's displacement equals the driver's displacement times the ratio, in the respective joint units. A rotary screw driving a slide by 8 mm per turn uses a ratio of 8/360 mm per degree. An opposing jaw translating along the same axis uses −1. Couplings can form a chain. Each follower must have one driver and must not have a direct track.
+
+An operation can invoke another operation on a descendant instance. A forward call holds the child's last joint pose after it ends. A reverse call starts in that end pose and returns to the child's rest pose. Reversing a clip with prop handoffs requires a separately authored return operation. Joint tracks must join continuously without overlapping. This example closes the installed hand over one second, holds it closed and opens it again:
+
+```json
+{
+  "name": "Grip and release",
+  "durationSeconds": 5,
+  "tracks": [],
+  "calls": [
+    {"path":"<hand-usage>#0","operation":"Close jaws","startSeconds":1,"durationSeconds":1},
+    {"path":"<hand-usage>#0","operation":"Close jaws","startSeconds":4,"durationSeconds":1,"reverse":true}
+  ]
+}
+```
+
+A track key can specify `parameter` and `scale` together. Its resolved value is `value + scale × parameter`, using the installed configuration's numeric parameter value. In an unconfigured view the parameter must have one unambiguous default. The first resolved key must still start at rest.
+
+Add `expectations` to an operation to check commanded joint travel or the modeled pose. Every expectation has a label, time in seconds, installed path, expected value and nonnegative tolerance. The inspector evaluates all checkpoints and can seek to an individual checkpoint. A parent includes the checks from called children at their remapped times.
+
+| kind | Measurement | Expected value and tolerance |
+| --- | --- | --- |
+| joint | Joint displacement from the saved pose | mm or degrees |
+| position | Local `point` on the part in the operation owner's frame (default origin) | XYZ in mm, Euclidean tolerance in mm |
+| distance | Distance between local `point` and the `otherPoint` on `otherPath` (default origins) | mm |
+| direction | Unit `axis` of the part in the operation owner's frame | Expected unit vector, angular tolerance in degrees |
+
+For a gripper, select the local contact point on each jaw and check their separation at closure. For a spinning motor, check the shaft joint angle and the orientation of a stator feature. The results describe the model's kinematics. Physical performance requires hardware measurements.
+
 ### Inspecting an installation
 
 Open **Components**, select a lid or cover, and choose **Hide component**. If the
