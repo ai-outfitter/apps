@@ -1,5 +1,22 @@
 # Local replay evidence
 
+## Provider-neutral candidate replay
+
+Apps `430d03eb` and Webapp `dac7bddb` passed five installed OAuth MCP cases. All five used the same literal `ReviewIssue` document hash. The three Forgejo runs used a disposable native instance. The two GitHub runs exercised real Git against a local GitHub API and credential fixture that omitted optional GitHub App installation permission metadata and required a scoped pull request lookup. [Exact Forgejo launch pins](launch-pins-430d-dac7.json) · [Expected and observed results](receipts-430d-dac7.json) · [GitHub fixture](GITHUB.md)
+
+The preceding Apps `01bfabbb` and Webapp `89ce827f` pair also passed the same workflow scenarios before the provider compatibility refinements. [Preceding receipts](receipts-01bf-89ce.json)
+
+- Fresh `START` produced one open draft and one formal review on the checkout head for each provider. Both repositories retained their immutable base and open issue.
+- Forgejo `RECOVER` preserved the original failed run and its migrated app row. The first caller lost its accepted acknowledgement while four contenders converged on the same child. The relay also discarded the successful native branch, commit, draft and review responses. Native readback found one open draft with one independent approval, and three concurrent progress reads added zero writes.
+- Forgejo recovery refused an unreceipted provider branch after reading it from the native instance. Wrong tenant, unknown run and read-only member checks established the authorization boundary.
+- GitHub `RECOVER` retained the failed lineage and completed one child on the original slash-qualified ref. The fixture ledger recorded one branch, one commit, one draft and one approval by an independent reviewer. Both recovery cases verified reviewer pull access with push disabled.
+
+## Historical checkout failure and migration fixture
+
+The archived Ocean record used Webapp #1029 at commit `84221cc34526b6e42fac49060b31b0d713a3fe7d` and platform OCI digest `sha256:3cb6635ae7fac2e41b6e25a43df811de81338fecd0cbcac0537e7f0d35000e74`. The installed Software Foundry revision was 2. Its failed run retained one failed implementer attempt with an absent output hash and one session artifact. The underlying runtime reported `Pinned checkout could not initialize.` with zero stages. The app recorded no candidate, review, draft observation or commit proof. A separate native read confirmed the independent reviewer had pull access and push disabled.
+
+The fixture reproduces those persisted facts with a synthetic issue and local identities. The checkout failure is in `workflow_node_attempts.receipt.failure`. The fixture preserves the original app row through migration 0014 and checks the index permits one original target and one recovery child per original. The fixture uses the installed application's candidate schema and package while exercising the migrated prior row through authenticated MCP.
+
 ## Coordinated reviewer authority callback
 
 Apps `3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee` and Webapp `9c3c3e6a6c7eda6151501e7e1e3df0b240ac53ce` ran through installed OAuth MCP in fresh network-disabled boxes with native Forgejo. The exact local image `ddd173210ad87a95a39ccfe80944e77d2cc9a07b01415d93d75225245825a0d7` layers the pinned Webapp changes onto the verified final wire image below. Loaded workflow SDK, host, transport, callback route, gateway and reviewer bytes matched their Git blobs. The offline Apps package is byte-identical to the prior wire replay. [Launch pins](launch-pins-3fb7-9c3c.json) · [Sanitized case receipts](receipts-3fb7-9c3c.json)

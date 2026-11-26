@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { callTool, mcpClient, oauthToken, signIn } from "/planwork/mcp.mjs";
-import { api, credentials, inventory, issue, pushFixtureCommit, repoPath, seedIssue } from "./fixture.mjs";
+import { api, credentials, grantReviewerReadOnly, inventory, issue, pushFixtureCommit, repoPath, seedIssue } from "./fixture.mjs";
 
 import { exerciseInstalled } from "./installed.mjs";
 import { exerciseGrants, exerciseRevokedGrant, grantRepositories } from "./grants.mjs";
@@ -56,9 +56,13 @@ export async function run(box) {
     assert.equal(report.actors.reviewer.login, "reviewer");
     report.repositoryId = (await seedIssue(box, auth)).repositoryId;
     report.issueNumber = issue.number;
+    const sharedRecovery = report.case.startsWith("recovery-") || report.case.startsWith("github-");
+    if (sharedRecovery) {
+      report.reviewerPermissions = await grantReviewerReadOnly(auth);
+    }
     report.before = await inventory(auth.admin);
     report.baseSha = readFileSync(join(box.out, "base.sha"), "utf8").trim();
-    report.baseRef = report.case === "slash-base" ? "release/review-fixture" : "main";
+    report.baseRef = (report.case === "slash-base" || sharedRecovery) ? "release/review-fixture" : "main";
     const expectedRefs = { main: report.baseSha, [report.baseRef]: report.baseSha };
     assert.deepEqual(report.before.refs, expectedRefs);
     assert.deepEqual(report.before.pulls, []);
@@ -73,14 +77,25 @@ export async function run(box) {
     const grant = await oauthToken(root, cookie, "apps actions entities organizations offline_access");
     assert.ok([`${root}/mcp`, `http://localhost:${box.port}/mcp`].includes(grant.resource));
     const mcp = mcpClient(grant);
-    const document = report.case === "native" || grantCase ? "PlanWork" : "ReviewForgejoIssue";
-    const discovery = await callTool(mcp, "graph_documents", { scope: "box", search: document, schema: true });
-    assert.equal(discovery.refused, false, "OAuth discovery succeeded");
-    const catalog = discovery.value?.apps?.[app];
-    const published = catalog?.mutations?.[document];
-    assert.ok(published?.schema && (published.scopes ?? catalog.scopes).includes("box"),
-      `Installed box-scope discovery advertises mutation ${document} with its schema`);
+    const discover = async (document) => {
+      const response = await callTool(mcp, "graph_documents", { scope: "box", search: document, schema: true });
+      assert.equal(response.refused, false, "OAuth discovery succeeded");
+      const catalog = response.value?.apps?.[app];
+      const published = catalog?.mutations?.[document];
+      return published?.schema && (published.scopes ?? catalog.scopes).includes("box");
+    };
+    let document = "PlanWork";
+    if (report.case !== "native" && !grantCase) {
+      document = await discover("ReviewIssue") ? "ReviewIssue" : "ReviewForgejoIssue";
+      if (sharedRecovery) assert.equal(document, "ReviewIssue");
+    }
+    assert.ok(await discover(document), `Installed box-scope discovery advertises mutation ${document} with its schema`);
     report.discovered = document;
+    if (document === "ReviewIssue") {
+      const published = JSON.parse(readFileSync("/package/documents.json", "utf8")).find(entry => entry.name === document);
+      assert.equal(published?.query, "mutation ReviewIssue($input: ReviewIssueInput!) {\n  reviewIssue(input: $input)\n}");
+      report.reviewDocumentHash = published.hash;
+    }
     if (report.case === "native") await nativeRoundTrip(auth, report);
     else if (grantCase) {
       const exercise = report.case === "grants" ? exerciseGrants : exerciseRevokedGrant;

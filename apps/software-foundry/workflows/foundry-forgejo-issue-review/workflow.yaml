@@ -1,6 +1,6 @@
 version: beta
 id: foundry-forgejo-issue-review
-summary: Implement an existing Forgejo issue at an approved base and obtain an independent formal review of the draft pull request.
+summary: Implement an existing issue at an approved base and obtain an independent formal review of the draft pull request.
 actors:
   implementer:
     kind: external
@@ -19,11 +19,14 @@ $defs:
       repository: {type: string}
       repositoryId: {type: integer}
       issueNumber: {type: integer}
+      provider: {enum: [FORGEJO, GITHUB]}
       origin: {type: string, format: uri}
       baseRef: {type: string}
       baseSha: {$ref: "#/$defs/sha"}
       branch: {type: string}
       workerId: {type: integer}
+      workerLogin: {type: string}
+      githubInstallationId: {type: integer}
       reviewer: {type: string}
       reviewerId: {type: integer}
 steps:
@@ -48,7 +51,7 @@ steps:
       reviewerBinding:
         schema: {type: string, minLength: 1}
     instructions: >-
-      Read the assigned issue and inspect the pinned Forgejo base before editing.
+      Read the assigned issue and inspect the pinned base before editing.
       Implement the issue in the assigned worktree and run targeted checks.
       Propose complete text for every added or updated file and summarize your checks.
       This workflow supports no deletions or renames. If the issue needs either,

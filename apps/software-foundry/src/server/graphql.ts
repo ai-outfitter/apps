@@ -1,16 +1,17 @@
-import { reviewForgejoIssue, reviewForgejoIssueInput } from "./workspace/issue-review";
+import { issueReviewRunInput, readIssueReview, reviewForgejoIssue, reviewIssuePins,
+  reviewIssue, reviewIssueGraphInput, reviewIssueInput } from "./workspace/issue-review";
 import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { fieldError, mutationField, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
-import { DateTimeScalar } from "@ai-outfitter/app-sdk/graph-graphql";
+import { fieldError, mutationField, type TableContext, tableType, zodInputType } from "@ai-outfitter/app-sdk/app-graphql";
+import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { inArray, sql } from "drizzle-orm";
 import {
-  GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldResolver, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType,
+  GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldResolver, GraphQLID, type GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType,
   GraphQLObjectType, GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
 import { readChanges } from "./github/changes";
@@ -143,15 +144,25 @@ const jobResult = new GraphQLObjectType({ name: "FoundryJobResult", description:
   run: { type: GraphQLID }, schedule: { type: GraphQLID }, enabled: { type: GraphQLBoolean },
 } });
 
+const issueReviewArgs = { input: issueReviewRunInput, args: { runId: { type: nonNull(GraphQLID) } }, output: nonNull(JSONScalar) };
+
 // Foundry's writes. graph.mutate admits editors (mutateAction's default). Variables travel
 // within the SDK's 32 KiB limit: Planning sends larger submissions (a frozen work package)
 // to the work.submit action.
 const mutation = new GraphQLObjectType<unknown, FoundryContext>({
   name: "Mutation",
   fields: {
-    reviewForgejoIssue: mutationField<typeof reviewForgejoIssueInput, FoundryContext>({
-      name: "ReviewForgejoIssue", input: reviewForgejoIssueInput, run: reviewForgejoIssue,
+    reviewForgejoIssue: mutationField<typeof reviewIssuePins, FoundryContext>({
+      name: "ReviewForgejoIssue", input: reviewIssuePins, run: reviewForgejoIssue,
       description: "Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.",
+    }),
+    reviewIssue: mutationField<typeof reviewIssueInput, FoundryContext>({
+      name: "ReviewIssue",
+      input: reviewIssueInput,
+      args: { input: { type: nonNull(zodInputType(reviewIssueGraphInput, "ReviewIssueInput") as GraphQLInputObjectType) } },
+      output: nonNull(JSONScalar),
+      description: "Start a pinned issue review or recover it after a verified checkout initialization failure.",
+      run: (context, { input }) => reviewIssue(context, input),
     }),
     planWork: mutationField<typeof planWorkInput, FoundryContext>({
       name: "PlanWork", input: planWorkInput, run: planWork,
@@ -201,6 +212,11 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
  * the writes its documents (src/server/documents.ts) run. */
 const baseGraphqlSchema = new GraphQLSchema({
   query: new GraphQLObjectType({ name: "Query", fields: { ...work, ...projects, ...changes,
+    issueReview: mutationField<typeof issueReviewRunInput, FoundryContext>({
+      ...issueReviewArgs, name: "IssueReview",
+      description: "Read the original issue review, recovery progress, draft and formal review.",
+      run: (context, { runId }) => readIssueReview(context, runId),
+    }),
     foundryPlan: mutationField<typeof findPlanInput, FoundryContext>({
       name: "FindFoundryPlan", input: findPlanInput, run: findPlan,
       description: "Read your stored plan with its run, exact sources and issue receipt.",

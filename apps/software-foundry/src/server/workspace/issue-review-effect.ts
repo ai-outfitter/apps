@@ -70,7 +70,7 @@ export async function dispatchEffect<T>(db: Db, runId: string, effect: ReviewEff
     if (await hostProvedNoSend(error)) {
       await db().update(runs).set({ effectDispatch: { ...effect, retryable: true } })
         .where(exactEffect(runId, effect));
-      throw new Response("Forgejo write was not sent; retrying its frozen claim", { status: 503 });
+      throw new Response("The provider write was not sent; retrying its frozen claim", { status: 503 });
     }
     // Unknown delivery leaves the claim closed for read-only reconciliation.
     return undefined;

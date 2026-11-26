@@ -6,7 +6,7 @@ The runner starts rootless Podman with networking disabled, an immutable local i
 
 ## Run
 
-Use Node 24, Git, GNU SHA-256 tools and rootless Podman. Use a local Foundry box image and an operational package directory with `software-foundry.operational.json`, `schema.graphql`, `documents.json` and `apps-tree.txt`. The box must contain the platform and workspace runtime corresponding to the selected revision. For the installed cases, use a pair that implements `ReviewForgejoIssue`, pinned Forgejo workspace checkout and the supported additive repository grant route. Run each case in a fresh output directory under an existing private parent outside Git worktrees.
+Use Node 24, Git, GNU SHA-256 tools and rootless Podman. Use a local Foundry box image and an operational package directory with `software-foundry.operational.json`, `schema.graphql`, `documents.json` and `apps-tree.txt`. The box must contain the platform and workspace runtime corresponding to the selected revision. For the installed cases, use a pair that implements `ReviewIssue` or the historical `ReviewForgejoIssue` document, pinned Forgejo workspace checkout and the supported additive repository grant route. Run each case in a fresh output directory under an existing private parent outside Git worktrees.
 
 ```sh
 BOX_IMAGE=localhost/outfitter/foundry-forgejo-eval:reviewed
@@ -34,6 +34,37 @@ git -C /path/to/webapp show 82cc31f76b6ca0c1bd91de864229cd777da767aa:workspace/g
 ./run.sh "$BOX_IMAGE" mixed-gateway "$OUT/mixed-gateway" "$PACKAGE" "$OUT/legacy-gateway.mjs"
 ./run.sh "$BOX_IMAGE" draft-read-refusal "$OUT/draft-read-refusal" "$PACKAGE"
 ```
+
+## Recover a retained issue review
+
+The recovery cases use the installed OAuth MCP mutation `ReviewIssue($input: ReviewIssueInput!)` with explicit `START` and `RECOVER` actions, plus the read-only `IssueReview($runId: ID!)` query. The same `START` document receives both provider values. The fixture exercises native Forgejo and refuses GitHub without an authorized GitHub grant. They preseed the prior terminal host run, failed implementer attempt and retained session reference. The same-lineage app row is first inserted into SQLite at migration 0013 and replayed through migration 0014 before the fixture copies the original fields to the installed application's migrated database. The synthetic target, actor IDs, OAuth session and credentials are created inside the box. Recovery runs one new implementer and reviewer against the original repository, issue snapshot and explicit slash-qualified base ref.
+
+Build the four package files from the selected Apps commit in a clean checkout using Node 24 and the pinned npm lockfile. Run the package build from the root of that checkout. The referenced `PACKAGE` directory must be private and outside the checkout.
+
+```sh
+npm ci --offline --no-audit --no-fund
+npm exec --offline --workspace @ai-outfitter/app-software-foundry -- \
+  outfitter-app-build --mode operational --output "$PACKAGE/software-foundry.operational.json"
+cp apps/software-foundry/graph/schema.graphql apps/software-foundry/graph/documents.json "$PACKAGE"
+git rev-parse 'HEAD^{tree}' > "$PACKAGE/apps-tree.txt"
+```
+
+Apply the reviewed Webapp source and its pinned Apps connector to the prior native eval box. The candidate host and the historical Ocean OCI digest are recorded separately in the evidence.
+
+```sh
+HOST=localhost/outfitter/foundry-forgejo-recovery:candidate-dac7bddb
+./build-recovery-host.sh /path/to/webapp dac7bddb3ccdb55ef13de849c6c04c73369ff513   "$HOST" "$OUT/recovery-host"
+for case in recovery-lost recovery-unknown; do
+  ./run.sh "$HOST" "$case" "$OUT/$case" "$PACKAGE" || exit
+done
+```
+
+| Case | Evidence required |
+| --- | --- |
+| `recovery-lost` | Wrong scope, unknown ID and read-only member checks pass before recovery. One OAuth caller loses its accepted response while concurrent callers reconcile to one child. Forgejo accepts one branch, one commit, one draft and one exact-head review while the relay discards each response. Repeated progress queries preserve host, app and Forgejo state. The original run, issue and base stay unchanged. |
+| `recovery-unknown` | Seed an unreceipted original-lineage branch in native Forgejo. Recovery observes the branch and refuses to start. The original lineage and native state are preserved. |
+
+For the provider-neutral candidate pair, use the archived harness and exact Forgejo launch pins shown in the evidence. Run the GitHub cases with the same operational package and the fixture-specific instructions. [Candidate launch pins](launch-pins-430d-dac7.json) · [GitHub fixture](GITHUB.md)
 
 ## Exact release replay
 

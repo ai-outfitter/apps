@@ -297,7 +297,7 @@ const phases = workflowPhaseHandler({
   },
   // Comments on the issue named by the node's own `event` input and returns the outputs.
   async finalize(input, host) {
-    const { inputs, outputs, coordinator } = finalizeInput.parse(input);
+    const { inputs, outputs, coordinator, settings } = finalizeInput.parse(input);
     const event = object(inputs, "event");
     const issue = object(event, "issue").number;
     if (typeof issue !== "number") throw new Response("Fixture finalize needs an issue event", { status: 400 });
@@ -314,6 +314,13 @@ const phases = workflowPhaseHandler({
       verdict: "approved",
       summary: "Fixture review",
     });
+    if (settings.pinnedCommit === true) {
+      await host.call("repository.pinned-commit", {
+        expectedHeadSha: "a".repeat(40),
+        message: "Fixture commit",
+        files: [{ path: "README.md", text: summary }],
+      });
+    }
     return { outputs: { result: { ready: true, summary, comment } }, comment, review };
   },
 });

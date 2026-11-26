@@ -10,7 +10,7 @@ if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
   echo "Usage: $0 [--pins <launch-pins.json>] <local-box-image> <case> <fresh-private-output> <operational-package-dir> [legacy-gateway-file]" >&2
   exit 2
 fi
-case "$2" in native|grants|grants-revoked|refusal|happy|slash-base|before-work|before-open|before-review|before-review-base|race-lost|provider-fenced|mixed-gateway|draft-read-refusal|review-not-sent|authority-retry) ;;
+case "$2" in native|grants|grants-revoked|refusal|happy|slash-base|before-work|before-open|before-review|before-review-base|race-lost|provider-fenced|mixed-gateway|draft-read-refusal|review-not-sent|authority-retry|recovery-legacy|recovery-lost|recovery-unknown|github-happy|github-recovery) ;;
   *) echo "Unknown case: $2" >&2; exit 2 ;;
 esac
 umask 077
@@ -64,9 +64,10 @@ if [ -n "$old_gateway" ]; then
   set -- -v "$stage/legacy-gateway.mjs:/app/workspace/gateway.mjs:ro"
 fi
 "$eval_dir/seed-git.sh" "$stage/repo" > "$out/base.sha"
-if [ "$case_name" = slash-base ]; then
+case "$case_name" in slash-base|recovery-*|github-*)
   git -C "$stage/repo" -c core.hooksPath=/dev/null branch release/review-fixture
-fi
+;;
+esac
 podman image inspect "$image" --format '{{.Id}} {{index .Config.Labels "io.outfitter.webapp.tree"}} {{index .Config.Labels "io.outfitter.apps.tree"}}' > "$out/image.txt"
 (cd "$package" && sha256sum software-foundry.operational.json schema.graphql documents.json apps-tree.txt) > "$out/package.sha256"
 cp "$package/apps-tree.txt" "$out/apps-tree.txt"

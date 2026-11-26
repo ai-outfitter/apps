@@ -16,23 +16,41 @@ const repository = z.string().regex(/^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]{0,99}\
 const branch = z.string().min(1).max(180).regex(/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/)
   .refine(ref => !ref.includes("..") && !ref.startsWith("refs/") && ref !== "HEAD" &&
     ref.split("/").every(part => part && !part.startsWith(".") && !part.endsWith(".lock") && !part.endsWith(".")));
-export const reviewForgejoIssueInput = z.strictObject({
+export const reviewIssuePins = z.strictObject({
   repository,
   repositoryId: number,
   issueNumber: number,
   baseRef: branch,
   baseSha: sha,
 });
-const target = reviewForgejoIssueInput.extend({
+const reviewProvider = z.enum(["FORGEJO", "GITHUB"]);
+type ReviewProvider = z.infer<typeof reviewProvider>;
+const githubUserConnection = "github:user";
+const reviewAction = z.enum(["START", "RECOVER"]);
+const reviewIssueCommand = z.discriminatedUnion("action", [
+  reviewIssuePins.extend({ action: z.literal("START"), provider: reviewProvider }),
+  z.strictObject({ action: z.literal("RECOVER"), runId: z.uuid() }),
+]);
+export const reviewIssueInput = z.strictObject({ input: reviewIssueCommand });
+export const reviewIssueGraphInput = reviewIssuePins.partial().extend({
+  action: reviewAction, provider: reviewProvider.optional(), runId: z.uuid().optional(),
+});
+const target = reviewIssuePins.extend({
+  provider: reviewProvider.optional(),
   origin: z.url(),
   branch,
   workerId: number,
+  workerLogin: z.string().regex(/^[a-z0-9][a-z0-9-]*\[bot\]$/).optional(),
+  githubInstallationId: number.optional(),
   reviewer: z.string().min(1).max(128),
   reviewerId: number,
-});
+}).refine(pins => pins.provider === "GITHUB"
+  ? pins.origin === "https://github.com" && !!pins.workerLogin && !!pins.githubInstallationId
+  : !pins.workerLogin && !pins.githubInstallationId);
 type Target = z.infer<typeof target>;
 type Row = typeof forgejoIssueReviews.$inferSelect;
 type Repository = OperationOutput<"repository.read">;
+type WorkflowRun = NonNullable<OperationOutput<"workflow.read">>;
 type Phase = "interactive" | "operator" | "prepare" | "finalize";
 const conflict = (reason: string) => new Response(reason, { status: 409 });
 const unconfirmed = (reason: string) => new Response(reason, { status: 503 });
@@ -40,7 +58,8 @@ const denied = (reason: string) => new Response(reason, { status: 403 });
 const actor = z.object({ id: number, login: z.string().min(1) });
 const metadata = z.object({ id: number, full_name: repository, html_url: z.url() });
 
-function organizationConnection(snapshot: OperationOutput<"snapshot">, name: string) {
+function reviewConnection(snapshot: OperationOutput<"snapshot">, name: string, provider: ReviewProvider) {
+  if (provider === "GITHUB") return githubUserConnection;
   const matches = snapshot.connections.filter(connection => connection.owner === "organization" &&
     connection.provider === "forgejo" && connection.operations.includes("issues.read") &&
     connection.repositories.some(listed => listed.toLowerCase() === name.toLowerCase()));
@@ -54,34 +73,70 @@ async function repositoryMetadata(host: WorkflowHost<"interactive" | "operator">
   const url = new URL(repo.html_url);
   if (repo.id !== pins.repositoryId || repo.full_name.toLowerCase() !== pins.repository.toLowerCase() ||
       !["https:", "http:"].includes(url.protocol))
-    throw conflict("The pinned Forgejo repository changed");
+    throw conflict("The pinned repository changed");
   return { name: repo.full_name, id: repo.id, origin: url.origin };
 }
 
-function sameRepository(repo: Repository, pins: Pick<Target, "repository" | "repositoryId">, connectionId: string) {
-  return repo.forge === "forgejo" && repo.checkout === "forgejo-pinned" && repo.inferenceProvider === "spark" &&
-    repo.connectionId === connectionId &&
-    repo.repositoryId === pins.repositoryId &&
-    repo.name.toLowerCase() === pins.repository.toLowerCase();
+type RepositoryPins = Pick<Target, "repository" | "repositoryId" | "provider" | "workerLogin" | "githubInstallationId">;
+
+function sameRepository(repo: Repository, pins: RepositoryPins, connectionId: string) {
+  const github = pins.provider === "GITHUB";
+  return repo.forge === (github ? "github" : "forgejo") && repo.checkout === (github ? "github-pinned" : "forgejo-pinned") &&
+    repo.inferenceProvider === "spark" && repo.repositoryId === pins.repositoryId &&
+    repo.name.toLowerCase() === pins.repository.toLowerCase() &&
+    (github ? connectionId === githubUserConnection && !!repo.botLogin &&
+      (!pins.workerLogin || pins.workerLogin === repo.botLogin) &&
+      (!pins.githubInstallationId || pins.githubInstallationId === repo.installationId) : repo.connectionId === connectionId);
 }
 
 function reviewRepository(host: WorkflowHost<Phase>, repo: Repository, bindingId?: string) {
   const api = hostAPI(input => host.call("repository.request", { ...input, bindingId }));
+  const github = repo.forge === "github";
   return {
+    github,
     get: (suffix: string) => api(`${repo.path}${suffix}`),
-    createPull: (body: Record<string, string>) => api(`${repo.path}/pulls`, body, "POST"),
-    createBranch: (name: string, base: string) => api(`${repo.path}/branches`, { new_branch_name: name, old_ref_name: base }, "POST"),
-    commitFiles: (body: { branch: string; message: string; files: ChangeFile[] }) =>
-      api(`${repo.path}/contents`, body, "POST"),
+    readTree: async (suffix: string) => {
+      if (!github || !suffix.startsWith("/git/trees/")) return api(`${repo.path}${suffix}`);
+      const tree = z.object({ sha, truncated: z.literal(false), tree: z.array(z.unknown()) })
+        .parse(await api(`${repo.path}${suffix.split("?", 1)[0]}`));
+      return { ...tree, total_count: tree.tree.length };
+    },
+    branchPath: (ref: string) => github ? `/git/ref/heads/${ref}` : `/branches/${ref}`,
+    createPull: (body: Record<string, string>) => api(`${repo.path}/pulls`, github ? { ...body, draft: true } : body, "POST"),
+    createBranch: (name: string, base: string) => github
+      ? api(`${repo.path}/git/refs`, { ref: `refs/heads/${name}`, sha: base }, "POST")
+      : api(`${repo.path}/branches`, { new_branch_name: name, old_ref_name: base }, "POST"),
+    commitFiles: async (body: { branch: string; message: string; files: ChangeFile[] }, baseSha: string) => {
+      if (!github) return api(`${repo.path}/contents`, body, "POST");
+      const { oid } = await host.call("repository.pinned-commit", {
+        expectedHeadSha: baseSha, message: body.message,
+        files: body.files.map(file => ({
+          path: file.path,
+          text: new TextDecoder("utf-8", { ignoreBOM: true }).decode(Uint8Array.from(atob(file.content), char => char.charCodeAt(0))),
+        })),
+      });
+      return { commit: { sha: oid } };
+    },
   };
 }
 type ReviewRepository = ReturnType<typeof reviewRepository>;
 
-async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewForgejoIssueInput>, origin?: string,
+function branchSha(api: ReviewRepository, raw: unknown, expected: string, mismatch: typeof conflict) {
+  if (api.github) {
+    const ref = z.object({ ref: z.string(), object: z.object({ type: z.literal("commit"), sha }) }).parse(raw);
+    if (ref.ref === `refs/heads/${expected}`) return ref.object.sha;
+  } else {
+    const ref = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(raw);
+    if (ref.name === expected) return ref.commit.id;
+  }
+  throw mismatch("Pinned branch identity changed");
+}
+
+async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewIssuePins>, origin?: string,
   mismatch = conflict) {
   const [repositoryResult, base, issueResult] = await Promise.all([
     api.get(""),
-    api.get(`/branches/${pins.baseRef}`),
+    api.get(api.branchPath(pins.baseRef)),
     api.get(`/issues/${pins.issueNumber}`),
   ]);
   const issue = z.object({ number, html_url: z.url(), title: z.string(), state: z.string(),
@@ -89,13 +144,13 @@ async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewFo
   const repo = metadata.parse(repositoryResult);
   const provider = new URL(repo.html_url);
   if (!["https:", "http:"].includes(provider.protocol) || (origin && provider.origin !== origin) ||
+      (api.github && provider.origin !== "https://github.com") ||
       repo.id !== pins.repositoryId || repo.full_name.toLowerCase() !== pins.repository.toLowerCase() ||
       new URL(issue.html_url).origin !== provider.origin || issue.number !== pins.issueNumber ||
       issue.pull_request || issue.state !== "open")
-    throw mismatch("The pinned Forgejo repository or open issue changed");
-  const ref = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(base);
-  if (ref.name !== pins.baseRef || ref.commit.id !== pins.baseSha)
-    throw mismatch("The pinned Forgejo base changed");
+    throw mismatch("The pinned repository or open issue changed");
+  if (branchSha(api, base, pins.baseRef, mismatch) !== pins.baseSha)
+    throw mismatch("The pinned base changed");
   return { origin: provider.origin, issue: { number: issue.number, title: issue.title, url: issue.html_url, body: (issue.body ?? "").slice(0, 16_000) } };
 }
 
@@ -103,69 +158,95 @@ async function savedReview(db: IntakeContext["db"], runId: string) {
   return db().select().from(forgejoIssueReviews).where(eq(forgejoIssueReviews.runId, runId)).get();
 }
 
+function savedRecovery(db: IntakeContext["db"], originalId: string) {
+  return db().select().from(forgejoIssueReviews).where(eq(forgejoIssueReviews.recoveryOf, originalId)).get();
+}
+
 type Pair = typeof forgejoIssueReviewBindings.$inferSelect;
 type Role = "implementer" | "reviewer";
-const pairKey = (installationId: string, origin: string, repositoryId: number) =>
-  sha256Hex(JSON.stringify([installationId, origin, repositoryId]));
+const providerKey = (provider: ReviewProvider) => provider === "GITHUB" ? ["github"] : [];
+const pairKey = (installationId: string, origin: string, repositoryId: number, provider: ReviewProvider) =>
+  sha256Hex(JSON.stringify([installationId, origin, repositoryId, ...providerKey(provider)]));
 
 function selectedPair(db: IntakeContext["db"], key: string) {
   return db().select().from(forgejoIssueReviewBindings).where(eq(forgejoIssueReviewBindings.key, key)).get();
 }
 
 async function verifyPair(host: WorkflowHost<"interactive" | "operator">, snapshot: OperationOutput<"snapshot">,
-  pins: Pick<Target, "repository" | "repositoryId">, connectionId: string,
+  pins: RepositoryPins, connectionId: string,
   pair: Pick<Pair, "implementer" | "reviewer" | "reviewerName">, expected?: Pick<Pair, "workerId" | "reviewerId">) {
   for (const role of ["implementer", "reviewer"] as const) {
     if (!snapshot.bindings.some(binding => binding.id === pair[role] && binding.workflowId === issueReviewWorkflow &&
         binding.actor === role && binding.kind === "external" && binding.enabled))
-      throw denied("The selected Forgejo actor binding is unavailable");
+      throw denied("The selected actor binding is unavailable");
   }
-  if (pair.implementer === pair.reviewer) throw denied("Forgejo worker and reviewer bindings must be distinct");
+  if (pair.implementer === pair.reviewer) throw denied("Worker and reviewer bindings must be distinct");
   const [worker, reviewer] = await Promise.all([
     host.call("repository.read", { bindingId: pair.implementer }),
     host.call("repository.read", { bindingId: pair.reviewer }),
   ]);
   if (!sameRepository(worker, pins, connectionId) || !sameRepository(reviewer, pins, connectionId) ||
-      reviewer.appId !== worker.appId || (expected && expected.workerId !== worker.appId))
-    throw denied("The selected Forgejo actors no longer cover the pinned repository and writer");
+      reviewer.appId !== worker.appId || reviewer.botLogin !== worker.botLogin ||
+      reviewer.installationId !== worker.installationId || (expected && expected.workerId !== worker.appId))
+    throw denied("The selected actors no longer cover the pinned repository and writer");
   const principal = actor.parse(await host.call("workspace.control", {
     operation: "inspect-reviewer", bindingId: pair.reviewer, reviewer: pair.reviewerName,
     ...(expected ? { expectedReviewerId: expected.reviewerId } : {}),
   }));
-  if (principal.id === worker.appId || (expected && principal.id !== expected.reviewerId))
-    throw denied("Forgejo worker and reviewer must be independent");
+  if ((pins.provider === "GITHUB" ? principal.login.toLowerCase() === worker.botLogin?.toLowerCase() : principal.id === worker.appId) ||
+      (expected && principal.id !== expected.reviewerId))
+    throw denied("Worker and reviewer must be independent");
   return { worker, reviewerId: principal.id };
 }
 
-async function stableRunId(installationId: string, origin: string, repositoryId: number, issueNumber: number) {
-  const hash = await sha256Hex(JSON.stringify([issueReviewWorkflow, installationId, origin, repositoryId, issueNumber]));
+async function stableRunId(key: readonly unknown[]) {
+  const hash = await sha256Hex(JSON.stringify(key));
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 
-function startReceipt(row: Row, status: string, existing: boolean) {
+function publicationReceipt(row: Row) {
   const pins = target.parse(row.inputs["implement.inputs.target"]);
   return {
-    run: { id: row.runId, workflow: issueReviewWorkflow, status, existing },
-    target: reviewForgejoIssueInput.parse(Object.fromEntries(
-      Object.keys(reviewForgejoIssueInput.shape).map(key => [key, pins[key as keyof Target]]))),
+    target: reviewIssuePins.parse(Object.fromEntries(
+      Object.keys(reviewIssuePins.shape).map(key => [key, pins[key as keyof Target]]))),
     candidate: row.candidate,
     ...(row.draftObservation ? { draftObservation: row.draftObservation } : {}),
     review: row.review,
   };
 }
 
-export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<typeof reviewForgejoIssueInput>) {
-  const identity = requireOrganization(context.identity);
-  requireAccess(identity, "write");
-  if (identity.role === "external" || identity.callerOrganizationId) throw denied("Current organization access required");
-  const host = context.host();
-  const snapshot = await host.call("snapshot", {});
-  if (snapshot.installation.id !== identity.installationId || !snapshot.installation.workflows.includes(issueReviewWorkflow))
-    throw denied("Forgejo issue review workflow is unavailable");
-  const connectionId = organizationConnection(snapshot, input.repository);
-  const metadata = await repositoryMetadata(host, input, connectionId);
+function startReceipt(row: Row, status: string, existing: boolean) {
+  return { run: { id: row.runId, workflow: issueReviewWorkflow, status, existing }, ...publicationReceipt(row) };
+}
 
-  const id = await stableRunId(identity.installationId, metadata.origin, input.repositoryId, input.issueNumber);
+function reviewCaller(context: IntakeContext, access: "read" | "write") {
+  const identity = requireOrganization(context.identity);
+  requireAccess(identity, access);
+  if (identity.role === "external" || identity.callerOrganizationId) throw denied("Current organization access required");
+  return identity;
+}
+
+async function reviewSnapshot(host: WorkflowHost<"interactive">, installationId: string) {
+  const snapshot = await host.call("snapshot", {});
+  if (snapshot.installation.id !== installationId || !snapshot.installation.workflows.includes(issueReviewWorkflow))
+    throw denied("Issue review workflow is unavailable");
+  return snapshot;
+}
+
+export function reviewForgejoIssue(context: IntakeContext, input: z.infer<typeof reviewIssuePins>) {
+  return startIssueReview(context, input, "FORGEJO");
+}
+
+async function startIssueReview(context: IntakeContext, input: z.infer<typeof reviewIssuePins>, provider: ReviewProvider) {
+  const identity = reviewCaller(context, "write");
+  const host = context.host();
+  const snapshot = await reviewSnapshot(host, identity.installationId);
+  const connectionId = reviewConnection(snapshot, input.repository, provider);
+  const metadata = await repositoryMetadata(host, input, connectionId);
+  if (provider === "GITHUB" && metadata.origin !== "https://github.com") throw denied("Pinned GitHub origin unavailable");
+
+  const id = await stableRunId([issueReviewWorkflow, identity.installationId, metadata.origin, input.repositoryId,
+    input.issueNumber, ...providerKey(provider)]);
   const assignedBranch = forgejoWorkspaceBranch(id);
   if (input.baseRef === assignedBranch) throw conflict("The assigned review branch cannot be its own base");
   const receipt = async (row: Row) => {
@@ -174,7 +255,7 @@ export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<
         old.baseRef !== input.baseRef || old.baseSha !== input.baseSha)
       throw conflict("An existing review run has different immutable pins");
     if (row.inputs["implement.inputs.connectionId"] !== connectionId)
-      throw denied("The pinned Forgejo connection changed");
+      throw denied("The pinned repository connection changed");
     const run = await host.call("workflow.read", { id });
     if (run) {
       if (run.run.workflowId !== issueReviewWorkflow || canonicalActionValue(run.inputs) !== canonicalActionValue(row.inputs))
@@ -185,7 +266,7 @@ export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<
     const bindingId = z.string().min(1).parse(row.inputs["implement.inputs.implementerBinding"]);
     const repo = await host.call("repository.read", { bindingId });
     if (!sameRepository(repo, old, connectionId) || repo.appId !== old.workerId)
-      throw denied("The pinned Forgejo execution authority changed");
+      throw denied("The pinned execution authority changed");
     await verifySource(reviewRepository(host, repo, bindingId), old, old.origin);
     const started = await host.call("workflow.start", { workflow: issueReviewWorkflow, id, inputs: jsonInputs(row.inputs) });
     return startReceipt(row, "running", !started.created);
@@ -195,13 +276,14 @@ export async function reviewForgejoIssue(context: IntakeContext, input: z.infer<
 
   // Read one complete selection. An admission overlapping a reconfiguration
   // freezes this independently verified pair, even if the next issue sees a newer pair.
-  const pair = await selectedPair(context.db, await pairKey(identity.installationId, metadata.origin, input.repositoryId));
-  if (!pair || pair.connectionId !== connectionId) throw denied("Configure the Forgejo issue review bindings for this repository");
-  const { worker } = await verifyPair(host, snapshot, input, connectionId, pair, pair);
+  const pair = await selectedPair(context.db, await pairKey(identity.installationId, metadata.origin, input.repositoryId, provider));
+  if (!pair || pair.connectionId !== connectionId) throw denied("Configure the issue review bindings for this repository");
+  const { worker } = await verifyPair(host, snapshot, { ...input, provider }, connectionId, pair, pair);
   const pins = { ...input, repository: worker.name };
   const { origin, issue } = await verifySource(reviewRepository(host, worker, pair.implementer), pins, metadata.origin);
   const inputs = {
     "implement.inputs.target": { ...pins, origin, branch: assignedBranch,
+      ...(provider === "GITHUB" ? { provider, workerLogin: worker.botLogin, githubInstallationId: worker.installationId } : {}),
       workerId: pair.workerId, reviewer: pair.reviewerName, reviewerId: pair.reviewerId },
     "implement.inputs.issue": issue,
     "implement.inputs.connectionId": connectionId,
@@ -222,6 +304,147 @@ function jsonInputs(input: Record<string, unknown>) {
   return z.record(z.string(), z.json()).parse(input);
 }
 
+export const issueReviewRunInput = z.strictObject({ runId: z.uuid() });
+
+export async function reviewIssue(context: IntakeContext, command: z.infer<typeof reviewIssueCommand>) {
+  if (command.action === "RECOVER") return recoverIssueReview(context, command.runId);
+  const { action, provider, ...pins } = command;
+  const receipt = await startIssueReview(context, pins, provider);
+  return readIssueReview(context, receipt.run.id);
+}
+
+async function originalReview(context: IntakeContext, runId: string, access: "read" | "write") {
+  const identity = reviewCaller(context, access);
+  const row = await savedReview(context.db, runId);
+  if (!row || row.recoveryOf !== null || row.installationId !== identity.installationId)
+    throw new Response("Original issue review not found", { status: 404 });
+  return { identity, row };
+}
+
+async function readReviewRun(host: WorkflowHost<"interactive">, row: Row) {
+  const run = await host.call("workflow.read", { id: row.runId });
+  if (run && (run.run.id !== row.runId || run.run.workflowId !== issueReviewWorkflow ||
+      run.run.createdBy !== row.createdBy || canonicalActionValue(run.inputs) !== canonicalActionValue(row.inputs)))
+    throw conflict("Review workflow identity changed");
+  return run;
+}
+
+function runHistory(run: WorkflowRun | null, row: Row) {
+  return run
+    ? { id: run.run.id, status: run.run.status, attempts: run.attempts }
+    : { id: row.runId, status: "pending", attempts: [] };
+}
+
+function recoveryReceipt(row: Row, original: WorkflowRun | null, recovery?: Row, child: WorkflowRun | null = null) {
+  return {
+    provider: target.parse(row.inputs["implement.inputs.target"]).provider ?? "FORGEJO",
+    original: runHistory(original, row),
+    recovery: recovery ? runHistory(child, recovery) : null,
+    ...publicationReceipt(recovery ?? row),
+  };
+}
+
+export async function readIssueReview(context: IntakeContext, runId: string) {
+  const { row, identity } = await originalReview(context, runId, "read");
+  const host = context.host();
+  const recovery = await savedRecovery(context.db, runId);
+  const [originalRun, recoveryRun] = await Promise.all([
+    readReviewRun(host, row),
+    recovery ? readReviewRun(host, recovery) : null,
+  ]);
+  if (row.createdBy !== identity.userId && (!originalRun || (recovery && !recoveryRun)))
+    throw new Response("Issue review not available", { status: 404 });
+  return recoveryReceipt(row, originalRun, recovery, recoveryRun);
+}
+
+// Compatibility with retained failures created before recovery was available.
+const checkoutInitializationFailure = "Pinned checkout could not initialize.";
+
+function requirePreCheckoutFailure(row: Row, run: WorkflowRun | null) {
+  const attempt = run?.attempts[0];
+  // The host records this exact runtime-owned error only when its pinned
+  // checkout worker exits during initialization, before it launches an agent.
+  if (run?.run.status !== "failed" || run.attempts.length !== 1 || attempt?.nodeId !== "implement" ||
+      attempt.state !== "failed" || attempt.failure !== checkoutInitializationFailure ||
+      attempt.sessionArtifact?.runId !== row.runId || Object.keys(run.outputs).length ||
+      row.effectDispatch || row.branchClaim || row.commitClaim || row.commitProof || row.publication ||
+      row.draftObservation || row.candidate || row.reviewPublication || row.review)
+    throw conflict("Recovery requires the original retained pre-checkout failure and no publication claims");
+}
+
+export async function recoverIssueReview(context: IntakeContext, runId: string) {
+  const { identity, row } = await originalReview(context, runId, "write");
+  if (row.createdBy !== identity.userId) throw denied("Only the original review initiator can recover this run");
+  const host = context.host();
+  const pins = target.parse(row.inputs["implement.inputs.target"]);
+  const provider = pins.provider ?? "FORGEJO";
+  if (pins.origin !== row.forgeOrigin || pins.repositoryId !== row.repositoryId || pins.issueNumber !== row.issueNumber ||
+      pins.branch !== forgejoWorkspaceBranch(runId) ||
+      runId !== await stableRunId([issueReviewWorkflow, row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber,
+        ...providerKey(provider)]))
+    throw conflict("The original review pins changed");
+
+  const recoveryId = await stableRunId([issueReviewWorkflow, "recovery", row.installationId, runId]);
+  const recoveryPins = { ...pins, branch: forgejoWorkspaceBranch(recoveryId) };
+  if (recoveryPins.branch === pins.baseRef) throw conflict("The recovery branch cannot be its own base");
+  const inputs = { ...row.inputs, "implement.inputs.target": recoveryPins };
+  const existingRecovery = async () => {
+    const saved = await savedRecovery(context.db, runId);
+    if (saved && (saved.runId !== recoveryId || saved.installationId !== row.installationId ||
+        saved.createdBy !== row.createdBy || canonicalActionValue(saved.inputs) !== canonicalActionValue(inputs)))
+      throw conflict("Recovery workflow identity changed");
+    return saved;
+  };
+  let recovery = await existingRecovery();
+  const original = await readReviewRun(host, row);
+  const prior = recovery ? await readReviewRun(host, recovery) : null;
+  if (prior) return recoveryReceipt(row, original, recovery, prior);
+  requirePreCheckoutFailure(row, original);
+
+  const snapshot = await reviewSnapshot(host, identity.installationId);
+  const connectionId = reviewConnection(snapshot, pins.repository, provider);
+  if (row.inputs["implement.inputs.connectionId"] !== connectionId)
+    throw denied("The pinned repository connection changed");
+  const implementer = z.string().min(1).parse(row.inputs["implement.inputs.implementerBinding"]);
+  const reviewer = z.string().min(1).parse(row.inputs["implement.inputs.reviewerBinding"]);
+  const { worker } = await verifyPair(host, snapshot, pins, connectionId, { implementer, reviewer, reviewerName: pins.reviewer },
+    { workerId: pins.workerId, reviewerId: pins.reviewerId });
+
+  const api = reviewRepository(host, worker, implementer);
+  try {
+    const { issue } = await verifySource(api, pins, pins.origin);
+    if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
+      throw conflict("The original issue changed");
+    const [originalBranch, recoveryBranch, priorPull] = await Promise.all([
+      reviewBranchTip(api, pins),
+      reviewBranchTip(api, recoveryPins),
+      hasReviewPull(api, pins, [pins.branch, recoveryPins.branch], [runId, recoveryId]),
+    ]);
+    if (originalBranch || recoveryBranch || priorPull) throw conflict("The provider already has publication evidence for this review");
+  } catch (error) {
+    // Another caller can start the claimed run while we read the provider. In that
+    // case report the known run and let its coordinator reconcile native writes.
+    const saved = await existingRecovery();
+    const active = saved ? await readReviewRun(host, saved) : null;
+    if (active) return recoveryReceipt(row, original, saved, active);
+    throw error;
+  }
+
+  if (!recovery) {
+    const [claimed] = await context.db().insert(forgejoIssueReviews).values({
+      runId: recoveryId, recoveryOf: runId, installationId: row.installationId, repositoryId: row.repositoryId,
+      issueNumber: row.issueNumber, forgeOrigin: row.forgeOrigin, createdBy: row.createdBy, inputs,
+    }).onConflictDoNothing().returning();
+    recovery = claimed ?? await existingRecovery();
+    if (!recovery) throw conflict("Recovery run claim unavailable");
+  }
+  // The deterministic host claim can replay after a lost response or a crash
+  // between the app claim and dispatch without creating another child.
+  await host.call("workflow.start", { workflow: issueReviewWorkflow, id: recovery.runId, inputs: jsonInputs(recovery.inputs) });
+  const started = await readReviewRun(host, recovery);
+  return recoveryReceipt(row, original, await existingRecovery() ?? recovery, started);
+}
+
 const head = z.object({ ref: branch, sha, repo: z.object({ id: number, full_name: repository }) });
 const pull = z.object({
   number,
@@ -229,8 +452,10 @@ const pull = z.object({
   title: z.string(),
   body: z.string().nullable(),
   state: z.string(),
-  merged: z.boolean(),
-  user: z.object({ id: number }),
+  merged: z.boolean().optional(),
+  merged_at: z.string().nullish(),
+  draft: z.boolean().optional(),
+  user: z.object({ id: number, login: z.string().optional(), type: z.string().optional() }),
   base: head,
   head,
 });
@@ -252,32 +477,65 @@ type Candidate = z.infer<typeof candidateReceipt>;
 const marker = (runId: string) => `<!-- outfitter:issue-review:${runId} -->`;
 const reviewMarker = (attemptId: string) => `<!-- outfitter:workspace-review:${attemptId} -->`;
 
+function writerDraft(current: z.infer<typeof pull>, pins: Target) {
+  if (pins.provider !== "GITHUB") return current.merged === false && /^WIP: /i.test(current.title) && current.user.id === pins.workerId;
+  return current.draft === true && !current.merged && !current.merged_at &&
+    current.user.type === "Bot" && current.user.login?.toLowerCase() === pins.workerLogin?.toLowerCase();
+}
+
 function verifyPull(current: z.infer<typeof pull>, pins: Target, headSha: string, runId: string): Candidate {
   const same = (ref: z.infer<typeof head>) => ref.repo.id === pins.repositoryId &&
     ref.repo.full_name.toLowerCase() === pins.repository.toLowerCase();
-  if (current.state !== "open" || current.merged || !/^WIP: /i.test(current.title) ||
+  if (current.state !== "open" || !writerDraft(current, pins) ||
       !same(current.base) || !same(current.head) || current.base.ref !== pins.baseRef ||
       current.base.sha !== pins.baseSha || current.head.ref !== pins.branch || current.head.sha !== headSha ||
-      !current.body?.includes(marker(runId)) || current.user.id !== pins.workerId ||
+      !current.body?.includes(marker(runId)) ||
       new URL(current.html_url).origin !== pins.origin)
     throw phaseMismatch("The draft pull request no longer matches its pinned repository, base, head or author");
   return { number: current.number, url: current.html_url, headSha, branch: pins.branch, authorId: current.user.id };
 }
 
-async function findPull(api: ReviewRepository, pins: Target) {
-  let found: z.infer<typeof pull> | undefined;
+async function* pullHistory(api: ReviewRepository, pins: Target, headRef = pins.branch) {
+  const [owner] = pins.repository.split("/");
+  const query = api.github ? `per_page=50&head=${encodeURIComponent(`${owner}:${headRef}`)}` : "limit=50";
   for (let page = 1; page <= 20; page++) {
-    const items = z.array(z.unknown()).parse(await api.get(`/pulls?state=all&limit=50&page=${page}`));
-    for (const item of items) {
-      const match = z.object({ head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }) }).safeParse(item);
-      if (match.success && match.data.head.ref === pins.branch && match.data.head.repo?.id === pins.repositoryId) {
-        if (found) throw phaseMismatch("The review branch has multiple pull requests");
-        found = pull.parse(item);
-      }
-    }
-    if (items.length < 50) return found;
+    const items = z.array(z.unknown()).parse(await api.get(`/pulls?state=all&${query}&page=${page}`));
+    yield* items;
+    if (items.length < 50) return;
   }
   throw unconfirmed("Pull request history exceeds the reconciliation limit");
+}
+
+const pullIdentity = z.object({
+  body: z.string().nullish(),
+  head: z.object({ ref: z.string(), repo: z.object({ id: number }).nullable() }),
+});
+
+async function hasReviewPull(api: ReviewRepository, pins: Target, branches: string[], runs: string[]) {
+  for (const headRef of api.github ? branches : [pins.branch]) {
+    for await (const item of pullHistory(api, pins, headRef)) {
+      const match = pullIdentity.safeParse(item);
+      if (!match.success) throw unconfirmed("Pull history contains an unreadable record");
+      const { body, head } = match.data;
+      if (runs.some(id => body?.includes(marker(id))) ||
+          (branches.includes(head.ref) && (!head.repo || head.repo.id === pins.repositoryId))) return true;
+    }
+  }
+  return false;
+}
+
+async function findPull(api: ReviewRepository, pins: Target) {
+  let found: z.infer<typeof pull> | undefined;
+  for await (const item of pullHistory(api, pins)) {
+    const match = pullIdentity.safeParse(item);
+    if (match.success && match.data.head.ref === pins.branch && match.data.head.repo?.id === pins.repositoryId) {
+      const { number: pullNumber } = z.object({ number }).parse(item);
+      if (found?.number === pullNumber) continue;
+      if (found) throw phaseMismatch("The review branch has multiple pull requests");
+      found = pull.parse(api.github ? await api.get(`/pulls/${pullNumber}`) : item);
+    }
+  }
+  return found;
 }
 
 async function optionalRead(api: ReviewRepository, suffix: string) {
@@ -289,27 +547,28 @@ async function optionalRead(api: ReviewRepository, suffix: string) {
   }
 }
 
-const commitMessage = (runId: string, proof: CommitProof) => `Implement Forgejo issue review ${runId} ${proof.nonce}`;
+const commitMessage = (pins: Target, runId: string, proof: CommitProof) =>
+  `Implement ${pins.provider === "GITHUB" ? "GitHub" : "Forgejo"} issue review ${runId} ${proof.nonce}`;
 const gitCommit = z.object({
   sha,
-  commit: z.object({ message: z.string(), tree: z.object({ sha }) }),
+  commit: z.object({ message: z.string(), tree: z.object({ sha }),
+    verification: z.object({ verified: z.boolean() }).optional() }),
   parents: z.array(z.object({ sha })),
-  author: z.object({ id: number }).nullish(),
+  author: z.object({ id: number, login: z.string().optional(), type: z.string().optional() }).nullish(),
   committer: z.object({ id: number }).nullish(),
 });
-const commitPath = (revision: string) => `/git/commits/${revision}?stat=false&files=false`;
+const commitPath = (api: ReviewRepository, revision: string) => api.github
+  ? `/commits/${revision}?per_page=1&page=1` : `/git/commits/${revision}?stat=false&files=false`;
 
 async function reviewBranchTip(api: ReviewRepository, pins: Target, required = false) {
-  const path = `/branches/${pins.branch}`;
+  const path = api.branchPath(pins.branch);
   const tip = required ? await api.get(path) : await optionalRead(api, path);
   if (tip === null && !required) return null;
-  const current = z.object({ name: branch, commit: z.object({ id: sha }) }).parse(tip);
-  if (current.name !== pins.branch) throw phaseMismatch("The assigned branch identity changed");
-  return current.commit.id;
+  return branchSha(api, tip, pins.branch, phaseMismatch);
 }
 
 function requireCommitProof(row: Row) {
-  if (!row.commitProof) throw phaseMismatch("The Forgejo commit has no durable file proof");
+  if (!row.commitProof) throw phaseMismatch("The commit has no durable file proof");
   return row.commitProof;
 }
 
@@ -320,21 +579,24 @@ async function stagedCommit(api: ReviewRepository, pins: Target, row: Row) {
   if (expectedHead && expectedHead !== headSha) throw phaseMismatch("The pinned implementation commit changed");
   if (!headSha || headSha === pins.baseSha) throw unconfirmed("Commit publication is unconfirmed; reconciling the run branch");
   const headTree = await verifyCommit(api, pins, headSha, row.runId, proof);
-  const base = gitCommit.parse(await api.get(commitPath(pins.baseSha)));
-  if (base.sha !== pins.baseSha) throw phaseMismatch("The pinned Forgejo commit identity changed");
-  await verifyCommitTree(api.get, base.commit.tree.sha, headTree, proof);
+  const base = gitCommit.parse(await api.get(commitPath(api, pins.baseSha)));
+  if (base.sha !== pins.baseSha) throw phaseMismatch("The pinned commit identity changed");
+  await verifyCommitTree(api.readTree, base.commit.tree.sha, headTree, proof);
   return { headSha, proof };
 }
 
 async function verifyCommit(api: ReviewRepository, pins: Target, headSha: string, runId: string, proof: CommitProof) {
-  const [tip, commit] = await Promise.all([reviewBranchTip(api, pins, true), api.get(commitPath(headSha))]);
+  const [tip, commit] = await Promise.all([reviewBranchTip(api, pins, true), api.get(commitPath(api, headSha))]);
   const object = gitCommit.parse(commit);
   if (tip !== headSha || object.sha !== headSha ||
-      object.commit.message.trim() !== commitMessage(runId, proof) || object.parents.length !== 1 ||
+      object.commit.message.trim() !== commitMessage(pins, runId, proof) || object.parents.length !== 1 ||
       object.parents[0].sha !== pins.baseSha)
     throw phaseMismatch("The review branch must contain the verified commit directly on the pinned base");
-  if (object.author?.id !== pins.workerId || object.committer?.id !== pins.workerId)
-    throw phaseMismatch("Forgejo did not attribute the commit to the pinned writer");
+  const authorMatches = pins.provider === "GITHUB"
+    ? object.commit.verification?.verified === true && object.author?.type === "Bot" &&
+      object.author.login?.toLowerCase() === pins.workerLogin?.toLowerCase()
+    : object.author?.id === pins.workerId && object.committer?.id === pins.workerId;
+  if (!authorMatches) throw phaseMismatch("The commit was not attributed to the pinned writer");
   return object.commit.tree.sha;
 }
 
@@ -342,7 +604,7 @@ function retryUnknownDraftRead(error: unknown): never {
   // The platform settles these statuses. Broker refusals do not establish
   // a mismatch, even when they use the same status as a typed comparison.
   if (error instanceof Response && !(error instanceof PhaseMismatch) && [400, 403, 404, 409, 422].includes(error.status))
-    throw unconfirmed("Forgejo draft reconciliation read is unavailable");
+    throw unconfirmed("Draft reconciliation read is unavailable");
   throw error;
 }
 
@@ -359,13 +621,13 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
     throw error;
   });
   if (run?.run.workflowId !== issueReviewWorkflow || canonicalActionValue(run.inputs) !== canonicalActionValue(row.inputs))
-    throw phaseMismatch("The admitted Forgejo run identity changed");
+    throw phaseMismatch("The admitted review run identity changed");
   const pins = target.parse(row.inputs["implement.inputs.target"]);
   const supplied = target.parse(inputs.target);
   if (pins.branch !== forgejoWorkspaceBranch(node.runId) || JSON.stringify(supplied) !== JSON.stringify(pins)) throw phaseMismatch("Workflow target pins changed");
   const role = node.nodeId === "implement" ? "implementer" : "reviewer";
   if (phase.settings.role !== role || (role === "reviewer" && phase.settings.reviewer !== pins.reviewer))
-    throw phaseMismatch("The approved Forgejo execution role changed");
+    throw phaseMismatch("The approved execution role changed");
   const bindingId = z.string().min(1).parse(row.inputs[`implement.inputs.${role}Binding`]);
   const repo = await host.call("repository.read", { bindingId }).catch(error => {
     if (reconcilingDraft) retryUnknownDraftRead(error);
@@ -373,7 +635,7 @@ async function phaseSource(host: WorkflowHost<"prepare" | "finalize">, db: Intak
   });
   const connectionId = z.string().min(1).parse(row.inputs["implement.inputs.connectionId"]);
   if (!sameRepository(repo, pins, connectionId) || repo.appId !== pins.workerId)
-    throw phaseMismatch("The pinned Forgejo execution authority changed");
+    throw phaseMismatch("The pinned execution authority changed");
   const api = reviewRepository(host, repo);
   // A claimed draft must reconcile before a ref-drift refusal can terminate it.
   if (!reconcilingDraft)
@@ -394,7 +656,8 @@ async function currentCandidate(api: ReviewRepository, row: Row, pins: Target) {
   const saved = candidateReceipt.parse(row.candidate);
   await verifyCommit(api, pins, saved.headSha, row.runId, requireCommitProof(row));
   const current = verifyPull(pull.parse(await api.get(`/pulls/${saved.number}`)), pins, saved.headSha, row.runId);
-  if (current.number !== saved.number) throw phaseMismatch("The pinned pull request changed");
+  if (current.number !== saved.number || current.authorId !== saved.authorId)
+    throw phaseMismatch("The pinned pull request changed");
   return current;
 }
 
@@ -493,18 +756,18 @@ async function publishBranch(db: IntakeContext["db"], { row, pins, api }: Awaite
     throw phaseMismatch("The assigned branch moved before committing");
   }
   await verifySource(api, pins, pins.origin, phaseMismatch);
-  const effect = newEffect("commit", { branch: branchName, message: commitMessage(runId, proof), files });
+  const effect = newEffect("commit", { branch: branchName, message: commitMessage(pins, runId, proof), files });
   const [claimed] = await db().update(forgejoIssueReviews).set({ commitClaim: attemptId, commitProof: proof, effectDispatch: effect })
     .where(and(eq(forgejoIssueReviews.runId, runId), isNull(forgejoIssueReviews.commitClaim))).returning();
   if (claimed) return publishCommit(db, api, pins, claimed, effect);
   const current = await savedReview(db, runId);
-  if (!current) throw phaseMismatch("The durable Forgejo commit claim changed");
+  if (!current) throw phaseMismatch("The durable commit claim changed");
   return stagedCommit(api, pins, current);
 }
 
 async function publishCommit(db: IntakeContext["db"], api: ReviewRepository, pins: Target, row: Row,
   effect: ReviewEffect<"commit">) {
-  const written = await dispatchEffect(db, row.runId, effect, () => api.commitFiles(effect.payload));
+  const written = await dispatchEffect(db, row.runId, effect, () => api.commitFiles(effect.payload, pins.baseSha));
   const receipt = z.object({ commit: z.object({ sha }) }).safeParse(written);
   if (receipt.success) {
     const proof = { ...requireCommitProof(row), headSha: receipt.data.commit.sha };
@@ -520,8 +783,8 @@ function ownedDraft(current: z.infer<typeof pull>, pins: Target, runId: string) 
   return current.head.repo.id === pins.repositoryId && current.base.repo.id === pins.repositoryId &&
     current.head.repo.full_name.toLowerCase() === pins.repository.toLowerCase() &&
     current.base.repo.full_name.toLowerCase() === pins.repository.toLowerCase() &&
-    current.head.ref === pins.branch && current.user.id === pins.workerId &&
-    current.body?.includes(marker(runId)) && /^WIP: /i.test(current.title) &&
+    current.head.ref === pins.branch && writerDraft(current, pins) &&
+    current.body?.includes(marker(runId)) &&
     new URL(current.html_url).origin === pins.origin;
 }
 
@@ -556,7 +819,7 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
       const effect = newEffect("draft", {
         head: pins.branch,
         base: pins.baseRef,
-        title: `WIP: Review for issue #${pins.issueNumber}`,
+        title: `${api.github ? "" : "WIP: "}Review for issue #${pins.issueNumber}`,
         body: `Review of issue #${pins.issueNumber}.\n\n${marker(runId)}`,
       });
       const [claimed] = await db().update(forgejoIssueReviews).set({ publication: next, effectDispatch: effect,
@@ -566,7 +829,7 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
       if (claimed) await sendDraft(effect);
     }
   }
-  if (!claim || !proof) throw phaseMismatch("The durable Forgejo draft claim changed");
+  if (!claim || !proof) throw phaseMismatch("The durable draft claim changed");
   const expectedHeadSha = claim.headSha;
 
   const observation = (status: "ambiguous" | "blocked", reason?: string) => ({
@@ -621,7 +884,7 @@ async function publishCandidate(db: IntakeContext["db"], source: Awaited<ReturnT
     const latest = await savedReview(db, runId);
     if (latest?.candidate) return { candidate: await currentCandidate(api, latest, pins), summary: proof.summary };
     if (latest?.draftObservation?.status === "blocked") throw phaseMismatch(String(latest.draftObservation.reason));
-    throw unconfirmed("The Forgejo draft observation changed during reconciliation");
+    throw unconfirmed("The draft observation changed during reconciliation");
   } catch (error) {
     if (error instanceof PhaseMismatch)
       await saveObservation(observation("blocked", (await error.clone().text()).slice(0, 512)));
@@ -633,11 +896,11 @@ async function reconcileReview(api: ReviewRepository, candidate: Candidate, pins
   const items = z.array(z.object({
     id: number, html_url: z.url(), body: z.string().nullable(), commit_id: z.string(), state: z.string(),
     user: actor, dismissed: z.boolean().optional(), stale: z.boolean().optional(),
-  })).parse(await api.get(`/pulls/${candidate.number}/reviews?limit=50`));
+  })).parse(await api.get(`/pulls/${candidate.number}/reviews?${api.github ? "per_page=50" : "limit=50"}`));
   if (items.length >= 50) throw phaseMismatch("Review history exceeds the reconciliation limit");
   const owned = items.filter(item => item.user.id === pins.reviewerId && item.body?.includes(reviewMarker(claim.attemptId)));
   const current = owned[0];
-  const expected = claim.verdict === "approved" ? "APPROVED" : "REQUEST_CHANGES";
+  const expected = claim.verdict === "approved" ? "APPROVED" : api.github ? "CHANGES_REQUESTED" : "REQUEST_CHANGES";
   if (!current) throw unconfirmed("Formal review is unconfirmed at the pinned head");
   if (owned.length !== 1 || current.commit_id !== candidate.headSha || current.state !== expected ||
       current.dismissed || current.stale || new URL(current.html_url).origin !== pins.origin)
@@ -716,6 +979,7 @@ export async function finalizeIssueReview(host: WorkflowHost<"finalize">, db: In
 const model = z.string().trim().min(1).max(128);
 export const configureIssueReviewInput = z.strictObject({
   operation: z.literal("configure-issue-review"),
+  provider: reviewProvider.optional(),
   repository,
   repositoryId: number,
   reviewer: z.string().min(1).max(128),
@@ -724,23 +988,26 @@ export const configureIssueReviewInput = z.strictObject({
 });
 
 export async function configureIssueReview(host: WorkflowHost<"operator">, db: IntakeContext["db"], input: z.infer<typeof configureIssueReviewInput>) {
+  const provider = input.provider ?? "FORGEJO";
   const snapshot = await host.call("snapshot", {});
-  const connectionId = organizationConnection(snapshot, input.repository);
+  const connectionId = reviewConnection(snapshot, input.repository, provider);
   const repoMetadata = await repositoryMetadata(host, input, connectionId);
-  const key = await pairKey(snapshot.installation.id, repoMetadata.origin, repoMetadata.id);
+  if (provider === "GITHUB" && repoMetadata.origin !== "https://github.com") throw denied("Pinned GitHub origin unavailable");
+  const key = await pairKey(snapshot.installation.id, repoMetadata.origin, repoMetadata.id, provider);
   const prior = await selectedPair(db, key);
 
   const approve = async (role: Role, chosenModel: string) => {
-    const prompt = `You are the ${role} for a pinned Forgejo issue review. Read the assigned local checkout, check actual results and report evidence.`;
+    const forge = provider === "GITHUB" ? "GitHub" : "Forgejo";
+    const prompt = `You are the ${role} for a pinned ${forge} issue review. Read the assigned local checkout, check actual results and report evidence.`;
     return host.call("binding.approve", {
       workflowId: issueReviewWorkflow,
       actor: role,
-      label: role === "reviewer" ? input.reviewer : "Forgejo issue review implementer",
+      label: role === "reviewer" ? input.reviewer : `${forge} issue review implementer`,
       workspace: {
         repository: repoMetadata.name,
         resource: String(repoMetadata.id),
-        checkout: "forgejo-pinned",
-        connectionId,
+        checkout: provider === "GITHUB" ? "github-pinned" : "forgejo-pinned",
+        ...(provider === "FORGEJO" ? { connectionId } : {}),
         inferenceProvider: "spark",
         agentPermissions: { contents: "read", pull_requests: "read", issues: "read" },
         coordinatorPermissions: role === "implementer"
@@ -752,7 +1019,7 @@ export async function configureIssueReview(host: WorkflowHost<"operator">, db: I
         ] : [],
         settings: { policy: issueReviewWorkflow, role, ...(role === "reviewer" ? { reviewer: input.reviewer } : {}) },
       },
-      context: { model: chosenModel, profile: { id: `foundry-forgejo-${role}`,
+      context: { model: chosenModel, profile: { id: `foundry-${provider.toLowerCase()}-${role}`,
         digest: await sha256Hex(prompt), systemPrompt: prompt }, capabilities: [] },
     });
   };
@@ -760,11 +1027,11 @@ export async function configureIssueReview(host: WorkflowHost<"operator">, db: I
   const reviewer = await approve("reviewer", input.reviewerModel);
   const currentSnapshot = await host.call("snapshot", {});
   if (currentSnapshot.installation.id !== snapshot.installation.id ||
-      organizationConnection(currentSnapshot, input.repository) !== connectionId ||
+      reviewConnection(currentSnapshot, input.repository, provider) !== connectionId ||
       (await repositoryMetadata(host, input, connectionId)).origin !== repoMetadata.origin)
-    throw denied("The Forgejo repository scope changed during configuration");
+    throw denied("The repository scope changed during configuration");
   const selection = { implementer: implementer.id, reviewer: reviewer.id, reviewerName: input.reviewer };
-  const { worker, reviewerId } = await verifyPair(host, currentSnapshot, input, connectionId, selection);
+  const { worker, reviewerId } = await verifyPair(host, currentSnapshot, { ...input, provider }, connectionId, selection);
   const pair = { ...selection, reviewerId, workerId: worker.appId, connectionId };
   const same = (existing: Pair | undefined) => existing && Object.entries(pair).every(
     ([field, value]) => existing[field as keyof Pair] === value);
@@ -775,9 +1042,9 @@ export async function configureIssueReview(host: WorkflowHost<"operator">, db: I
         .where(and(eq(forgejoIssueReviewBindings.key, key), eq(forgejoIssueReviewBindings.revision, prior.revision))).returning()
       : await db().insert(forgejoIssueReviewBindings).values({ ...pair, key, revision }).onConflictDoNothing().returning();
     if (!saved && !same(await selectedPair(db, key)))
-      throw conflict("The Forgejo actor pair changed during configuration");
+      throw conflict("The actor pair changed during configuration");
   } else if (!same(await selectedPair(db, key))) {
-    throw conflict("The Forgejo actor pair changed during configuration");
+    throw conflict("The actor pair changed during configuration");
   }
   return { workflow: issueReviewWorkflow, repository: repoMetadata.name, implementer: implementer.id, reviewer: reviewer.id };
 }

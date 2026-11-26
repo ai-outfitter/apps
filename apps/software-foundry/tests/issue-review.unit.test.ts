@@ -8,7 +8,8 @@ import { prepareResult, type PhaseInput, type WorkflowHost } from "@ai-outfitter
 import { documents } from "../src/server/documents";
 import type { IntakeContext } from "../src/server/intake";
 import {
-  configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, reviewForgejoIssue, reviewForgejoIssueInput,
+  configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, readIssueReview,
+  recoverIssueReview, reviewForgejoIssue, reviewIssuePins, reviewIssueInput,
 } from "../src/server/workspace/issue-review";
 
 const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
@@ -31,6 +32,7 @@ function fixture(t: TestContext) {
   sqlite.exec(readFileSync(new URL("../migrations/0011_foundry_forgejo_commit_proof.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../migrations/0012_foundry_forgejo_review_selection.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../migrations/0013_foundry_forgejo_dispatch.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../migrations/0014_foundry_forgejo_issue_recovery.sql", import.meta.url), "utf8"));
   const key = createHash("sha256").update(JSON.stringify(["installation", origin, pin.repositoryId])).digest("hex");
   sqlite.prepare(`INSERT INTO foundry_forgejo_issue_review_bindings
     (key, revision, connectionId, implementer, reviewer, reviewerName, reviewerId, workerId)
@@ -55,6 +57,7 @@ function fixture(t: TestContext) {
   const bindings = new Map<string, string>([["implementer", "implementer"], ["reviewer", "reviewer"]]);
   let intercept: ((operation: string, input: Record<string, any>) => Promise<void> | void) | undefined;
   const runs = new Map<string, Record<string, unknown>>();
+  const failedRuns = new Map<string, Record<string, unknown>[]>();
   const author = () => ({ id: state.reviewer, login: "independent" });
   const missing = () => new Response("Missing", { status: 404 });
   const lost = () => new Response("Receipt unavailable", { status: 502 });
@@ -86,7 +89,11 @@ function fixture(t: TestContext) {
           assert.ok(bindings.has(input.bindingId));
           return { ...repo, repositoryId: state.repoId, connectionId: state.connectionId };
         case "workflow.read":
-          return runs.has(input.id) ? { run: { workflowId: issueReviewWorkflow, status: "running" }, inputs: runs.get(input.id) } : null;
+          return runs.has(input.id) ? {
+            run: { id: input.id, createdBy: "editor", workflowId: issueReviewWorkflow,
+              status: failedRuns.has(input.id) ? "failed" : "running" },
+            inputs: runs.get(input.id), outputs: {}, attempts: failedRuns.get(input.id) ?? [],
+          } : null;
         case "workflow.start": {
           const created = !runs.has(input.id);
           if (created) {
@@ -192,6 +199,7 @@ function fixture(t: TestContext) {
   }
   return {
     state, calls, context, db, phase,
+    failedRuns,
     intercept: (callback: typeof intercept) => { intercept = callback; },
     claim: () => sqlite.prepare("SELECT branchClaim, commitClaim, commitProof FROM foundry_forgejo_issue_reviews WHERE runId=?").get(state.runId),
     selection: () => sqlite.prepare("SELECT implementer, reviewer FROM foundry_forgejo_issue_review_bindings WHERE key=?").get(key),
@@ -207,9 +215,67 @@ function fixture(t: TestContext) {
 
 const refused = (status: number) => (error: unknown) => error instanceof Response && error.status === status;
 
+test("both providers use the same review command and recovery accepts only an original run ID", () => {
+  for (const provider of ["GITHUB", "FORGEJO"]) {
+    assert.equal(reviewIssueInput.safeParse({ input: { action: "START", provider, ...pin } }).success, true);
+    assert.equal(reviewIssueInput.safeParse({ input: { action: "START", provider, ...pin, runId: crypto.randomUUID() } }).success, false);
+  }
+  const recovery = { action: "RECOVER", runId: crypto.randomUUID() };
+  assert.equal(reviewIssueInput.safeParse({ input: recovery }).success, true);
+  assert.equal(reviewIssueInput.safeParse({ input: { ...recovery, provider: "GITHUB" } }).success, false);
+  assert.equal(reviewIssueInput.safeParse({ input: { ...recovery, baseSha: pin.baseSha } }).success, false);
+});
+
+test("recovers one retained initialization failure after a lost start receipt without clearing history", async t => {
+  const f = fixture(t);
+  const admitted = await f.start();
+  const { id } = admitted.run;
+  const attempt = { id: crypto.randomUUID(), nodeId: "implement", state: "failed",
+    failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: id } };
+  f.failedRuns.set(id, [attempt]);
+  assert.equal((await readIssueReview(f.context, id)).recovery, null);
+  f.state.granted = false;
+  await assert.rejects(recoverIssueReview(f.context, id), refused(403));
+  f.state.granted = true;
+  f.state.loseStart = true;
+  await assert.rejects(recoverIssueReview(f.context, id), refused(502));
+  const recovered = await readIssueReview(f.context, id);
+  assert.deepEqual(recovered.original, { id, status: "failed", attempts: [attempt] });
+  assert.equal(recovered.recovery?.status, "running");
+  assert.notEqual(recovered.recovery?.id, id);
+  assert.deepEqual(recovered.target, admitted.target);
+  f.state.granted = false;
+  assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => recoverIssueReview(f.context, id))),
+    [recovered, recovered, recovered]);
+  assert.deepEqual(f.writes(), []);
+});
+
+test("refuses recovery without checkout failure proof or when source and native observations disagree", async t => {
+  const f = fixture(t);
+  const { run: { id } } = await f.start();
+  const attempt = { id: crypto.randomUUID(), nodeId: "implement", state: "failed",
+    failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: id } };
+  const recover = () => recoverIssueReview(f.context, id);
+  f.failedRuns.set(id, [{ ...attempt, failure: "Workspace execution failed" }]);
+  await assert.rejects(recover(), refused(409));
+  f.failedRuns.set(id, [attempt]);
+  f.state.baseSha = commit;
+  await assert.rejects(recover(), refused(409));
+  f.state.baseSha = pin.baseSha;
+  f.state.branch = (f.state.inputs["implement.inputs.target"] as { branch: string }).branch;
+  f.state.head = pin.baseSha;
+  await assert.rejects(recover(), refused(409));
+  f.state.head = null;
+  f.state.pull = { head: { ref: f.state.branch, repo: null }, body: null };
+  await assert.rejects(recover(), refused(409));
+  assert.equal((await readIssueReview(f.context, id)).recovery, null);
+  assert.equal(f.calls.filter(call => call.operation === "workflow.start").length, 1);
+  assert.deepEqual(f.writes(), []);
+});
+
 test("publishes the authenticated document and approves only its two pinned roles", async t => {
   assert.match(JSON.stringify(documents), /ReviewForgejoIssue/);
-  assert.equal(reviewForgejoIssueInput.safeParse({ ...pin, baseRef: "refs/heads/main" }).success, false);
+  assert.equal(reviewIssuePins.safeParse({ ...pin, baseRef: "refs/heads/main" }).success, false);
   const f = fixture(t);
   assert.deepEqual(await f.configure(), { workflow: issueReviewWorkflow, repository: pin.repository,
     implementer: "implementer", reviewer: "reviewer" });

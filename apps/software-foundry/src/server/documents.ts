@@ -5,9 +5,11 @@ import { batchGroups } from "./batch-groups";
 // do not publish agent capabilities.
 import { defineDocuments, publishDocuments } from "@ai-outfitter/app-sdk/app-documents";
 import { documentRunner } from "@ai-outfitter/app-sdk/app-graphql";
+import { z } from "zod";
 import { graphql } from "../../graph/graphql";
 import { graphqlSchema } from "./graphql";
 import type { IntakeContext } from "./intake";
+import { reviewIssueInput } from "./workspace/issue-review";
 
 const legacyDocuments = defineDocuments({
   PlanWork: {
@@ -16,8 +18,18 @@ const legacyDocuments = defineDocuments({
     document: `mutation PlanWork($input:PlanWorkInput!){planWork(input:$input)}`,
   },
   ReviewForgejoIssue: {
+    hidden: true,
     story: "As an organization editor, I want an existing Forgejo issue implemented and independently reviewed against a pinned base, so that I can assess the change before landing.",
     document: `mutation ReviewForgejoIssue($input:ReviewForgejoIssueInput!){reviewForgejoIssue(input:$input)}`,
+  },
+  ReviewIssue: {
+    story: "As an organization editor, I want to start or recover a review of an existing issue at a pinned base, so that I can assess an independently reviewed draft.",
+    document: `mutation ReviewIssue($input: ReviewIssueInput!) { reviewIssue(input: $input) }`,
+    inputSchema: z.toJSONSchema(reviewIssueInput, { io: "input" }),
+  },
+  IssueReview: {
+    story: "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    document: `query IssueReview($runId: ID!) { issueReview(runId: $runId) }`,
   },
   FoundryPlan: {
     story: "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
@@ -52,7 +64,8 @@ const legacyDocuments = defineDocuments({
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
   PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Replay the same request ID and inputs as the original requester to recover a verified prepublication failure once. An uncertain publication is reconciled by its original marker. This does not start implementation."},
-  ReviewForgejoIssue:{description:"Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeat the same inputs for status, retained receipts, or a blocked draft observation. A different base conflicts with the existing run."},
+  ReviewIssue:{description:"START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. It keeps the same issue, exact base and approved actors. Repeating a command returns the same lineage. Use IssueReview to read progress and the local draft and formal review."},
+  IssueReview:{description:"Read an issue review using the original ReviewIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."},
   FoundryPlan:{description:"Read the retained planning artifact, scoped citations, current run and issue receipt, or classified failure and retry history by requestId. Legacy history records member-level attribution; the historical OAuth client was unavailable."},
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {

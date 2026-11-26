@@ -1,0 +1,539 @@
+{
+  "appsCommit": "430d03eb9dc9cfa357c39972f51fbd02c90cf27b",
+  "harnessCommit": "1db88984ad068f093432be14d2734f87ea70bb58",
+  "image": {
+    "id": "24d05ea25773ad5139e90e9fa35cf2256f1405d350235a349a8743ae5f92843f",
+    "webappTree": "29c0707ba8071f683863533ce40f3ec1ec59bbab",
+    "baseBoxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7",
+    "webappCommit": "dac7bddb3ccdb55ef13de849c6c04c73369ff513"
+  },
+  "appsTree": "64b9445ad5aebe154b76647dc5b3f8504d6306cc",
+  "packageSha256": {
+    "software-foundry.operational.json": "9a8049bbcd7ff4163f69192beb952855893f2548fbd6a3970bf99d00e4bd402b",
+    "schema.graphql": "bd5919ef81746bbeff9110bb0ceafafa739eec5a5385c733d086db16e97214fb",
+    "documents.json": "77c970175471a5ccb5c542e1feb09256a4890e4115145b2cac9ccbc05016b2a5",
+    "apps-tree.txt": "cdcf0ab3490e5057df94f5c77904132a70c923f270063a6521e82bd170d07319"
+  },
+  "expected": {
+    "happy": "Shared START dispatches one Forgejo review and records the exact-head draft and independent review.",
+    "recovery-lost": "One linked child and one native open unmerged draft with exactly one independent review at the pinned candidate SHA. Original run, issue and base preserved.",
+    "recovery-unknown": "Native unreceipted original branch blocks retry. No child, candidate, model call or provider publication.",
+    "github-happy": "Shared START creates one open draft and one independent exact-head review with the authorized GitHub fixture.",
+    "github-recovery": "Shared RECOVER completes one linked child and leaves one open draft and one independent exact-head review."
+  },
+  "actual": {
+    "recovery-lost": {
+      "startedAt": "2026-11-26T17:30:44.996Z",
+      "finishedAt": "2026-11-26T17:31:11.761Z",
+      "outcome": "pass",
+      "documents": [
+        "ReviewIssue",
+        "IssueReview"
+      ],
+      "providerDispatch": {
+        "forgejoStartReplayedOriginal": true,
+        "forgejoConflictingRefRefused": true,
+        "githubStartRefusedWithoutGrant": true
+      },
+      "legacy": {
+        "run": {
+          "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "workflowId": "foundry-forgejo-issue-review",
+          "status": "failed"
+        },
+        "attempt": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "nodeId": "implement",
+          "bindingId": "c07d36c9-e0b6-4d85-bce6-2e3fd05eca6e",
+          "state": "failed",
+          "outputHash": null
+        },
+        "failure": {
+          "message": "Pinned checkout could not initialize.",
+          "sessionArtifact": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "runId": "461f5c24-2478-50a1-a371-10c3288a1f1d"
+          }
+        },
+        "migration": {
+          "previous": "0013_foundry_forgejo_dispatch",
+          "applied": "0014_foundry_forgejo_issue_recovery",
+          "originalRowPreserved": true,
+          "uniqueOriginalAndChild": true,
+          "recoveryOf": null,
+          "cutoff": "rev2 failed pre-agent checkout"
+        }
+      },
+      "refusals": [
+        {
+          "scenario": "wrong-tenant",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unknown-run",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "read-only-member",
+          "progressRefused": false,
+          "recoveryRefused": true
+        }
+      ],
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "repository": {
+        "id": 1,
+        "issue": 7
+      },
+      "initialRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalRefs": {
+        "outfitter-review-2b0775a8-b083-5275-a0aa-9406236a91ce": "bdb008714954bbe7d925a4ddd8abb37ff047eb4d",
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueUnchanged": true,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-2b0775a8-b083-5275-a0aa-9406236a91ce",
+          "head": "bdb008714954bbe7d925a4ddd8abb37ff047eb4d",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "bdb008714954bbe7d925a4ddd8abb37ff047eb4d",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "progressReadOnly": {
+        "concurrentQueries": 3,
+        "appAndHostUnchanged": true,
+        "nativeWritesAdded": 0
+      },
+      "checkoutEvidence": [
+        {
+          "actor": "implement",
+          "attemptId": "134e1561-16fa-4bbb-a8f8-7f4758c9df2a",
+          "runId": "2b0775a8-b083-5275-a0aa-9406236a91ce",
+          "checkout": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+        },
+        {
+          "actor": "review",
+          "attemptId": "5fb064dd-1ad2-42a1-84e8-690799cfbcf2",
+          "runId": "2b0775a8-b083-5275-a0aa-9406236a91ce",
+          "checkout": "bdb008714954bbe7d925a4ddd8abb37ff047eb4d"
+        }
+      ],
+      "replay": [
+        "2b0775a8-b083-5275-a0aa-9406236a91ce",
+        "2b0775a8-b083-5275-a0aa-9406236a91ce",
+        "2b0775a8-b083-5275-a0aa-9406236a91ce",
+        "2b0775a8-b083-5275-a0aa-9406236a91ce"
+      ],
+      "mcpAcceptedReplyDiscarded": true,
+      "discardedReplyRecoveryId": "2b0775a8-b083-5275-a0aa-9406236a91ce",
+      "lossOfNativeWriteResponses": [
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/branches",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/contents",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls",
+          "status": 201,
+          "dropped": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/repos/box/review-fixture/pulls/8/reviews",
+          "status": 200,
+          "dropped": true
+        }
+      ],
+      "journalSha256": "952297874374bbc4567a851fe8d96187a2efe2dbf5173abf6b327edee27f3a63",
+      "linkage": {
+        "original": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "originalStatus": "failed",
+        "recovery": "2b0775a8-b083-5275-a0aa-9406236a91ce",
+        "recoveryStatus": "complete"
+      }
+    },
+    "recovery-unknown": {
+      "startedAt": "2026-11-26T17:30:44.864Z",
+      "finishedAt": "2026-11-26T17:30:56.682Z",
+      "outcome": "pass",
+      "documents": [
+        "ReviewIssue",
+        "IssueReview"
+      ],
+      "providerDispatch": {
+        "forgejoStartReplayedOriginal": true,
+        "forgejoConflictingRefRefused": true,
+        "githubStartRefusedWithoutGrant": true
+      },
+      "legacy": {
+        "run": {
+          "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "workflowId": "foundry-forgejo-issue-review",
+          "status": "failed"
+        },
+        "attempt": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "nodeId": "implement",
+          "bindingId": "f9425f7f-a15b-41fb-a156-dc4cc0f86fd2",
+          "state": "failed",
+          "outputHash": null
+        },
+        "failure": {
+          "message": "Pinned checkout could not initialize.",
+          "sessionArtifact": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "runId": "461f5c24-2478-50a1-a371-10c3288a1f1d"
+          }
+        },
+        "migration": {
+          "previous": "0013_foundry_forgejo_dispatch",
+          "applied": "0014_foundry_forgejo_issue_recovery",
+          "originalRowPreserved": true,
+          "uniqueOriginalAndChild": true,
+          "recoveryOf": null,
+          "cutoff": "rev2 failed pre-agent checkout"
+        }
+      },
+      "refusals": [
+        {
+          "scenario": "wrong-tenant",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unknown-run",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "read-only-member",
+          "progressRefused": false,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unreceipted-old-branch",
+          "recoveryRefused": true
+        }
+      ],
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "repository": {
+        "id": 1,
+        "issue": 7
+      },
+      "initialRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueUnchanged": true,
+      "pulls": [],
+      "progressReadOnly": null,
+      "checkoutEvidence": [],
+      "replay": [],
+      "mcpAcceptedReplyDiscarded": false,
+      "discardedReplyRecoveryId": null,
+      "lossOfNativeWriteResponses": [],
+      "journalSha256": "83845d4d3e65c803d6cd04aad6480efe5d5955b9fabccaa5c80a67e09dc5bebd"
+    },
+    "happy": {
+      "startedAt": "2026-11-26T17:30:44.929Z",
+      "finishedAt": "2026-11-26T17:31:10.553Z",
+      "outcome": "pass",
+      "document": "ReviewIssue",
+      "action": "START",
+      "settled": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "main",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "head": "e199e5b67e29e9dd74a62816e67c9fc656c1a7c1",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "e199e5b67e29e9dd74a62816e67c9fc656c1a7c1",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "issueUnchanged": true,
+      "journalSha256": "53517b0c1493e01a1910e3b45ccfde4981ef898c0f48fa133a63b0f897f23238"
+    },
+    "github-happy": {
+      "startedAt": "2026-11-26T17:32:20.720Z",
+      "finishedAt": "2026-11-26T17:32:55.494Z",
+      "outcome": "pass",
+      "documents": [
+        "ReviewIssue",
+        "IssueReview"
+      ],
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "legacy": null,
+      "original": {
+        "id": "7a5cef9b-1958-5bef-aaa8-1c774c69fb98",
+        "status": "complete"
+      },
+      "recovery": null,
+      "repository": {
+        "id": 1,
+        "issue": 7
+      },
+      "initialRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalRefs": {
+        "outfitter-review-7a5cef9b-1958-5bef-aaa8-1c774c69fb98": "7bd90bc5ff2ec9925121d5b83fea2146cbbe128a",
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueUnchanged": true,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-7a5cef9b-1958-5bef-aaa8-1c774c69fb98",
+          "head": "7bd90bc5ff2ec9925121d5b83fea2146cbbe128a",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "7bd90bc5ff2ec9925121d5b83fea2146cbbe128a",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "git": {
+        "head": "7bd90bc5ff2ec9925121d5b83fea2146cbbe128a",
+        "parents": [
+          "097e3f64847a1b428403cd5f628c46cc71a74c40"
+        ],
+        "files": [
+          "README.md"
+        ]
+      },
+      "fixtureWrites": [
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/git/refs",
+          "actor": "installation",
+          "status": 201,
+          "effect": "branch"
+        },
+        {
+          "method": "POST",
+          "path": "/graphql",
+          "actor": "installation",
+          "status": 200,
+          "effect": "commit"
+        },
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/pulls",
+          "actor": "installation",
+          "status": 201,
+          "effect": "draft"
+        },
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/pulls/8/reviews",
+          "actor": "reviewer",
+          "status": 200,
+          "effect": "review",
+          "head": "7bd90bc5ff2ec9925121d5b83fea2146cbbe128a"
+        }
+      ],
+      "privateReportSha256": "1da27b4adf6c2e6e077756278a81ff05888b93925874ee7beb6e762b09a98eb7"
+    },
+    "github-recovery": {
+      "startedAt": "2026-11-26T17:32:20.732Z",
+      "finishedAt": "2026-11-26T17:32:56.984Z",
+      "outcome": "pass",
+      "documents": [
+        "ReviewIssue",
+        "IssueReview"
+      ],
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "legacy": {
+        "previous": "0013_foundry_forgejo_dispatch",
+        "applied": "0014_foundry_forgejo_issue_recovery",
+        "originalRowPreserved": true,
+        "uniqueOriginalAndChild": true,
+        "recoveryOf": null,
+        "cutoff": "rev2 failed pre-agent checkout"
+      },
+      "original": {
+        "id": "7a5cef9b-1958-5bef-aaa8-1c774c69fb98",
+        "status": "failed"
+      },
+      "recovery": {
+        "id": "12dc7ab8-aa58-5d0e-a172-fced517bff4f",
+        "status": "complete"
+      },
+      "repository": {
+        "id": 1,
+        "issue": 7
+      },
+      "initialRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalRefs": {
+        "outfitter-review-12dc7ab8-aa58-5d0e-a172-fced517bff4f": "2b798475aff8fbf09290ff0beb7cab5085347a72",
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueUnchanged": true,
+      "pulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-12dc7ab8-aa58-5d0e-a172-fced517bff4f",
+          "head": "2b798475aff8fbf09290ff0beb7cab5085347a72",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "2b798475aff8fbf09290ff0beb7cab5085347a72",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "git": {
+        "head": "2b798475aff8fbf09290ff0beb7cab5085347a72",
+        "parents": [
+          "097e3f64847a1b428403cd5f628c46cc71a74c40"
+        ],
+        "files": [
+          "README.md"
+        ]
+      },
+      "fixtureWrites": [
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/git/refs",
+          "actor": "installation",
+          "status": 201,
+          "effect": "branch"
+        },
+        {
+          "method": "POST",
+          "path": "/graphql",
+          "actor": "installation",
+          "status": 200,
+          "effect": "commit"
+        },
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/pulls",
+          "actor": "installation",
+          "status": 201,
+          "effect": "draft"
+        },
+        {
+          "method": "POST",
+          "path": "/repos/box/review-fixture/pulls/8/reviews",
+          "actor": "reviewer",
+          "status": 200,
+          "effect": "review",
+          "head": "2b798475aff8fbf09290ff0beb7cab5085347a72"
+        }
+      ],
+      "privateReportSha256": "4198233c282ec8241dfbc735193e09423934afc2100cdb1eea113df438faf8cf"
+    }
+  },
+  "githubHarnessCommit": "2e417de59ca8b2e178be1cc610f7793224b09e75",
+  "evidenceModes": {
+    "forgejo": "Native Forgejo Git and REST, installed OAuth MCP, model protocol fixture",
+    "github": "GitHub REST/GraphQL and credentials fixture, real Git repository, installed OAuth MCP, model protocol fixture"
+  },
+  "reviewDocument": {
+    "name": "ReviewIssue",
+    "hash": "87cae3836f8ce0ea9a8d8a5aea0089a3e60dd905cf11ae330e729ab5fdfb441b"
+  }
+}

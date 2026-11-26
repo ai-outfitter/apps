@@ -5,6 +5,9 @@ import { createServer } from "node:http";
 import { relay } from "./relay.mjs";
 import { provider } from "./provider.mjs";
 import { decoy, resolve } from "./resolution.mjs";
+import { githubFixture } from "./github-fixture.mjs";
+
+const github = process.env.FOUNDRY_REVIEW_CASE?.startsWith("github-");
 
 const generated = "/app/src/generated/apps";
 const app = "software-foundry";
@@ -17,7 +20,8 @@ for (const [index, name] of [["graph-schemas.json", "schema.graphql"], ["graph-d
   writeFileSync(path, JSON.stringify(all));
 }
 
-const servers = [[relay, 3300], [provider, 3303], [decoy, 3304], [resolve, 3305]].map(([handler, port]) => {
+const servers = [[relay, 3300], [provider, 3303], [decoy, 3304], [resolve, 3305],
+  ...(github ? [[githubFixture, 3306]] : [])].map(([handler, port]) => {
   const server = createServer((req, res) => {
     Promise.resolve(handler(req, res)).catch(() => {
       if (!res.headersSent) res.writeHead(502).end();
@@ -36,6 +40,7 @@ const isolatedRuntime = readFileSync("/opt/workspace/server.mjs", "utf8").includ
 const authorityRoute = existsSync("/app/src/pages/api/internal/workspace-review-authority.ts");
 const nodeOptions = [
   isolatedRuntime && "--disable-sigusr1",
+  github && "--import=/eval/github-fetch.mjs",
   authorityRoute && "--import=/eval/authority-observer.mjs",
 ].filter(Boolean).join(" ");
 const child = spawn(process.execPath, ["/app/.box/box/supervisor.mjs"], {
@@ -46,6 +51,7 @@ const child = spawn(process.execPath, ["/app/.box/box/supervisor.mjs"], {
     SPARK_AUTHORIZATION: "Bearer isolated-box", AI_MODEL: "GLM-5.3-Flash-EXL3",
     OPENAI_API_KEY: "fixture-decoy-unused", OPENAI_BASE_URL: "http://127.0.0.1:3304/v1",
     WORKSPACE_RESOLVE_URL: "http://127.0.0.1:3305/resolve",
+    ...(github ? { BOX_DEBUG_HOST: "1" } : {}),
     BOX_REPO_NAME: "review-fixture", BOX_DRIVER: "/eval/driver.mjs", BOX_EXIT_WHEN_DONE: "1",
     PATH: `/eval/bin:${process.env.PATH}`,
   },

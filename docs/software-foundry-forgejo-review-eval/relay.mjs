@@ -51,7 +51,10 @@ export async function relay(incoming, outgoing) {
   const setup = !existsSync("/out/fixture-ready") && (
     method === "POST" && (path === "/api/v1/orgs" || path === "/api/v1/orgs/box/repos") ||
     method === "PUT" && /^\/api\/v1\/repos\/box\/(?:review-fixture|grant-a|grant-b|grant-c|grant-d)\/collaborators\/(outfitter|reviewer)$/.test(path) ||
-    method === "PATCH" && path === "/api/v1/repos/box/review-fixture"
+    method === "PATCH" && path === "/api/v1/repos/box/review-fixture" ||
+    method === "DELETE" && path === "/api/v1/repos/box/review-fixture/collaborators/reviewer" ||
+    method === "POST" && path === "/api/v1/orgs/box/teams" ||
+    method === "PUT" && /^\/api\/v1\/teams\/\d+\/(?:repos\/box\/review-fixture|members\/reviewer)$/.test(path)
   );
   const coordinator = method === "POST" && /^\/api\/v1\/repos\/box\/review-fixture\/(?:branches|contents)$/.test(path);
   const allowed = read || open || review || git || setup || coordinator;

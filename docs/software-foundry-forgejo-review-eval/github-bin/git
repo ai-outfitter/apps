@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+const { spawnSync } = require("node:child_process");
+const { appendFileSync, readFileSync } = require("node:fs");
+
+const args = process.argv.slice(2);
+const remote = "https://github.com/box/review-fixture.git";
+const remoteArg = args.indexOf(remote);
+const env = { ...process.env };
+if (remoteArg >= 0) {
+  if (!args.includes("fetch") || env.GIT_CONFIG_KEY_0 !== `http.${remote}.extraHeader` ||
+      !env.GIT_CONFIG_VALUE_0?.startsWith("Authorization: Basic ")) process.exit(61);
+  const basic = Buffer.from(env.GIT_CONFIG_VALUE_0.slice("Authorization: Basic ".length), "base64").toString();
+  const match = /^x-access-token:(ghs_fixture_\d+)$/.exec(basic);
+  const tokens = readFileSync("/box/github-fixture-tokens.jsonl", "utf8").trim().split("\n").map(JSON.parse);
+  if (!match || tokens.find(({ token }) => token === match[1])?.grants.contents !== "read") process.exit(62);
+  args[remoteArg] = "http://127.0.0.1:3300/box/review-fixture.git";
+  env.GIT_CONFIG_KEY_0 = `http.${args[remoteArg]}.extraHeader`;
+  const readToken = readFileSync("/box/secrets/forgejo-reviewer-token", "utf8").trim();
+  env.GIT_CONFIG_VALUE_0 = "Authorization: Basic " + Buffer.from(`reviewer:${readToken}`).toString("base64");
+  const pins = args.slice(remoteArg + 1);
+  if (!pins.length || !pins.every(pin => /^[a-f0-9]{40}:refs\//.test(pin))) process.exit(63);
+  appendFileSync("/out/github-git.jsonl", JSON.stringify({ operation: "fetch", pins }) + "\n");
+}
+const result = spawnSync("/usr/bin/git", args, { env, stdio: "inherit" });
+process.exit(result.status ?? 64);

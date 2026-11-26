@@ -7,9 +7,10 @@ import { join } from "node:path";
 import { callTool } from "/planwork/mcp.mjs";
 import { inspectCandidate, inventory, issue, pushFixtureCommit } from "./fixture.mjs";
 import { sessionRequest, waitFor } from "./grants.mjs";
+import { exerciseRecovery } from "./recovery.mjs";
+import { exerciseGitHub } from "./github-eval.mjs";
 
 const app = "software-foundry";
-const document = "ReviewForgejoIssue";
 const workflowId = "foundry-forgejo-issue-review";
 const moved = "# Synthetic lamp\n\nSynthetic concurrent change.\n";
 const model = "GLM-5.3-Flash-EXL3";
@@ -105,7 +106,11 @@ export async function exerciseInstalled(context) {
         if (!controller.signal.aborted) box.log(`Eval workflow tick failed (${error.message})`);
       }).finally(() => { tick = undefined; });
     }, 1_000);
-    await runCase(context);
+    if (context.report.case.startsWith("github-")) {
+      await exerciseGitHub(context, workflowId, model, gradeResolution);
+    } else {
+      await runCase(context);
+    }
   } finally {
     clearInterval(interval);
     controller.abort();
@@ -135,18 +140,23 @@ async function runCase({ box, db, auth, root, cookie, mcp, report }) {
   const runs = () => runRows(db, report.installation.id);
   assert.deepEqual(runs(), [], "Nothing has dispatched before MCP admission");
   const out = name => join(box.out, name);
+  const document = report.discovered;
+  const shared = document === "ReviewIssue";
   const invoke = (input = pin, scope = "box", signal) => callTool(mcp, "graph_mutate",
-    { scope, app, document, variables: { input } }, signal);
+    { scope, app, document, variables: { input: shared ? { action: "START", provider: "FORGEJO", ...input } : input } }, signal);
   async function refuse(name, input, scope) {
     const response = await invoke(input, scope);
     assert.equal(response.refused, true, `${name} must be refused`);
     assert.ok(!response.value?.data?.reviewForgejoIssue?.run?.id);
+    assert.ok(!response.value?.data?.reviewIssue?.original?.id);
     return { case: name, refused: true, result: response.text.slice(0, 300) };
   }
   async function submit() {
     const response = await invoke();
     assert.equal(response.refused, false, response.text);
-    const receipt = response.value?.data?.reviewForgejoIssue;
+    const result = response.value?.data?.[shared ? "reviewIssue" : "reviewForgejoIssue"];
+    if (shared) assert.equal(result?.provider, "FORGEJO");
+    const receipt = shared ? { ...result, run: { ...result?.original, workflow: workflowId } } : result;
     assert.ok(receipt?.run?.id, "Installed mutation returns a run ID");
     assert.equal(receipt.run.workflow, workflowId);
     assert.deepEqual(receipt.target, pin);
@@ -155,7 +165,7 @@ async function runCase({ box, db, auth, root, cookie, mcp, report }) {
   const provider = () => inventory(auth.admin);
   const settle = id => waitFor(() => runs().find(row =>
     row.id === id && terminal(row.status)), "workflow settlement",
-    ["draft-read-refusal", "race-lost", "review-not-sent", "authority-retry"].includes(report.case) ? 270_000 : 150_000);
+    ["draft-read-refusal", "race-lost", "review-not-sent", "authority-retry", "recovery-lost"].includes(report.case) ? 270_000 : 150_000);
   if (report.case === "refusal") {
     report.refusals = [];
     for (const [name, input, scope] of [
@@ -175,6 +185,10 @@ async function runCase({ box, db, auth, root, cookie, mcp, report }) {
 
   writeFileSync(out("provider-context.json"), JSON.stringify({ database: box.databases.platform,
     installationId: report.installation.id, workflowId, pin }));
+  if (report.case.startsWith("recovery-")) {
+    await exerciseRecovery({ box, db, auth, mcp, report, pin, workflowId, out, runs, settle, auditPull, gradeResolution });
+    return;
+  }
   if (report.case === "mixed-gateway") {
     const receipt = await submit();
     report.settled = await settle(receipt.run.id);
