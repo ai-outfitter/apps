@@ -65,6 +65,7 @@ export const workSubmissions = sqliteTable(
 );
 
 import { proposalTables } from "@ai-outfitter/app-sdk/proposal-tables";
+import { isNull } from "drizzle-orm";
 export const { proposals: actionProposals, guard: actionGuard } =
   proposalTables("software_foundry_proposals", "software_foundry_agent_guard");
 
@@ -101,9 +102,10 @@ export const foundryPlans = sqliteTable("foundry_plans", {
   message: text(),
 }, (t) => [uniqueIndex("foundry_plans_run_idx").on(t.runId)]);
 
-/** One review run and one publication claim for each installation's Forgejo issue. */
+/** One admission per issue, with at most one recovery linked to the original run. */
 export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", {
   runId: text().primaryKey(),
+  recoveryOf: text(),
   repositoryId: integer().notNull(),
   forgeOrigin: text().notNull(),
   issueNumber: integer().notNull(),
@@ -124,8 +126,11 @@ export const forgejoIssueReviews = sqliteTable("foundry_forgejo_issue_reviews", 
   candidate: text({ mode: "json" }).$type<Record<string, unknown>>(),
   reviewPublication: text({ mode: "json" }).$type<{ attemptId: string; verdict: string }>(),
   review: text({ mode: "json" }).$type<Record<string, unknown>>(),
-}, (row) => [uniqueIndex("foundry_forgejo_issue_review_target")
-  .on(row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber)]);
+}, (row) => [
+  uniqueIndex("foundry_forgejo_issue_review_target")
+    .on(row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber).where(isNull(row.recoveryOf)),
+  uniqueIndex("foundry_forgejo_issue_recovery").on(row.recoveryOf),
+]);
 
 
 /** The current operator-selected pair for new issues. Runs freeze their own pair. */

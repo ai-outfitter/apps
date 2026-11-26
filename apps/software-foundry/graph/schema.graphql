@@ -342,6 +342,11 @@ type Query {
   """
   changes(since: DateTime!, until: DateTime, repositories: [String!]): ChangeList!
 
+  """
+  Read the original Forgejo issue review, recovery progress, draft and formal review.
+  """
+  forgejoIssueReview(runId: ID!): JSON!
+
   """Read your stored plan with its run, exact sources and issue receipt."""
   foundryPlan(input: FindFoundryPlanInput!): JSON
 
@@ -361,6 +366,11 @@ type Mutation {
   Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.
   """
   reviewForgejoIssue(input: ReviewForgejoIssueInput!): JSON
+
+  """
+  Recover one original Forgejo issue review after a verified pre-checkout failure.
+  """
+  recoverForgejoIssueReview(runId: ID!): JSON!
 
   """
   Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.

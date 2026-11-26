@@ -45,6 +45,36 @@
     "hidden": true
   },
   {
+    "name": "ForgejoIssueReview",
+    "kind": "query",
+    "story": "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    "query": "query ForgejoIssueReview($runId: ID!) {\n  forgejoIssueReview(runId: $runId)\n}",
+    "hash": "e0bdce09b9506e05dbd3760b266797528078f1bc5a2eb996eea25448a6f93b1e",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "runId"
+      ]
+    },
+    "mcp": {
+      "description": "Read a Forgejo issue review by its original ReviewForgejoIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "forgejoIssueReview": {
+          "description": "JSON"
+        }
+      }
+    }
+  },
+  {
     "name": "FoundryPlan",
     "kind": "query",
     "story": "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
@@ -441,6 +471,36 @@
       "required": []
     },
     "hidden": true
+  },
+  {
+    "name": "RecoverForgejoIssueReview",
+    "kind": "mutation",
+    "story": "As an original review initiator, I want to recover an existing Forgejo issue review after a verified checkout startup failure, so that Foundry can finish the review at the same base.",
+    "query": "mutation RecoverForgejoIssueReview($runId: ID!) {\n  recoverForgejoIssueReview(runId: $runId)\n}",
+    "hash": "553314d5ea3dc088cbbdc446a08ff61b3a2ef42bf5161bbd6f3493dc1cbf47ae",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "runId"
+      ]
+    },
+    "mcp": {
+      "description": "Recover a verified checkout initialization failure using the original ReviewForgejoIssue runId as the only variable. The original initiator can start one linked recovery under the current repository grant and the original issue, exact base, and approved actors. Replay returns the same recovery. Use ForgejoIssueReview to follow progress and get the local draft pull request and formal review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "recoverForgejoIssueReview": {
+          "description": "JSON"
+        }
+      }
+    }
   },
   {
     "name": "RepositoryChanges",

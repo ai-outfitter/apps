@@ -1,4 +1,4 @@
-import { reviewForgejoIssue, reviewForgejoIssueInput } from "./workspace/issue-review";
+import { readForgejoIssueReview, recoverForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput } from "./workspace/issue-review";
 import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
@@ -6,7 +6,7 @@ import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
 import { fieldError, mutationField, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
-import { DateTimeScalar } from "@ai-outfitter/app-sdk/graph-graphql";
+import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { inArray, sql } from "drizzle-orm";
 import {
@@ -143,6 +143,16 @@ const jobResult = new GraphQLObjectType({ name: "FoundryJobResult", description:
   run: { type: GraphQLID }, schedule: { type: GraphQLID }, enabled: { type: GraphQLBoolean },
 } });
 
+function issueReviewField(description: string, run: typeof readForgejoIssueReview): GraphQLFieldConfig<unknown, FoundryContext> {
+  return {
+    type: nonNull(JSONScalar), description, args: { runId: { type: nonNull(GraphQLID) } },
+    resolve: async (_source, { runId }, context) => {
+      try { return await run(context, runId); }
+      catch (error) { throw await fieldError(error); }
+    },
+  };
+}
+
 // Foundry's writes. graph.mutate admits editors (mutateAction's default). Variables travel
 // within the SDK's 32 KiB limit: Planning sends larger submissions (a frozen work package)
 // to the work.submit action.
@@ -153,6 +163,9 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
       name: "ReviewForgejoIssue", input: reviewForgejoIssueInput, run: reviewForgejoIssue,
       description: "Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.",
     }),
+    recoverForgejoIssueReview: issueReviewField(
+      "Recover one original Forgejo issue review after a verified pre-checkout failure.", recoverForgejoIssueReview,
+    ),
     planWork: mutationField<typeof planWorkInput, FoundryContext>({
       name: "PlanWork", input: planWorkInput, run: planWork,
       description: "Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.",
@@ -201,6 +214,9 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
  * the writes its documents (src/server/documents.ts) run. */
 const baseGraphqlSchema = new GraphQLSchema({
   query: new GraphQLObjectType({ name: "Query", fields: { ...work, ...projects, ...changes,
+    forgejoIssueReview: issueReviewField(
+      "Read the original Forgejo issue review, recovery progress, draft and formal review.", readForgejoIssueReview,
+    ),
     foundryPlan: mutationField<typeof findPlanInput, FoundryContext>({
       name: "FindFoundryPlan", input: findPlanInput, run: findPlan,
       description: "Read your stored plan with its run, exact sources and issue receipt.",
