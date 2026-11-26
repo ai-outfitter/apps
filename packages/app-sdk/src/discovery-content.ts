@@ -14,6 +14,7 @@ export const discoveryGrant = z.object({
   path: z.string().min(1).max(1024),
 });
 export const discoveryConnectInput = z.strictObject({ grantId: opaque });
+export const discoveryConnectOutput = z.strictObject({ status: z.enum(["ready", "partial", "unavailable", "no-grants"]) });
 
 const citation = {
   id: opaque,

@@ -92,20 +92,34 @@ export async function captureDailyBrief(db: Database, who: AppIdentity, host: Wo
   const previous = prior && !prior.archived ? { slug: previousSlug, revision: prior.revision } : null;
   const content = await discoverPersonalContent(db, who, host, { now, date: input.date, timezone: zone });
   const inputs = { content, date: input.date, timezone: zone, review, priorities: items.filter(item => item.status !== "done").slice(0, 30), work, appUpdates, role, discovery, previous, now };
-  const { evidence, gaps } = gatherEvidence(inputs);
-  const digest = await evidenceDigest(inputs, evidence, gaps);
-  if (current?.generatedBody.includes(digestMarker(digest))) return saved(current, "unchanged");
-  if (!evidence.length) throw new BriefGenerationFailed("No saved evidence was available to write a brief from. Nothing was saved.", 409);
-  const schema = answerSchema(evidence);
-  let generatedBody: string;
-  try {
-    // Private excerpts bypass retained inference checkpoints. The saved digest still deduplicates a completed brief.
-    const response = await host.call("inference.generate", { runId: input.runId, step: "collect", ...(content.items.length ? {} : { checkpointId: `brief.${digest}` }), instructions: briefInstructions, data: modelData(inputs, evidence, gaps), schema: z.record(z.string(), z.json()).parse(z.toJSONSchema(schema)) });
-    generatedBody = renderBrief(inputs, evidence, gaps, schema.parse(response.output), digest);
-  } catch (error) {
-    if (error instanceof z.ZodError) throw new BriefGenerationFailed("The model's answer cited sources outside the saved evidence or did not match the brief format. Nothing was saved.", 422);
-    throw new BriefGenerationFailed("The brief could not be written by the model. Nothing was saved; any earlier brief is unchanged.");
-  }
+  const draft = async (context: typeof inputs & { contentMetadataOnly?: boolean }, privateInput: boolean) => {
+    const { evidence, gaps } = gatherEvidence(context);
+    const digest = await evidenceDigest(context, evidence, gaps);
+    if (current?.generatedBody.includes(digestMarker(digest))) return { unchanged: saved(current, "unchanged") };
+    if (!evidence.length) throw new BriefGenerationFailed("No saved evidence was available to write a brief from. Nothing was saved.", 409);
+    const schema = answerSchema(evidence);
+    try {
+      const response = await host.call("inference.generate", {
+        runId: input.runId, step: "collect",
+        ...(privateInput ? { privateInput: true as const } : { checkpointId: `brief.${digest}` }),
+        instructions: briefInstructions, data: modelData(context, evidence, gaps),
+        schema: z.record(z.string(), z.json()).parse(z.toJSONSchema(schema)),
+      });
+      return { generatedBody: renderBrief(context, evidence, gaps, schema.parse(response.output), digest), evidence, gaps, digest };
+    } catch (error) {
+      if (privateInput && error instanceof Response && error.status === 412) throw error;
+      if (error instanceof z.ZodError) throw new BriefGenerationFailed("The model's answer cited sources outside the saved evidence or did not match the brief format. Nothing was saved.", 422);
+      throw new BriefGenerationFailed("The brief could not be written by the model. Nothing was saved; any earlier brief is unchanged.");
+    }
+  };
+  const result = await draft(inputs, content.items.length > 0).catch(error => {
+    if (!(error instanceof Response) || error.status !== 412) throw error;
+    // Exact citations stay in the rendered brief; neither file bodies nor their paths enter the fallback model.
+    const items = content.items.map(item => ({ ...item, excerpt: "A file changed at this source revision." }));
+    return draft({ ...inputs, content: { ...content, items }, contentMetadataOnly: true }, false);
+  });
+  if (result.unchanged) return result.unchanged;
+  const { generatedBody, evidence, gaps, digest } = result;
   if (!(await contentStillAuthorized(host, content)))
     throw new BriefGenerationFailed("A content source lost authorization while the brief was being written. Nothing was saved.", 409);
   const write = { ...(current ? { id: current.id, revision: current.revision } : { slug, title: `Daily brief — ${input.date}` }), generatedBody,

@@ -27,6 +27,7 @@ export type BriefInputs = {
   appUpdates?: AppUpdates;
   role: { role: { title: string | null; reasoning?: string } | null; status: string };
   content?: ContentDiscovery;
+  contentMetadataOnly?: boolean;
   discovery: { savedAt: string; suggestions: { title: string; why: string; kind: string }[] } | null;
   previous: { slug: string; revision: number } | null;
   now: number;
@@ -99,6 +100,7 @@ export function gatherEvidence(input: BriefInputs): { evidence: Evidence[]; gaps
       sourceRevision: item.revision, sourcePath: item.path,
     });
   }
+  if (input.contentMetadataOnly) gaps.push("Authorized content: the brief cites file changes only because you have no approved personal inference provider for excerpts.");
   if (input.content?.status === "partial") gaps.push("Authorized content: some sources were unavailable, had more changes to read, or exceeded the brief limit.");
   if (input.content?.status === "unavailable") gaps.push("Authorized content: access could not be verified for this brief.");
   if (input.content?.status === "no-grants") gaps.push("Authorized content: no sources were granted to Forerunner.");

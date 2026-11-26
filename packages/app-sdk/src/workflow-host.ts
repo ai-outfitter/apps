@@ -10,7 +10,7 @@ import { appActor, readJSON } from "./server";
 import { threadOperations } from "./threads";
 import { sessionEntry, workflowSession } from "./workflow-session";
 
-export { discoveryConnectInput, discoveryConnectPath, platformDiscoveryCapability } from "./discovery-content";
+export { discoveryConnectInput, discoveryConnectOutput, discoveryConnectPath, platformDiscoveryCapability } from "./discovery-content";
 export { type HostOperation, hostOperation, runningPhases } from "./host-operation";
 
 /** Installed-app workflow host contract. The platform dispatches a workflow phase
@@ -401,6 +401,8 @@ const coreOperations = {
     runId: runId,
     step: slug.optional(),
     checkpointId: z.string().max(128).optional(),
+    /** Own-member provider only; no workflow watches, checkpoints or adopted guidance. */
+    privateInput: z.literal(true).optional(),
     instructions: z.string().min(1).max(64000),
     data: json,
     schema: jsonObject,

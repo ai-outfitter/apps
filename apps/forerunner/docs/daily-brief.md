@@ -84,8 +84,11 @@ files, and individual file history is outside this timestamp's meaning.
 
 Each source in the brief carries the exact provider revision, path, and
 revision-pinned link. Forerunner stages bounded excerpts privately during a
-scan and sends excerpts to the model as untrusted evidence. It skips retained
-inference checkpoints for briefs containing repository content. A failed
+scan and sends excerpts as untrusted evidence only to the member's own
+configured default inference provider. Those calls skip checkpoints, workflow
+eval watches and adopted guidance. If the member has no approved provider,
+the brief cites file changes without sending file paths or excerpts to the
+fallback model. The brief and its revision history stay in the member's Wiki. A failed
 page resumes from the same pinned cursor. Incomplete sources are identified
 as coverage gaps. A deleted file leaves the current scan's evidence, and a
 revoked source's local cache is removed after grant revalidation. Already
