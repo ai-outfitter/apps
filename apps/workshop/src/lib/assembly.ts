@@ -27,8 +27,17 @@ export const UsageSchema = z
     id: z.uuid(),
     itemId: z.uuid(),
     joint: JointSchema.optional(),
-    /** Inspection-only translation in parent coordinates, in mm. */
-    explode: z.object({ offset: z.tuple([coordinate, coordinate, coordinate]), step: z.number().int().min(1).max(100).optional() }).optional(),
+    explode: z.strictObject({
+      /** Inspection-only translation in parent coordinates, in mm. */
+      offset: z.tuple([coordinate, coordinate, coordinate]).optional(),
+      step: z.number().int().min(1).max(100).optional(),
+      fixed: z.literal(true).optional(),
+      /** Keep descendants assembled even when inspecting this occurrence. */
+      rigid: z.boolean().optional(),
+    }).refine(
+      ({ offset, step, fixed }) => fixed ? offset === undefined && step === undefined : offset !== undefined,
+      "Specify an explode offset with an optional step, or fixed: true without offset or step. Rigid is optional in either case.",
+    ).optional(),
     quantity: z.number().int().min(1).max(1000),
     /** Reference designators or a find number, such as "U1" or "Find 3". */
     refdes: z.string().trim().max(60).default(""),

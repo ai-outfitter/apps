@@ -1,3 +1,4 @@
+import { discoveryChangesInput, discoveryChangesPage, discoveryGrant } from "./discovery-content";
 import { residentTaskState } from "@ai-outfitter/workflow-core/execution";
 import { StepInference, slug } from "@ai-outfitter/workflow-core/schema";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { appActor, readJSON } from "./server";
 import { threadOperations } from "./threads";
 import { sessionEntry, workflowSession } from "./workflow-session";
 
+export { discoveryConnectInput, discoveryConnectOutput, discoveryConnectPath, platformDiscoveryCapability } from "./discovery-content";
 export { type HostOperation, hostOperation, runningPhases } from "./host-operation";
 
 /** Installed-app workflow host contract. The platform dispatches a workflow phase
@@ -57,6 +59,14 @@ const phase = z.enum(workflowPhases);
 
 const id = z.string().min(1).max(128);
 const runId = z.uuid();
+
+/** Positive proof that this pinned Forgejo invocation stopped before dispatch. */
+export const forgejoMutationNotDispatched = { status: 425, message: "Pinned Forgejo mutation was not dispatched" } as const;
+
+/** The only remote branch a pinned Forgejo workspace may publish for this run. */
+export function forgejoWorkspaceBranch(id: string) {
+  return `outfitter-review-${runId.parse(id)}`;
+}
 const json = z.json();
 /** A JSON object: phase inputs and results, run inputs, provider payloads. */
 export const jsonObject = z.record(z.string(), json);
@@ -316,6 +326,11 @@ const coreOperations = {
     inputs: jsonObject,
     outputs: z.record(z.string(), z.object({ value: json, complete: z.boolean() })),
     readiness: z.object({ run: z.string(), steps: z.record(z.string(), z.string()) }),
+    /** Creator-only host inference ledger summary. Settlement does not prove remote compute stopped. */
+    inference: z.object({
+      status: z.enum(["none", "pending", "settled"]),
+      reasons: z.array(z.enum(["no_response", "http_error", "aborted", "interrupted", "completed", "partial", "error"])),
+    }).optional(),
     attempts: z.array(z.object({ id, nodeId: id, state: z.string(), createdAt: z.number(), updatedAt: z.number(), expiresAt: z.number().optional(), failure: z.string().optional(),
       /** The retained session archive of a failed attempt, as a run artifact reference. */
       sessionArtifact: z.object({ id: z.uuid(), runId: z.uuid() }).optional(),
@@ -388,11 +403,14 @@ const coreOperations = {
    * validates the answer against `schema`. Calls naming a session checkpoint retain private inference evidence.
    * Naming `step` applies that step's declared `inference` settings, which win
    * over any the app passes; a setting neither gives is the platform default
-   * (1,500 output tokens, a 60 s timeout, the provider's reasoning). */
+   * (1,500 output tokens, a 60 s timeout or 600 s for self-hosted built-in
+   * Spark, and the provider's reasoning). */
   "inference.generate": operation(running, z.strictObject({
     runId: runId,
     step: slug.optional(),
     checkpointId: z.string().max(128).optional(),
+    /** Own-member provider only; no workflow watches, checkpoints or adopted guidance. */
+    privateInput: z.literal(true).optional(),
     instructions: z.string().min(1).max(64000),
     data: json,
     schema: jsonObject,
@@ -515,6 +533,10 @@ const coreOperations = {
   /** Read only the factual context for an assigned work item as the verified resident. */
   "agent-work.context": operation(agentWork, workContextInput.extend({ delegation: workDelegation, installationId: id }),
     z.object({ principalId: z.string(), result: workContextResult })),
+  /** Only the acting member's explicit, active personal content grants. */
+  "discovery.grants": operation(["interactive", "schedule"], z.strictObject({}), z.object({ grants: z.array(discoveryGrant) })),
+  /** Changed content under one grant, pinned to a provider revision during pagination. */
+  "discovery.changes": operation(["interactive", "schedule"], discoveryChangesInput, discoveryChangesPage),
   /** Verified connector inbox metadata for a run; never the provider payload or lease. */
   "connector.receipts": operation(memberPhases, z.strictObject({ runId: id }),
     z.array(z.object({ deliveryId: z.string(), provider: z.string(), receivedAt: z.number(), status: z.string() }))),
@@ -526,6 +548,11 @@ const coreOperations = {
     appId: z.number().int().positive(),
     /** The forge hosting the repository; absent means GitHub. */
     forge: z.enum(["github", "forgejo"]).optional(),
+    /** The approved isolated checkout path, when the binding requires it. */
+    checkout: z.literal("forgejo-pinned").optional(),
+    /** The organization's resolved Forgejo connection. */
+    connectionId: id.optional(),
+    inferenceProvider: z.enum(["spark", "openai", "openrouter"]).optional(),
   })),
   /** Audit one GitHub repository's contributor templates as the acting member. */
   "repository.community-templates": operation(["interactive", "operator"], z.strictObject({
@@ -556,6 +583,7 @@ const coreOperations = {
     ...repositoryTarget,
     operation: id,
     reviewer: id.optional(),
+    expectedReviewerId: z.number().int().positive().optional(),
     candidate: z.strictObject({ number: z.number().int().positive(), headSha: z.string().regex(/^[a-f0-9]{40}$/) }).optional(),
     verdict: z.enum(["approved", "changes-requested"]).optional(),
     summary: z.string().max(65_536).optional(),
@@ -729,6 +757,12 @@ export const prepareResult = z.discriminatedUnion("mode", [
     /** App guidance appended to the agent prompt. */
     guidance: z.array(z.string().min(1).max(4096)).max(16).optional(),
     preview: previewGrant.optional(),
+    /** Exact local Git objects prefetched by the broker for an approved pinned binding.
+     * The workspace agent starts with a detached checkout and no forge credential. */
+    checkout: z.strictObject({
+      sha: z.string().regex(/^[a-f0-9]{40}$/),
+      baseSha: z.string().regex(/^[a-f0-9]{40}$/).optional(),
+    }).optional(),
   }),
 ]);
 /** `finalize` input: the node's work is done and its attempt is leased and claimed. */

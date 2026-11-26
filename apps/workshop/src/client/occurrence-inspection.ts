@@ -55,12 +55,34 @@ export function occurrenceInspection(
     anchor.dataset.astroReload = "";
     return anchor;
   }
+  function parentSnapshotKey(child: Occurrence) {
+    const address = url(child);
+    address.searchParams.delete("explode");
+    return "workshop:parent-range:" + address.pathname + address.search;
+  }
+  function ancestorUrl(ancestor: Occurrence) {
+    const path = level && immediatePath(ancestor.path, level.path);
+    const child = path && occurrences.get(path);
+    if (!child) return url(ancestor);
+    const href = url(ancestor, child);
+    try {
+      const previous = sessionStorage.getItem(parentSnapshotKey(child));
+      if (previous !== null) {
+        if (previous === "0") href.searchParams.delete("explode");
+        else href.searchParams.set("explode", previous);
+      }
+    } catch { /* Navigation also works without session storage. */ }
+    return href;
+  }
   function refreshLinks() {
     for (const anchor of root.querySelectorAll<HTMLAnchorElement>("a[data-level-target]")) {
       const target = occurrences.get(anchor.dataset.levelTarget!);
-      if (target) anchor.href = url(target).href;
+      if (target) anchor.href = ancestorUrl(target).href;
     }
-    if (level) for (const [path, row] of rows) row.href = url(level, occurrences.get(path)).href;
+    if (level) for (const [path, row] of rows) {
+      const child = occurrences.get(path)!;
+      row.href = (child.children.length ? url(child) : url(level, child)).href;
+    }
   }
   function save(patch: ViewState) {
     if (!entryKey || restoring) return;
@@ -121,14 +143,17 @@ export function occurrenceInspection(
     save({ camera, tab, focus: focused?.dataset.focus || focused?.id || child?.path || heading.id });
   }
   function enter(child: Occurrence) {
-    if (!child.children.length) return;
+    if (!level || !child.children.length) return;
+    history.replaceState(history.state, "", url(level, child));
+    save({ focus: child.path });
+    try { sessionStorage.setItem(parentSnapshotKey(child), String(amount)); } catch { /* optional */ }
     rememberCamera();
     location.assign(url(child));
   }
   function goUp() {
     if (!parent) return;
     rememberCamera();
-    location.assign(url(parent));
+    location.assign(ancestorUrl(parent));
   }
   function setAmount(value: number, fit = true) {
     amount = clamp(value);
@@ -161,12 +186,12 @@ export function occurrenceInspection(
     toggle.hidden = !(count && viewer);
     if (!count) panel.hidden = true;
     const authored = level.children.filter(child => child.usage?.explode).length;
-    get("explode-mode").textContent = authored === count ? "Authored motion" : authored ? "Vertical Z and authored motion" : "World Z · automatic";
+    get("explode-mode").textContent = level.rigid ? "Rigid assembly" : authored ? "Authored motion" : "World Z · automatic";
 
     const ancestors: Occurrence[] = [];
     for (let node = parent; node; node = occurrences.get(parentPath(node.path))) ancestors.unshift(node);
     crumbs.replaceChildren(...ancestors.map(node => {
-      const anchor = link(node.label, url(node));
+      const anchor = link(node.label, ancestorUrl(node));
       if (node === parent) {
         anchor.dataset.parent = "";
         anchor.title = "Up to " + node.label;
@@ -187,7 +212,7 @@ export function occurrenceInspection(
       const row = document.createElement("div");
       row.className = "level-row";
       row.setAttribute("role", "listitem");
-      const pick = link(child.label, url(level!, child));
+      const pick = link(child.label, child.children.length ? url(child) : url(level!, child));
       pick.className = "level-pick";
       pick.dataset.focus = child.path;
       pick.setAttribute("aria-label", child.label);
@@ -198,10 +223,8 @@ export function occurrenceInspection(
       pick.onclick = event => {
         if (!isPlainClick(event)) return;
         event.preventDefault();
-        select(child);
-      };
-      pick.ondblclick = event => {
-        if (isPlainClick(event)) enter(child);
+        if (child.children.length) enter(child);
+        else select(child);
       };
       pick.onkeydown = event => {
         if (event.altKey || event.metaKey || event.ctrlKey) return;
@@ -221,13 +244,7 @@ export function occurrenceInspection(
       };
       row.append(pick);
       if (child.children.length) {
-        const drill = link("›", url(child));
-        drill.className = "level-drill";
-        drill.dataset.levelTarget = child.path;
-        drill.dataset.focus = "drill:" + child.path;
-        drill.setAttribute("aria-label", "Inspect " + child.label);
-        drill.tabIndex = -1;
-        row.append(drill);
+        pick.classList.add("opens-level");
       }
       return row;
     }));

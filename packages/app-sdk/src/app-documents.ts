@@ -5,11 +5,13 @@ import { type DocumentNode, getOperationAST, type GraphQLError, type GraphQLSche
 import { documentOutputSchema } from "./document-output";
 import { documentFederation, type DocumentFederation } from "./document-federation";
 export type { DocumentFederation } from "./document-federation";
+import { z } from "zod";
 import { queryHash } from "./graph-graphql-selection";
 
 /** One document and the user story that justifies it: "As a <who>, I want <what>, so that <why>." */
 export type McpPublication = { description: string; collection?: true; organizationFilter?: string; provenance?: "organizationSlug"; markdown?: { title: string; slug?: string; body?: string } };
-export type AppDocument = { scheduleSource?: true; mcp?: McpPublication; story: string; document: DocumentNode | string; hidden?: boolean; publicName?: string; inputSchema?: Record<string, unknown> };
+export const appMutationExecutionTimeout = z.number().int().min(90_001).max(840_000);
+export type AppDocument = { executionTimeoutMs?: number; scheduleSource?: true; mcp?: McpPublication; story: string; document: DocumentNode | string; hidden?: boolean; publicName?: string; inputSchema?: Record<string, unknown> };
 /** What the platform lists and runs: graph/documents.json holds one row per document. */
 export type AppDocumentRow = {
   name: string; kind: "query" | "mutation"; story: string; query: string;
@@ -18,6 +20,7 @@ export type AppDocumentRow = {
   variables: VariablesSchema;
   hidden?: boolean;
   scheduleSource?: true;
+  executionTimeoutMs?: number;
   mcp?: McpPublication;
   outputSchema?: Record<string, unknown>;
   inputSchema?: Record<string, unknown>;
@@ -70,6 +73,9 @@ export function documentRows(schema: GraphQLSchema, documents: Record<string, Ap
     if (!operation || node.definitions.filter(definition => definition.kind === Kind.OPERATION_DEFINITION).length !== 1) return fail("hold exactly one operation");
     if (operation.operation === "subscription") return fail("subscriptions are not served");
     if (operation.name?.value !== name) return fail(`the operation must be named ${name}`);
+    if (entry.executionTimeoutMs !== undefined &&
+      (operation.operation !== "mutation" || !entry.mcp || entry.hidden || !appMutationExecutionTimeout.safeParse(entry.executionTimeoutMs).success))
+      return fail("executionTimeoutMs requires an MCP-published mutation and an integer from 90,001 to 840,000");
     const invalid = validate(schema, node);
     if (invalid.length) return fail(invalid.map((error: GraphQLError) => error.message).join("; "));
     const query = print(node);
@@ -80,7 +86,7 @@ export function documentRows(schema: GraphQLSchema, documents: Record<string, Ap
 }
 
 function documentRow(name: string, entry: AppDocument, operation: NonNullable<ReturnType<typeof getOperationAST>>, query: string): AppDocumentRow {
-  return { ...(entry.scheduleSource ? {scheduleSource:true as const} : {}), name, kind: operation.operation as "query" | "mutation", story: entry.story.trim().replace(/\s+/g, " "), query, hash: queryHash(query), variables: variablesSchema(operation), ...(!entry.mcp || entry.hidden ? { hidden: true } : {}), ...(entry.mcp ? {mcp: entry.mcp} : {}), ...(entry.inputSchema ? { inputSchema: entry.inputSchema } : {}) };
+  return { ...(entry.executionTimeoutMs !== undefined ? { executionTimeoutMs: entry.executionTimeoutMs } : {}), ...(entry.scheduleSource ? {scheduleSource:true as const} : {}), name, kind: operation.operation as "query" | "mutation", story: entry.story.trim().replace(/\s+/g, " "), query, hash: queryHash(query), variables: variablesSchema(operation), ...(!entry.mcp || entry.hidden ? { hidden: true } : {}), ...(entry.mcp ? {mcp: entry.mcp} : {}), ...(entry.inputSchema ? { inputSchema: entry.inputSchema } : {}) };
 }
 
 function publicationMetadata(schema: GraphQLSchema, name: string, entry: AppDocument, operation: OperationDefinitionNode) {

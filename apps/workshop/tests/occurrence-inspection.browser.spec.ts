@@ -98,8 +98,7 @@ test("mounted occurrence routes restore the recorded camera, selection, range an
     await expect(page.locator("#explode-mode")).toContainText("World Z");
     await second.focus();
     await second.press("Enter");
-    await expect(second).toHaveAttribute("aria-current", "true");
-    await second.press("ArrowRight");
+
 
     await expect(page).toHaveURL(url => url.pathname === prefix + canonical && url.searchParams.get("explode") === "100");
     await ready();

@@ -30,6 +30,7 @@
     "@ai-outfitter/workflow-community-template-audit": "0.1.0",
     "@ai-outfitter/workflow-dependency-review": "0.1.0",
     "@ai-outfitter/workflow-foundry-land-reviewed-change": "0.1.0",
+    "@ai-outfitter/workflow-foundry-forgejo-issue-review": "0.1.0",
     "@ai-outfitter/workflow-foundry-plan-work": "0.1.0",
     "@ai-outfitter/workflow-foundry-workspace-checks": "0.1.0",
     "@ai-outfitter/workflow-issue-to-merge-actions-ci": "0.1.0",

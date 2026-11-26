@@ -11,8 +11,13 @@ import type { IntakeContext } from "./intake";
 
 const legacyDocuments = defineDocuments({
   PlanWork: {
+    executionTimeoutMs: 840_000,
     story: "As an organization contributor, I want to plan a request against an explicit repository scope and optionally file an issue in one selected repository, so that I can hand off agreed work.",
     document: `mutation PlanWork($input:PlanWorkInput!){planWork(input:$input)}`,
+  },
+  ReviewForgejoIssue: {
+    story: "As an organization editor, I want an existing Forgejo issue implemented and independently reviewed against a pinned base, so that I can assess the change before landing.",
+    document: `mutation ReviewForgejoIssue($input:ReviewForgejoIssueInput!){reviewForgejoIssue(input:$input)}`,
   },
   FoundryPlan: {
     story: "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
@@ -46,8 +51,9 @@ const legacyDocuments = defineDocuments({
 });
 
 export const documents = publishDocuments(withBatchDocuments(legacyDocuments, graphqlSchema, batchGroups, {foundryProjects:"Projects",work:"WorkRecords"}), {
-  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Reuse the same inputs and ID to recover a receipt. This does not start implementation."},
-  FoundryPlan:{description:"Read the retained planning artifact, scoped source citations, workflow run and any issue receipt by requestId."},
+  PlanWork:{description:"Start Foundry planning with a stable requestId UUID, free-form request and the explicit complete nonempty array of organization Forgejo repositories to read. createIssue defaults true and requires anchorRepository in that array. Set createIssue false for an artifact only; the anchor can then be omitted. The order does not select the issue target. Returns run, authorized source scope, artifact links and a confirmed issue or publication status. Replay the same request ID and inputs as the original requester to recover a verified prepublication failure once. An uncertain publication is reconciled by its original marker. This does not start implementation."},
+  ReviewForgejoIssue:{description:"Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeat the same inputs for status, retained receipts, or a blocked draft observation. A different base conflicts with the existing run."},
+  FoundryPlan:{description:"Read the retained planning artifact, scoped citations, current run and issue receipt, or classified failure and retry history by requestId. Legacy history records member-level attribution; the historical OAuth client was unavailable."},
   SubmitReleaseEvidence:{description:"Get presigned R2 PUT URLs for PNG/JSON release evidence (screenshots, manifests). Supply stable asset keys, size and SHA-256; PUT each file to its uploadUrl with the listed headers (no sign-in), then repeat with the same keys to verify, publish and read each file's URL. No approval or deployment."},
   "Requests": {
     "description": "Read your feature and bug requests with their GitHub issues."

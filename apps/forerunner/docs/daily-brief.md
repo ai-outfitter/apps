@@ -66,3 +66,43 @@ Only on a day with no readable personal overview does the page read each organiz
 Other sections accept the `timezone` the digest returned and then skip the schedule read. Every answer includes `timings`: millisecond durations by step name (`schedule`, `briefRead`, `priorities`, `review`, `history`). They hold no content, addresses or identifiers.
 
 No section starts source collection, a model request, a workflow, a connector read or a schedule write.
+
+## Authorized repository content
+
+Forgejo and GitHub repository content can contribute to the personal brief
+after the member grants Forerunner access to a specific connection, repository,
+branch, and file or directory. This grant is separate from connecting the
+account. Repository content requires explicit sensitive-content approval. An
+organization installation cannot use a member's personal grants.
+
+Grant creation requests an initial scan. The personal brief resumes a pending
+scan or checks each eligible source for new changes before synthesis. The first
+scan takes a scoped snapshot. Subsequent reads compare an immutable provider
+revision with the last completed scan. The pinned head's commit time determines
+which local day the scan belongs to. An initial snapshot can include older
+files, and individual file history is outside this timestamp's meaning.
+
+Each source in the brief carries the exact provider revision, path, and
+revision-pinned link. Forerunner stages bounded excerpts privately during a
+scan and sends excerpts as untrusted evidence only to the member's own
+configured default inference provider. Those calls skip checkpoints, workflow
+eval watches and adopted guidance. If the member has no approved provider,
+the brief cites file changes without sending file paths or excerpts to the
+fallback model. The brief and its revision history stay in the member's Wiki. A failed
+page resumes from the same pinned cursor. Incomplete sources are identified
+as coverage gaps. A deleted file leaves the current scan's evidence, and a
+revoked source's local cache is removed after grant revalidation. Already
+published brief revisions retain their existing history and permissions.
+
+Run the synthetic installed-app eval from the repo root:
+
+```sh
+npm run pretest:integration -w @ai-outfitter/app-forerunner
+node --import tsx --test apps/forerunner/tests/personal-content.integration.test.ts
+```
+
+The test uses operational Forerunner and Wiki packages, real app dispatch and
+migrated installation storage, two synthetic provider replies, and a
+deterministic model answer. It covers connection, scheduled generation, local
+day evidence, retry, replay, exact citations, edits, archive, denied grants,
+cross-owner scope, and revocation while drafting.

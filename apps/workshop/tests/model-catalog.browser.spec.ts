@@ -45,7 +45,7 @@ test('models catalog opens a part, an unmodeled item and the full assembly', asy
   await expect(page.locator('#project-name')).toHaveText('SNY-1 soil sensor node');
   const components = page.locator('#occurrence-list [role=listitem]');
   await expect(components).toHaveCount(10);
-  const inspect = page.getByRole('link',{name:'Inspect Electronics sub-assembly',exact:true});
+  const inspect = page.getByRole('link',{name:'Electronics sub-assembly',exact:true});
   const path = '/projects/node-000000000106/assembly/00000000-0000-4000-8000-000000002003~0';
   await expect(inspect).toHaveAttribute('href',origin+path);
   expect((await app.fetch(origin+path)).status).toBe(200);
@@ -63,7 +63,7 @@ test('models catalog opens a part, an unmodeled item and the full assembly', asy
   await page.goto(origin+'/apps/workshop'+path);
   await expect(page.locator('#project-name')).toHaveText('Electronics sub-assembly');
   await expect(page.getByRole('navigation',{name:'Assembly hierarchy'}).getByRole('link',{name:'SNY-1 soil sensor node'}))
-   .toHaveAttribute('href',origin+'/apps/workshop/projects/node-000000000106');
+   .toHaveAttribute('href',origin+'/apps/workshop/projects/node-000000000106?sel=00000000-0000-4000-8000-000000002003%7E0');
   await page.locator('#browse-models').click();
   await page.setViewportSize({width:390,height:844});
   await page.getByLabel('Search models').fill('no-such-part');

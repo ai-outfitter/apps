@@ -1,0 +1,44 @@
+{
+  "image": {
+    "imageId": "9e48d229adc68c7d7b5ed8ad38a264f9d6825666d7821ce302fdfb663401c894",
+    "webappCommit": "82d8d85ef37c30399e0f1670e8c0e5ae83df9f92",
+    "webappTree": "c9a7d1ea0e6fbc8a56ff187e87e864b85b02e60d",
+    "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7"
+  },
+  "appsCommit": "3fb71a402495b2dd31f9b9c65c9a23e981fdc1ee",
+  "appsTree": "022d0ff969e487aa9ca4024a1cf843f001f8d2ce",
+  "packageSha256": {
+    "apps-tree.txt": "99c8211a03546da1b90a46b36d28ef79a4c21e3ba5436af75b798d709468cdd5",
+    "documents.json": "e759dc7d39f493b1671d583ce19c25a8700469eb78303666c9ad76d281888dd0",
+    "schema.graphql": "5126f45495b13eb4f69a8b00ef4d4f3433760532badfba5ec91869ce7c1f2bf8",
+    "software-foundry.operational.json": "deb72d70489f61df300353bd17f713f2e8662432049e8c912a2b636dd10382f3"
+  },
+  "harnessCommit": "9c2beb44db73b1f86e2b587bddd8a4106ed0115b",
+  "harnessTree": "62e7860d8ecaf76eb0f33804febe558021de4c56",
+  "sourceSha256": {
+    "eval/provider.mjs": "edf4125958ab794b37ce4dda7b552561747333e83e220f57d65885879037ae80",
+    "eval/check-launch.mjs": "68ac99c2ad1f3009eb08fd4e4475327a14bdce047e711ddc9d25f9fcfad9a0d1",
+    "eval/relay.mjs": "28442d6e30c29ed7587d978d4544c3fd18e1dc222430053dd7a384b1143cddc7",
+    "eval/resolution.mjs": "bad9d847599dd0958d49aa38dc488f796d81d6562fa668830229015c716a52a8",
+    "eval/seed-git.sh": "07dc28194263e15af44f96d35c500201f0f490550daa7603246a0049a81ba0ae",
+    "eval/driver.mjs": "3f96d4a5d04a7535d631eebda0bb18b95cfff8b43607a52d0f0d6ddbcc4c9792",
+    "eval/bootstrap.mjs": "eee2f7c8992cd1eb2e7f1df0c9de38913e2c45fa2c9fcd8f270c0c50dcc205fd",
+    "eval/grants.mjs": "51486340b22e55e469a3da36088af46146b9dd2eb00e52103196b7ff834f9310",
+    "eval/installed.mjs": "56ddea48f8d7859ede123d6c1e54031e1b2f068697a6de62a8a9daa97e418bc0",
+    "eval/run.sh": "b2a7a177682d4c80982a328caba72cc61a9b24a81b92935d4c9c88a8c9436e39",
+    "eval/build-inputs.sh": "a32897446318ebdff752f39e0c4db1bf9098b89d7c6b5be0b9cfda5f7696e800",
+    "eval/fixture.mjs": "2193090ba12e250c2588b7cf294bb9c4675637f30f392c94f079a23fdefdf6e2",
+    "eval/bin/forgejo": "251e9883ee23c75d5a59b48ff55917b11c9b4106864f046bcce8d4e87d87f2cb",
+    "eval/fixtures/issue.json": "775b521ed5562ddaf209e4da777bd9c030ee96e0f6311605d5d400a4343ce2df",
+    "planwork/mcp.mjs": "4895516b60f2e895c24258fb2a8382ae65f115151e03322a7859272249db2e73",
+    "planwork/pins.json": "9b4949b98db6054c3b5b9acdbd28d178b054d08ce56c5d2581107a232d8f7dbd"
+  },
+  "fixtureBase": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+  "cases": [
+    "review-not-sent",
+    "happy",
+    "race-lost",
+    "before-review",
+    "before-review-base"
+  ]
+}

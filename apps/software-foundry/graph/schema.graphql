@@ -138,6 +138,14 @@ input FindFoundryPlanInput {
   requestId: ID!
 }
 
+input ReviewForgejoIssueInput {
+  repository: String!
+  repositoryId: Float!
+  issueNumber: Float!
+  baseRef: String!
+  baseSha: String!
+}
+
 input PlanWorkInput {
   requestId: ID!
   request: String!
@@ -349,6 +357,11 @@ input RequestsInput {
 }
 
 type Mutation {
+  """
+  Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.
+  """
+  reviewForgejoIssue(input: ReviewForgejoIssueInput!): JSON
+
   """
   Plan a request from an explicit repository scope, save the plan, and optionally publish one issue in the separate anchor repository.
   """

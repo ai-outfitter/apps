@@ -1,9 +1,9 @@
-import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import { Box3, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
 import { displayName, parentPath } from "./occurrence-address";
 import { placements, worldCorners, type Assembly, type Item, type Usage } from "./assembly";
 
 export type Occurrence = {
-  item: Item; path: string; matrix: Matrix4; usage?: Usage; children: Occurrence[]; bounds: Box3; label: string;
+  item: Item; path: string; matrix: Matrix4; usage?: Usage; rigid: boolean; children: Occurrence[]; bounds: Box3; label: string;
 };
 
 export function inspectionOccurrences(assembly: Assembly) {
@@ -14,7 +14,8 @@ export function inspectionOccurrences(assembly: Assembly) {
     const { name } = displayName(item);
     const reference = usage?.refdes === name ? "" : usage?.refdes;
     const label = [name, reference, usage && usage.quantity > 1 ? "copy " + (copy + 1) : ""].filter(Boolean).join(" · ");
-    const occurrence = { item, path, matrix, usage, children: [], bounds: new Box3(), label };
+    const rigid = Boolean(parent?.rigid || usage?.explode?.rigid);
+    const occurrence = { item, path, matrix, usage, rigid, children: [], bounds: new Box3(), label };
     occurrences.set(path, occurrence);
     parent?.children.push(occurrence);
   } });
@@ -45,8 +46,19 @@ export function immediatePath(level: string, path: string) {
 
 export function inspectionOffsets(level: Occurrence, amount: number) {
   const offsets = new Map<string, Vector3>();
+  if (level.rigid) return offsets;
   const rotation = new Quaternion().setFromRotationMatrix(level.matrix);
-  const steps = Math.max(1, ...level.children.map(child => child.usage?.explode?.step ?? 1));
+  if (level.children.some(child => child.usage?.explode)) {
+    const steps = Math.max(1, ...level.children.map(child => child.usage?.explode?.step ?? 1));
+    for (const child of level.children) {
+      const authored = child.usage?.explode;
+      if (!authored?.offset) continue;
+      const progress = MathUtils.clamp(amount / 100 * steps - ((authored.step ?? 1) - 1), 0, 1);
+      offsets.set(child.path, new Vector3(...authored.offset).applyQuaternion(rotation).multiplyScalar(progress));
+    }
+    return offsets;
+  }
+
   const interval = (child: Occurrence) => {
     const z = child.matrix.elements[14];
     return child.bounds.isEmpty() ? { low: z, high: z } : { low: child.bounds.min.z, high: child.bounds.max.z };
@@ -54,7 +66,7 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
   // Keep authored vectors in the parent frame. Auto separation packs the
   // immediate units by their assembled world height, using bounds of each
   // entire subtree. Stable ties retain assembly order (including copy index).
-  const automatic = level.children.filter(child => !child.usage?.explode)
+  const automatic = level.children
     .map(child => ({ child, ...interval(child) }))
     .sort((a, b) => (a.low + a.high) - (b.low + b.high));
   const gap = Math.max(10, level.bounds.getSize(new Vector3()).length() * 0.08);
@@ -62,7 +74,7 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
   if (automatic.length) {
     const { child, low, high } = automatic[anchor];
     offsets.set(child.path, new Vector3());
-    const progress = Math.max(0, Math.min(1, amount / 100 * steps));
+    const progress = MathUtils.clamp(amount / 100, 0, 1);
     for (let i = anchor + 1, edge = high; i < automatic.length; i++) {
       const row = automatic[i];
       const dz = Math.max(gap, edge + gap - row.low);
@@ -75,12 +87,6 @@ export function inspectionOffsets(level: Occurrence, amount: number) {
       offsets.set(row.child.path, new Vector3(0, 0, dz * progress));
       edge = row.low + dz;
     }
-  }
-  for (const child of level.children) {
-    const authored = child.usage?.explode;
-    if (!authored) continue;
-    const progress = Math.max(0, Math.min(1, amount / 100 * steps - ((authored.step ?? 1) - 1)));
-    offsets.set(child.path, new Vector3(...authored.offset).applyQuaternion(rotation).multiplyScalar(progress));
   }
   return offsets;
 }

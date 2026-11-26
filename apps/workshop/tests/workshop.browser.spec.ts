@@ -76,7 +76,6 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   }
   await page.getByRole("tab", {name:"Overview"}).click();
   await expect(page.locator("#selected-name")).toHaveText("Electronics sub-assembly");
-  await page.getByRole("link", {name:"Inspect Electronics sub-assembly", exact:true}).click();
   await page.locator("#occurrence-list").getByRole("link", {name:/ESP32/}).click();
   await expect(page.getByRole("tab", {name:"BOM"})).toHaveCount(0);
   await page.getByRole("tab", {name:"Power"}).click();
@@ -84,6 +83,7 @@ test("project tabs keep a selected subassembly in view", async ({page}) => {
   await page.getByRole("button", {name:"Show all",exact:true}).click();
   await expect(page.locator("#detail-scope")).toHaveText("Open level");
   await page.getByRole("navigation", {name:"Assembly hierarchy"}).getByRole("link", {name:"SNY-1 soil sensor node"}).click();
+  await page.getByRole("button", {name:"Show all",exact:true}).click();
   await page.getByRole("tab", {name:"BOM"}).click();
   await page.locator("#pricing summary").click();
   await expect(page.locator("#bom-price")).toContainText("$70.85 estimated");

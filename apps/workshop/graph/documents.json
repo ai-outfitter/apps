@@ -1409,11 +1409,16 @@
                                                 "type": "integer",
                                                 "minimum": 1,
                                                 "maximum": 100
+                                              },
+                                              "fixed": {
+                                                "type": "boolean",
+                                                "const": true
+                                              },
+                                              "rigid": {
+                                                "type": "boolean"
                                               }
                                             },
-                                            "required": [
-                                              "offset"
-                                            ]
+                                            "additionalProperties": false
                                           },
                                           "quantity": {
                                             "type": "integer",
@@ -3074,7 +3079,7 @@
       ]
     },
     "mcp": {
-      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. On conflict, reread and reapply the intended edit. Use cotsEvidenceRef {projectId,itemId,revision?} on a COTS item to reuse its owner's evidence. The receipt includes cotsWarnings for missing evidence and structured printFindings with the current checked item, digest, profile, state and location."
+      "description": "Save the full assembly returned by WorkshopAssembly with your edits and its observed revision. Reference another source with an empty assembly item reference {projectId, configuration?, parameters?, revision?}. Omit revision to follow source updates. Author joints on uses and operations on their owning assembly item. Tracks and handoffs address installed usageUUID#copy paths relative to the owner. Any uses[].explode makes its parent inspection level authored-only. Siblings with no instruction stay put. A level with no instructions spreads automatically. Set explode {offset: [x,y,z], step?} in parent-local mm. An offset of [0,0,0] stays put. The largest step divides the slider into equal intervals, including gaps. Each move uses its numbered interval (1–100, default 1). Alternatively set explode {fixed: true} without offset or step to keep that occurrence fixed at its parent level. Add rigid: true to either form to keep all descendants assembled when inspecting that occurrence or any level inside it. Explosion is view-only. On conflict, reread and reapply the intended edit. Use cotsEvidenceRef {projectId,itemId,revision?} on a COTS item to reuse its owner's evidence. The receipt includes cotsWarnings for missing evidence and structured printFindings with the current checked item, digest, profile, state and location."
     },
     "outputSchema": {
       "type": "object",
@@ -3199,7 +3204,7 @@
       ]
     },
     "mcp": {
-      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements, joints, named operations and power inputs, with its current project revision."
+      "description": "Call graph_query with includeIdentifiers:true to read the complete saved assembly, including usage quantities, placements, explode instructions, joints, named operations and power inputs, with its current project revision."
     },
     "outputSchema": {
       "type": "object",

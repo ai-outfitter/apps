@@ -77,7 +77,8 @@
 }
 .workspace .level-pick small { margin-top: 3px; font-size: .75rem; font-weight: 400; }
 .workspace .level-pick[aria-current] { background: var(--selection-surface); box-shadow: inset 3px 0 var(--selection-line); }
-.workspace .level-drill { width: 44px; flex: 0 0 44px; align-items: center; font-size: 1.6rem; }
+.workspace .level-pick.opens-level { position: relative; padding-right: 32px; }
+.workspace .level-pick.opens-level::after { content: ""; position: absolute; right: 14px; top: 50%; width: 7px; height: 7px; border: solid currentColor; border-width: 1px 1px 0 0; transform: translateY(-50%) rotate(45deg); }
 .workspace #level-browser a:focus-visible { outline: 2px solid var(--selection-line); outline-offset: -3px; }
 .workspace #level-sheet-size { display: none; font-size: .83rem; }
 

@@ -43,3 +43,18 @@ test("published Markdown collections retain their canonical body field through g
   assert.equal(row.hidden, undefined);
   assert.match(row.query, /markdown/);
 });
+
+test("only an explicitly published mutation can declare a longer execution budget", () => {
+  const schema = buildSchema("type Query { value: String } type Mutation { save: String }");
+  const save = { story: "As a member, I want to save, so that I can finish.", document: "mutation Save { save }",
+    executionTimeoutMs: 840_000 };
+  const declaration = publishDocuments({ Save: save }, { Save: { description: "Save work." } });
+  assert.equal(documentRows(schema, declaration)[0].executionTimeoutMs, 840_000);
+  assert.throws(() => documentRows(schema, { Save: save }), /requires an MCP-published mutation/);
+  for (const invalid of [90_000, 840_001, 420_000.1]) {
+    assert.throws(() => documentRows(schema, { Save: { ...declaration.Save, executionTimeoutMs: invalid } }), /840,000/);
+  }
+  assert.throws(() => documentRows(schema, { Save: { ...declaration.Save, hidden: true } }), /requires an MCP-published mutation/);
+  assert.throws(() => documentRows(schema, { Value: { ...declaration.Save, document: "query Value { value }" } }),
+    /requires an MCP-published mutation/);
+});

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Put the actual Forgejo listener behind the eval HTTP relay. Keep ROOT_URL
+# and the connector origin on 3300 so Git, REST and webhook URLs are normal.
+set -eu
+if [ "$#" = 3 ] && [ "$1" = --config ] && [ "$3" = web ]; then
+  sed -i 's/^HTTP_PORT = 3300$/HTTP_PORT = 3301/' "$2"
+fi
+exec /usr/local/bin/forgejo "$@"

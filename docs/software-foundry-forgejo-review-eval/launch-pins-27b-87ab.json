@@ -1,0 +1,54 @@
+{
+  "image": {
+    "imageId": "63241831f6637fe276fd56994c832b385318211ce8a5cb108c7f2dc1fac69e82",
+    "webappCommit": "87abdb76775a91f1bb35397c4212eac2b7957817",
+    "webappTree": "02556d0a28350198a924ba88b319663aad996293",
+    "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7"
+  },
+  "appsCommit": "27b628ef42f36f5950ed2a9b44cefe164f10d4b4",
+  "appsTree": "e5ddbc453d21348d777d9a8e9e98910cc898d0e3",
+  "packageSha256": {
+    "apps-tree.txt": "49cf977926c2443c25f139c55b28b38d74e24acd880ff0ef2aa5f765b56532a5",
+    "documents.json": "e759dc7d39f493b1671d583ce19c25a8700469eb78303666c9ad76d281888dd0",
+    "schema.graphql": "5126f45495b13eb4f69a8b00ef4d4f3433760532badfba5ec91869ce7c1f2bf8",
+    "software-foundry.operational.json": "802283803fdf1568b865f38d7ca2265b25365e3e701fb887ae33ae6c1a9a331c"
+  },
+  "harnessCommit": "4fb7d288ec76c69785e2240644dcd46412c7609b",
+  "harnessTree": "387eced4c29bc1824feb64ca4ddd65967a70c08c",
+  "sourceSha256": {
+    "eval/grants.mjs": "51486340b22e55e469a3da36088af46146b9dd2eb00e52103196b7ff834f9310",
+    "eval/driver.mjs": "3f96d4a5d04a7535d631eebda0bb18b95cfff8b43607a52d0f0d6ddbcc4c9792",
+    "eval/seed-git.sh": "07dc28194263e15af44f96d35c500201f0f490550daa7603246a0049a81ba0ae",
+    "eval/fixture.mjs": "2193090ba12e250c2588b7cf294bb9c4675637f30f392c94f079a23fdefdf6e2",
+    "eval/provider.mjs": "edf4125958ab794b37ce4dda7b552561747333e83e220f57d65885879037ae80",
+    "eval/build-inputs.sh": "a32897446318ebdff752f39e0c4db1bf9098b89d7c6b5be0b9cfda5f7696e800",
+    "eval/run.sh": "20b9f1e537f571a119073a9230218af512ba4c5213ae9c4790b7c9ab078d36ce",
+    "eval/relay.mjs": "70b6044e3e8c452a9775085580322a4228275d8cf69720113925c8bf33a0bd11",
+    "eval/check-launch.mjs": "68ac99c2ad1f3009eb08fd4e4475327a14bdce047e711ddc9d25f9fcfad9a0d1",
+    "eval/resolution.mjs": "bad9d847599dd0958d49aa38dc488f796d81d6562fa668830229015c716a52a8",
+    "eval/bootstrap.mjs": "eee2f7c8992cd1eb2e7f1df0c9de38913e2c45fa2c9fcd8f270c0c50dcc205fd",
+    "eval/installed.mjs": "996c1dbb3c91b835d2b439090c00a6a3b304b95524b0f40faee2aa7112366876",
+    "eval/bin/forgejo": "251e9883ee23c75d5a59b48ff55917b11c9b4106864f046bcce8d4e87d87f2cb",
+    "eval/fixtures/issue.json": "775b521ed5562ddaf209e4da777bd9c030ee96e0f6311605d5d400a4343ce2df",
+    "planwork/mcp.mjs": "4895516b60f2e895c24258fb2a8382ae65f115151e03322a7859272249db2e73",
+    "planwork/pins.json": "9b4949b98db6054c3b5b9acdbd28d178b054d08ce56c5d2581107a232d8f7dbd"
+  },
+  "legacyGatewaySha256": "ef07cab796bd9ce50b92d6661fba385997c64f1518df67b3e2c760b26feb4d92",
+  "fixtureBase": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+  "cases": [
+    "happy",
+    "race-lost",
+    "draft-read-refusal",
+    "slash-base",
+    "before-work",
+    "before-open",
+    "before-review",
+    "before-review-base",
+    "provider-fenced",
+    "refusal",
+    "mixed-gateway",
+    "grants",
+    "grants-revoked",
+    "native"
+  ]
+}

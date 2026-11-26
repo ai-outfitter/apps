@@ -34,14 +34,7 @@ test("tier 2 field instrument keeps repeated rotated cartridges separate, with w
   assert.ok(Math.abs(full.get(connector.path)!.y+10)<1e-8);
   assert.ok(Math.abs(full.get(connector.path)!.z)<1e-8);
   assert.deepEqual(brackets.map(entry => entry.bounds.min.z), Array(3).fill(brackets[0].bounds.min.z));
-  for (const [index, entry] of brackets.entries()) {
-    const delta = full.get(entry.path)!;
-    assert.equal(delta.x,0);
-    assert.equal(delta.y,0);
-    if (index === 0) continue;
-    const previous = brackets[index - 1];
-    assert.ok(entry.bounds.min.z + delta.z > previous.bounds.max.z + full.get(previous.path)!.z);
-  }
+  for (const entry of brackets) assert.equal(full.has(entry.path), false);
   for (const delta of inspectionOffsets(b,0).values()) assert.equal(delta.length(),0);
   assert.equal(JSON.stringify(view),snapshot);
 });
