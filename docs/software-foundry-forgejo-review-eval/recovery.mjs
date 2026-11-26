@@ -171,11 +171,14 @@ export async function exerciseRecovery({ box, db, auth, mcp, report, pin, workfl
 
   writeFileSync(out("drop-publication-responses"), "");
   writeFileSync(out("model-hold"), "implement");
-  let deliberatelyLost = false;
+  let lostRecoveryId;
   const dropAcceptedReply = async (...args) => {
     const reply = await mcp(...args);
     assert.ok(reply.result && !reply.result.isError, "Recovery reached an accepted OAuth MCP response");
-    deliberatelyLost = true;
+    const value = reply.result.structuredContent ??
+      JSON.parse(reply.result.content.find(part => part.type === "text").text);
+    lostRecoveryId = value.data?.reviewIssue?.recovery?.id;
+    assert.ok(lostRecoveryId && !value.errors?.length, "Discarded acknowledgement named the accepted recovery");
     throw new Error("Fixture discarded the accepted MCP response");
   };
   writeFileSync(out("forgejo-hold-before.json"), JSON.stringify({
@@ -189,7 +192,6 @@ export async function exerciseRecovery({ box, db, auth, mcp, report, pin, workfl
     const overlapping = await Promise.all(Array.from({ length: 4 }, () => recover()));
     writeFileSync(out("forgejo-release-before"), "");
     await lostReply;
-    assert.equal(deliberatelyLost, true);
     await waitFor(() => existsSync(out("model-held.json")), "recovery implementer detached at the original base");
     const active = await progress();
     const id = active.recovery?.id;
@@ -197,11 +199,13 @@ export async function exerciseRecovery({ box, db, auth, mcp, report, pin, workfl
     const expected = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
     assert.equal(id, expected);
     assert.notEqual(id, originalId);
+    assert.equal(lostRecoveryId, id);
     assert.equal(active.original.status, "failed");
     assert.equal(active.recovery.status, "running");
     assert.deepEqual(active.target, pin);
     assert.deepEqual(new Set(overlapping.map(receipt => receipt.recovery?.id)), new Set([id]));
-    report.overlap = { lostAcceptedReply: deliberatelyLost, active, replayIds: overlapping.map(receipt => receipt.recovery.id) };
+    report.overlap = { lostAcceptedReply: true, lostRecoveryId, active,
+      replayIds: overlapping.map(receipt => receipt.recovery.id) };
   } finally {
     writeFileSync(out("forgejo-release-before"), "");
     writeFileSync(out("model-release"), "");
