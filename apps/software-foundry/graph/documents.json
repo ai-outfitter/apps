@@ -45,36 +45,6 @@
     "hidden": true
   },
   {
-    "name": "ForgejoIssueReview",
-    "kind": "query",
-    "story": "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
-    "query": "query ForgejoIssueReview($runId: ID!) {\n  forgejoIssueReview(runId: $runId)\n}",
-    "hash": "e0bdce09b9506e05dbd3760b266797528078f1bc5a2eb996eea25448a6f93b1e",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "runId": {
-          "type": "string",
-          "description": "GraphQL ID!"
-        }
-      },
-      "required": [
-        "runId"
-      ]
-    },
-    "mcp": {
-      "description": "Read a Forgejo issue review by its original ReviewForgejoIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "forgejoIssueReview": {
-          "description": "JSON"
-        }
-      }
-    }
-  },
-  {
     "name": "FoundryPlan",
     "kind": "query",
     "story": "As a plan requester, I want to inspect the retained plan, its sources and any publication receipt, so that I can verify what Foundry captured.",
@@ -100,6 +70,36 @@
         "foundryPlan": {
           "description": "JSON",
           "nullable": true
+        }
+      }
+    }
+  },
+  {
+    "name": "IssueReview",
+    "kind": "query",
+    "story": "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    "query": "query IssueReview($runId: ID!) {\n  issueReview(runId: $runId)\n}",
+    "hash": "4a957a0fbfafb21a4ecd723f7d3585c4b3e274cfc349ced02c05504cc9758e5f",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string",
+          "description": "GraphQL ID!"
+        }
+      },
+      "required": [
+        "runId"
+      ]
+    },
+    "mcp": {
+      "description": "Read an issue review using the original ReviewIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "issueReview": {
+          "description": "JSON"
         }
       }
     }
@@ -471,36 +471,6 @@
       "required": []
     },
     "hidden": true
-  },
-  {
-    "name": "RecoverForgejoIssueReview",
-    "kind": "mutation",
-    "story": "As an original review initiator, I want to recover an existing Forgejo issue review after a verified checkout startup failure, so that Foundry can finish the review at the same base.",
-    "query": "mutation RecoverForgejoIssueReview($runId: ID!) {\n  recoverForgejoIssueReview(runId: $runId)\n}",
-    "hash": "553314d5ea3dc088cbbdc446a08ff61b3a2ef42bf5161bbd6f3493dc1cbf47ae",
-    "variables": {
-      "type": "object",
-      "properties": {
-        "runId": {
-          "type": "string",
-          "description": "GraphQL ID!"
-        }
-      },
-      "required": [
-        "runId"
-      ]
-    },
-    "mcp": {
-      "description": "Recover a verified checkout initialization failure using the original ReviewForgejoIssue runId as the only variable. The original initiator can start one linked recovery under the current repository grant and the original issue, exact base, and approved actors. Replay returns that recovery, even if it failed. Use ForgejoIssueReview to follow progress and get the local draft pull request and formal review."
-    },
-    "outputSchema": {
-      "type": "object",
-      "properties": {
-        "recoverForgejoIssueReview": {
-          "description": "JSON"
-        }
-      }
-    }
   },
   {
     "name": "RepositoryChanges",
@@ -1036,15 +1006,116 @@
         "input"
       ]
     },
+    "hidden": true
+  },
+  {
+    "name": "ReviewIssue",
+    "kind": "mutation",
+    "story": "As an organization editor, I want to start or recover a review of an existing issue at a pinned base, so that I can assess an independently reviewed draft.",
+    "query": "mutation ReviewIssue($input: ReviewIssueInput!) {\n  reviewIssue(input: $input)\n}",
+    "hash": "87cae3836f8ce0ea9a8d8a5aea0089a3e60dd905cf11ae330e729ab5fdfb441b",
+    "variables": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "GraphQL ReviewIssueInput!"
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
     "mcp": {
-      "description": "Start or read back the review run for one existing open Forgejo issue. Supply repository (owner/name), numeric repositoryId, issueNumber, baseRef and the exact baseSha. The workflow opens one draft pull request and records a formal review from the separately approved reviewer. The implementer may propose added or updated text files. Deletions and renames require a separate workflow. Repeating the same inputs returns the original run and a different base conflicts with it. Use ForgejoIssueReview to read progress including any linked recovery."
+      "description": "START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. It keeps the same issue, exact base and approved actors. Repeating a command returns the same lineage. Use IssueReview to read progress and the local draft and formal review."
+    },
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "input": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,99}\\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+                },
+                "repositoryId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "issueNumber": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "baseRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 180,
+                  "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./-]*$"
+                },
+                "baseSha": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                },
+                "action": {
+                  "type": "string",
+                  "const": "START"
+                },
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "FORGEJO",
+                    "GITHUB"
+                  ]
+                }
+              },
+              "required": [
+                "repository",
+                "repositoryId",
+                "issueNumber",
+                "baseRef",
+                "baseSha",
+                "action",
+                "provider"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "const": "RECOVER"
+                },
+                "runId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "required": [
+                "action",
+                "runId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
     },
     "outputSchema": {
       "type": "object",
       "properties": {
-        "reviewForgejoIssue": {
-          "description": "JSON",
-          "nullable": true
+        "reviewIssue": {
+          "description": "JSON"
         }
       }
     }

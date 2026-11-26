@@ -552,7 +552,9 @@ const coreOperations = {
     /** The forge hosting the repository; absent means GitHub. */
     forge: z.enum(["github", "forgejo"]).optional(),
     /** The approved isolated checkout path, when the binding requires it. */
-    checkout: z.literal("forgejo-pinned").optional(),
+    checkout: z.enum(["forgejo-pinned", "github-pinned"]).optional(),
+    /** Provider-confirmed GitHub App bot login for pinned writes. */
+    botLogin: z.string().optional(),
     /** The organization's resolved Forgejo connection. */
     connectionId: id.optional(),
     inferenceProvider: z.enum(["spark", "openai", "openrouter"]).optional(),
@@ -581,6 +583,12 @@ const coreOperations = {
     path: z.string().min(1).max(2048),
     body: json.optional(),
   }).refine((input) => !(input.bindingId && input.connectionId), "Name a binding or a connection, not both"), json),
+  /** Append one commit to the run's assigned branch at the expected current head. */
+  "repository.pinned-commit": operation(["finalize"], z.strictObject({
+    expectedHeadSha: z.string().regex(/^[a-f0-9]{40}$/),
+    message: z.string().min(1).max(256),
+    files: z.array(z.strictObject({ path: z.string().min(1).max(500), text: z.string().max(100_000) })).min(1).max(20),
+  }), z.object({ oid: z.string().regex(/^[a-f0-9]{40}$/) })),
   /** A workspace gateway operation the binding declares for the current phase. Run and attempt ids come from the scope. */
   "workspace.control": operation(memberPhases, z.strictObject({
     ...repositoryTarget,

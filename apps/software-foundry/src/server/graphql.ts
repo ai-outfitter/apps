@@ -1,16 +1,17 @@
-import { issueReviewRunInput, readForgejoIssueReview, recoverForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput } from "./workspace/issue-review";
+import { issueReviewRunInput, readForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput,
+  reviewIssue, reviewIssueGraphInput, reviewIssueInput } from "./workspace/issue-review";
 import { findPlan, findPlanInput, planWork, planWorkInput } from "./planning";
 import {submitReleaseEvidence,submitReleaseEvidenceInput} from "./release-evidence";
 import { submitRequest, requestInput, readRequests, requestReadInput, requestDescriptionText, resumeRequest, resumeInput } from "./requests";
 import { batchSchema } from "@ai-outfitter/app-sdk/batch-documents";
 import { batchGroups } from "./batch-groups";
 import type { ActionContext } from "@ai-outfitter/app-sdk/actions";
-import { fieldError, mutationField, type TableContext, tableType } from "@ai-outfitter/app-sdk/app-graphql";
+import { fieldError, mutationField, type TableContext, tableType, zodInputType } from "@ai-outfitter/app-sdk/app-graphql";
 import { DateTimeScalar, JSONScalar } from "@ai-outfitter/app-sdk/graph-graphql";
 import type { WorkflowHost } from "@ai-outfitter/app-sdk/workflow-host";
 import { inArray, sql } from "drizzle-orm";
 import {
-  GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldResolver, GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType,
+  GraphQLBoolean, type GraphQLFieldConfig, type GraphQLFieldResolver, GraphQLID, type GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, type GraphQLNullableType,
   GraphQLObjectType, GraphQLSchema, GraphQLString, getNamedType,
 } from "graphql";
 import { readChanges } from "./github/changes";
@@ -155,10 +156,13 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
       name: "ReviewForgejoIssue", input: reviewForgejoIssueInput, run: reviewForgejoIssue,
       description: "Start or read back review of an existing Forgejo issue with one pinned base and an independent reviewer.",
     }),
-    recoverForgejoIssueReview: mutationField<typeof issueReviewRunInput, FoundryContext>({
-      ...issueReviewArgs, name: "RecoverForgejoIssueReview",
-      description: "Recover one original Forgejo issue review after a verified pre-checkout failure.",
-      run: (context, { runId }) => recoverForgejoIssueReview(context, runId),
+    reviewIssue: mutationField<typeof reviewIssueInput, FoundryContext>({
+      name: "ReviewIssue",
+      input: reviewIssueInput,
+      args: { input: { type: nonNull(zodInputType(reviewIssueGraphInput, "ReviewIssueInput") as GraphQLInputObjectType) } },
+      output: nonNull(JSONScalar),
+      description: "Start a pinned issue review or recover it after a verified checkout initialization failure.",
+      run: (context, { input }) => reviewIssue(context, input),
     }),
     planWork: mutationField<typeof planWorkInput, FoundryContext>({
       name: "PlanWork", input: planWorkInput, run: planWork,
@@ -208,9 +212,9 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
  * the writes its documents (src/server/documents.ts) run. */
 const baseGraphqlSchema = new GraphQLSchema({
   query: new GraphQLObjectType({ name: "Query", fields: { ...work, ...projects, ...changes,
-    forgejoIssueReview: mutationField<typeof issueReviewRunInput, FoundryContext>({
-      ...issueReviewArgs, name: "ForgejoIssueReview",
-      description: "Read the original Forgejo issue review, recovery progress, draft and formal review.",
+    issueReview: mutationField<typeof issueReviewRunInput, FoundryContext>({
+      ...issueReviewArgs, name: "IssueReview",
+      description: "Read the original issue review, recovery progress, draft and formal review.",
       run: (context, { runId }) => readForgejoIssueReview(context, runId),
     }),
     foundryPlan: mutationField<typeof findPlanInput, FoundryContext>({

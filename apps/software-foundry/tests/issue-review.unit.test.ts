@@ -9,7 +9,7 @@ import { documents } from "../src/server/documents";
 import type { IntakeContext } from "../src/server/intake";
 import {
   configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, readForgejoIssueReview,
-  recoverForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput,
+  recoverForgejoIssueReview, reviewForgejoIssue, reviewForgejoIssueInput, reviewIssueInput,
 } from "../src/server/workspace/issue-review";
 
 const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
@@ -214,6 +214,17 @@ function fixture(t: TestContext) {
 }
 
 const refused = (status: number) => (error: unknown) => error instanceof Response && error.status === status;
+
+test("both providers use the same review command and recovery accepts only an original run ID", () => {
+  for (const provider of ["GITHUB", "FORGEJO"]) {
+    assert.equal(reviewIssueInput.safeParse({ input: { action: "START", provider, ...pin } }).success, true);
+    assert.equal(reviewIssueInput.safeParse({ input: { action: "START", provider, ...pin, runId: crypto.randomUUID() } }).success, false);
+  }
+  const recovery = { action: "RECOVER", runId: crypto.randomUUID() };
+  assert.equal(reviewIssueInput.safeParse({ input: recovery }).success, true);
+  assert.equal(reviewIssueInput.safeParse({ input: { ...recovery, provider: "GITHUB" } }).success, false);
+  assert.equal(reviewIssueInput.safeParse({ input: { ...recovery, baseSha: pin.baseSha } }).success, false);
+});
 
 test("recovers one retained initialization failure after a lost start receipt without clearing history", async t => {
   const f = fixture(t);
