@@ -4,6 +4,22 @@
 
 - Restore document reading navigation with recent updates, scoped goals/projects/people, existing Profile and Notes trees, and All documents in Settings. Sidebar metadata excludes document bodies; document history and editing remain unchanged.
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.5...wiki-map-v0.1.6) (2026-11-27)
+
+
+### Features
+
+* **onto:** index Wiki passages with bounded evidence inventory ([cca47b3](https://github.com/ai-outfitter/apps/commit/cca47b3314fdb231d9eb6809e56230f4dd1dd16f))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+* **wiki:** attach verified source files to existing pages ([92d0e64](https://github.com/ai-outfitter/apps/commit/92d0e647feed6e81bf760997bc365798771ea23a))
+
+
+### Bug Fixes
+
+* recognize fresh Wiki seeds and manage independent discovery schedules ([#255](https://github.com/ai-outfitter/apps/issues/255)) ([e301067](https://github.com/ai-outfitter/apps/commit/e30106753efe00da781949cbe8669546c84bc572))
+* **wiki:** restore page file storage after graph cutover ([74200e3](https://github.com/ai-outfitter/apps/commit/74200e3c654888e91a3c359920016961d690b516))
+* **wiki:** verify stored bytes before returning a file receipt ([a1fb7d5](https://github.com/ai-outfitter/apps/commit/a1fb7d5c54c540779766b6b6a953731fe2533139))
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/wiki-map-v0.1.4...wiki-map-v0.1.5) (2026-11-17)
 
 
