@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/ai-outfitter/apps/compare/creative-team-v0.1.4...creative-team-v0.1.5) (2026-11-27)
+
+
+### Features
+
+* **graph:** compose app-owned graph definitions ([fbd6e1e](https://github.com/ai-outfitter/apps/commit/fbd6e1e5425e36caaa78f662efb079afb83cf5d2))
+
 ## [0.1.4](https://github.com/ai-outfitter/apps/compare/creative-team-v0.1.3...creative-team-v0.1.4) (2026-11-17)
 
 
