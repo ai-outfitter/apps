@@ -78,6 +78,11 @@ export async function provider(req, res) {
     assert.ok(["implement", "review"].includes(actor));
     assert.equal(body.model, model);
     assert.ok(messages.includes(context.pin.baseSha), "Actor received the pinned base");
+    if (context.currentIssue && actor === "implement") {
+      assert.ok(messages.includes(context.currentIssue), "Implementer received the edited issue text");
+      assert.ok(!messages.includes(context.originalIssue), "The saved original text was absent from the new prompt");
+    }
+    const selectedContent = context.currentContent ?? content;
     let expected = context.pin.baseSha;
     if (actor === "review") {
       const auth = credentials({ env: {} });
@@ -101,11 +106,13 @@ export async function provider(req, res) {
     }
     const readback = typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content);
     assert.ok(readback.includes(expected) && readback.includes("NO_REMOTE"), "Native detached checkout at exact SHA with no Git remote");
-    assert.ok(readback.includes(actor === "review" ? "Setting: amber." : "# Synthetic lamp"));
+    assert.ok(readback.includes(actor === "review" ? selectedContent.trim().split("\n").at(-1) : "# Synthetic lamp"));
     if (actor === "review") assert.ok(readback.includes("BASE_PRESENT"));
     const result = actor === "implement"
-      ? { summary: "Checked the exact base README.", files: [{ path: "README.md", content }] }
-      : { headSha: expected, verdict: "approved", summary: "Read README from the exact candidate commit and confirmed amber." };
+      ? { summary: "Checked the exact base README.", files: [{ path: "README.md", content: selectedContent }] }
+      : { headSha: expected, verdict: "approved", summary: context.currentIssue
+        ? "Read README from the exact candidate commit and confirmed teal."
+        : "Read README from the exact candidate commit and confirmed amber." };
     const output = JSON.stringify({ outputs: { result } });
     await barrier(actor, { ...evidence, checkout: expected });
     reply(res, body, `fixture-${attempt}`, output);

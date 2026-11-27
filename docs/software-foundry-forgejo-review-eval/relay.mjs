@@ -3,6 +3,7 @@ import { request } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pipeline } from "node:stream/promises";
 import { DatabaseSync } from "node:sqlite";
+import { credentials } from "./fixture.mjs";
 
 let candidateCommitted = false;
 let draftPublished = false;
@@ -57,10 +58,19 @@ export async function relay(incoming, outgoing) {
     method === "PUT" && /^\/api\/v1\/teams\/\d+\/(?:repos\/box\/review-fixture|members\/reviewer)$/.test(path)
   );
   const coordinator = method === "POST" && /^\/api\/v1\/repos\/box\/review-fixture\/(?:branches|contents)$/.test(path);
-  const allowed = read || open || review || git || setup || coordinator;
+  const fixtureEdit = method === "PATCH" && path === "/api/v1/repos/box/review-fixture/issues/7" &&
+    existsSync("/out/allow-fixture-issue-edit") &&
+    incoming.headers.authorization === credentials({ env: process.env }).admin;
+  const allowed = read || open || review || git || setup || coordinator || fixtureEdit;
   if (!allowed) {
     journal({ method, path, blocked: true });
     outgoing.writeHead(403).end("Fixture write refused");
+    return;
+  }
+  if (read && existsSync("/out/refuse-reconciliation") &&
+      path === readFileSync("/out/refuse-reconciliation", "utf8")) {
+    journal({ method, path, status: 503, injected: "unknown-reconciliation-read" });
+    outgoing.writeHead(503).end("Fixture cannot establish the provider state");
     return;
   }
   if (draftReadCase && draftPublished && !refusedDraftRead && method === "GET" &&

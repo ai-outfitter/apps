@@ -66,6 +66,24 @@ done
 
 For the provider-neutral candidate pair, use the archived harness and exact Forgejo launch pins shown in the evidence. Run the GitHub cases with the same operational package and the fixture-specific instructions. [Candidate launch pins](launch-pins-430d-dac7.json) · [GitHub fixture](GITHUB.md)
 
+## Restart a review after editing the issue
+
+Use the installed `ReviewIssue` mutation with `{ action: "RESTART", runId, requestId }`. The editor supplies the latest failed run ID and a stable request UUID. Read the original and latest run through `IssueReview`.
+
+```sh
+for case in restart-edited restart-uncertain restart-chain; do
+  ./run.sh "$HOST" "$case" "$OUT/$case" "$PACKAGE" || exit
+done
+```
+
+| Case | Evidence required |
+| --- | --- |
+| `restart-edited` | Edit the fixture issue through native Forgejo. The original `RECOVER` refuses. Five overlapping deliveries with the same request ID converge. The implementer's prompt uses the edited text and original Git base. Conflicting requests and a restart of the active or published successor refuse with zero additional writes. The original run stays intact and one independent reviewer approves the exact draft head. |
+| `restart-uncertain` | Unavailable native branch read and a discovered branch without a receipt both block restart. The original run and edited issue stay intact. |
+| `restart-chain` | The first restart uses an intermediate edit, then its real workspace fails during checkout initialization. After a second edit, restart from that failed child. The root query retains both failed runs and points at the third run and its reviewed draft. The original request still replays its own failed child. |
+
+The fixture's native issue edits are scoped to the seeded issue and run only with the disposable administrator identity. The model endpoint is deterministic and checks the actual implementer prompt and Git checkout evidence.
+
 ## Exact release replay
 
 [Launch pins](launch-pins-27b-87ab.json) identify the local image, package, fixtures, and tested harness. Keep the image and all four original package files for byte-identical replay. Source builds made with other caches or retained layers can produce different bytes.

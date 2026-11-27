@@ -56,7 +56,7 @@ export async function run(box) {
     assert.equal(report.actors.reviewer.login, "reviewer");
     report.repositoryId = (await seedIssue(box, auth)).repositoryId;
     report.issueNumber = issue.number;
-    const sharedRecovery = report.case.startsWith("recovery-") || report.case.startsWith("github-");
+    const sharedRecovery = report.case.startsWith("restart-") || report.case.startsWith("recovery-") || report.case.startsWith("github-");
     if (sharedRecovery) {
       report.reviewerPermissions = await grantReviewerReadOnly(auth);
     }

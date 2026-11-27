@@ -76,13 +76,15 @@ export function seedPriorReview(box, report, pin, workflowId, github) {
     const before = read(oldDatabase);
     assert.ok(!Object.hasOwn(before, "recoveryOf"));
     oldDatabase.exec(migrations[recovery].sql);
-    const migrated = read(oldDatabase);
-    assert.deepEqual(migrated, { ...before, recoveryOf: null });
+    assert.deepEqual(read(oldDatabase), { ...before, recoveryOf: null });
     assert.throws(() => insert(oldDatabase, "foundry_forgejo_issue_reviews", { ...prior, runId: "duplicate" }),
       /UNIQUE constraint failed/);
     insert(oldDatabase, "foundry_forgejo_issue_reviews", { ...prior, runId: "child", recoveryOf: runId });
     assert.throws(() => insert(oldDatabase, "foundry_forgejo_issue_reviews", { ...prior, runId: "duplicate", recoveryOf: runId }),
       /UNIQUE constraint failed/);
+    for (const migration of migrations.slice(recovery + 1)) oldDatabase.exec(migration.sql);
+    const migrated = read(oldDatabase);
+    assert.deepEqual(Object.fromEntries(Object.keys(before).map(key => [key, migrated[key]])), before);
     withFoundryDatabase(box, installationId, db => {
       insert(db, "foundry_forgejo_issue_reviews", before);
       assert.deepEqual(read(db), migrated, "The active installed worker reads the migrated legacy shape");
