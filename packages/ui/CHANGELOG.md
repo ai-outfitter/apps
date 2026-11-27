@@ -4,6 +4,20 @@
 
 - Show managed personal app navigation only with explicit platform metadata. Preserve the rail account footer across client navigation, keep app settings in the app sidebar, and support account menus and navigation on mobile.
 
+## [0.1.7](https://github.com/ai-outfitter/apps/compare/ui-v0.1.6...ui-v0.1.7) (2026-11-27)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.5 to 0.1.6
+
 ## [0.1.6](https://github.com/ai-outfitter/apps/compare/ui-v0.1.5...ui-v0.1.6) (2026-11-17)
 
 
