@@ -9,7 +9,7 @@ import { documents } from "../src/server/documents";
 import type { IntakeContext } from "../src/server/intake";
 import {
   configureIssueReview, finalizeIssueReview, issueReviewWorkflow, prepareIssueReview, readIssueReview,
-  recoverIssueReview, reviewForgejoIssue, reviewIssuePins, reviewIssueInput,
+  recoverIssueReview, reviewForgejoIssue, reviewIssue, reviewIssuePins, reviewIssueInput,
 } from "../src/server/workspace/issue-review";
 
 const pin = { repository: "fixtures/rules", repositoryId: 45, issueNumber: 4, baseRef: "milestones/review", baseSha: "a".repeat(40) };
@@ -47,7 +47,7 @@ function fixture(t: TestContext) {
 
   const calls: { operation: string; path?: string; method?: string }[] = [];
   const state = {
-    granted: true, baseSha: pin.baseSha, repoId: pin.repositoryId, reviewer: 23, issueOpen: true,
+    granted: true, baseSha: pin.baseSha, repoId: pin.repositoryId, reviewer: 23, issueOpen: true, issueTitle: "Fix an example", issueBody: "",
     baseError: 0, writer: repo.appId, committer: repo.appId, provider: origin, connectionId: "connection",
     extraPath: false, splitTree: false, providerContent: "Updated æ\n",
     loseStart: false, loseWrites: false, missingCommit: false, moveAfterPull: false,
@@ -148,7 +148,7 @@ function fixture(t: TestContext) {
           }
           if (path === "") return { id: state.repoId, full_name: pin.repository, html_url: `${state.provider}/${pin.repository}` };
           if (/^\/issues\/\d+$/.test(path)) return { state: state.issueOpen ? "open" : "closed",
-            number: Number(path.split("/").at(-1)), title: "Fix an example", html_url: `${state.provider}/${pin.repository}${path}` };
+            number: Number(path.split("/").at(-1)), title: state.issueTitle, body: state.issueBody, html_url: `${state.provider}/${pin.repository}${path}` };
           if (path === `/branches/${pin.baseRef}`) {
             if (state.baseError) throw new Response("Provider lookup unavailable", { status: state.baseError });
             return { name: pin.baseRef, commit: { id: state.baseSha } };
@@ -247,6 +247,43 @@ test("recovers one retained initialization failure after a lost start receipt wi
   f.state.granted = false;
   assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => recoverIssueReview(f.context, id))),
     [recovered, recovered, recovered]);
+  assert.deepEqual(f.writes(), []);
+});
+
+test("restarts with current issue text and preserves every proven failed attempt in its lineage", async t => {
+  const f = fixture(t);
+  const original = (await f.start()).run.id;
+  const failBeforeCheckout = (id: string) => f.failedRuns.set(id, [{
+    id: crypto.randomUUID(), nodeId: "implement", state: "failed",
+    failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: id },
+  }]);
+  failBeforeCheckout(original);
+  f.state.issueTitle = "Updated example";
+  f.state.issueBody = "First deliberate edit";
+  await assert.rejects(recoverIssueReview(f.context, original), refused(409));
+  assert.equal((await readIssueReview(f.context, original)).recovery, null);
+
+  const first = { action: "RESTART", runId: original, requestId: crypto.randomUUID() } as const;
+  const [a, b] = await Promise.all([reviewIssue(f.context, first), reviewIssue(f.context, first)]);
+  assert.ok(a.recovery);
+  assert.equal(a.recovery.id, b.recovery?.id);
+  assert.equal(f.state.inputs["implement.inputs.issue"].title, "Updated example");
+  assert.equal(f.state.inputs["implement.inputs.issue"].body, "First deliberate edit");
+  assert.deepEqual(a.target, pin);
+  await assert.rejects(reviewIssue(f.context, { ...first, requestId: crypto.randomUUID() }), refused(409));
+  const second = { ...first, runId: a.recovery.id, requestId: crypto.randomUUID() };
+  await assert.rejects(reviewIssue(f.context, second), refused(409));
+
+  failBeforeCheckout(a.recovery.id);
+  f.state.issueBody = "Second deliberate edit";
+  const c = await reviewIssue(f.context, second);
+  assert.equal(f.state.inputs["implement.inputs.issue"].body, "Second deliberate edit");
+  assert.deepEqual(c.lineage?.map(({ id, status }) => [id, status]), [
+    [original, "failed"], [a.recovery.id, "failed"], [c.recovery?.id, "running"],
+  ]);
+  assert.deepEqual(await readIssueReview(f.context, original), c);
+  assert.deepEqual(await readIssueReview(f.context, a.recovery.id), c);
+  assert.equal((await reviewIssue(f.context, first)).recovery?.id, a.recovery.id);
   assert.deepEqual(f.writes(), []);
 });
 

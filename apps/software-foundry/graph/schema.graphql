@@ -155,11 +155,13 @@ input ReviewIssueInput {
   action: ReviewIssueInputAction!
   provider: ReviewIssueInputProvider
   runId: ID
+  requestId: ID
 }
 
 enum ReviewIssueInputAction {
   START
   RECOVER
+  RESTART
 }
 
 enum ReviewIssueInputProvider {

@@ -93,7 +93,7 @@
       ]
     },
     "mcp": {
-      "description": "Read an issue review using the original ReviewIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."
+      "description": "Read an issue review using its original runId or a linked continuation runId. Returns the exact target, original and latest continuation, any intermediate run attempts, and any confirmed candidate, local draft observation and formal independent review."
     },
     "outputSchema": {
       "type": "object",
@@ -1026,7 +1026,7 @@
       ]
     },
     "mcp": {
-      "description": "START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. It keeps the same issue, exact base and approved actors. Repeating a command returns the same lineage. Use IssueReview to read progress and the local draft and formal review."
+      "description": "START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. RESTART takes a failed runId and a caller-generated requestId to use the current issue title and body after a proven pre-checkout failure. Both actions preserve the issue, exact base and approved actors. Repeat RESTART with the same requestId to read its existing continuation. Use IssueReview to read progress and the local draft and formal review."
     },
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1100,6 +1100,31 @@
               "required": [
                 "action",
                 "runId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "const": "RESTART"
+                },
+                "runId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "requestId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "required": [
+                "action",
+                "runId",
+                "requestId"
               ],
               "additionalProperties": false
             }

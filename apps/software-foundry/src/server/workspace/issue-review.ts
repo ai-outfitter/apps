@@ -26,14 +26,15 @@ export const reviewIssuePins = z.strictObject({
 const reviewProvider = z.enum(["FORGEJO", "GITHUB"]);
 type ReviewProvider = z.infer<typeof reviewProvider>;
 const githubUserConnection = "github:user";
-const reviewAction = z.enum(["START", "RECOVER"]);
+const reviewAction = z.enum(["START", "RECOVER", "RESTART"]);
 const reviewIssueCommand = z.discriminatedUnion("action", [
   reviewIssuePins.extend({ action: z.literal("START"), provider: reviewProvider }),
   z.strictObject({ action: z.literal("RECOVER"), runId: z.uuid() }),
+  z.strictObject({ action: z.literal("RESTART"), runId: z.uuid(), requestId: z.uuid() }),
 ]);
 export const reviewIssueInput = z.strictObject({ input: reviewIssueCommand });
 export const reviewIssueGraphInput = reviewIssuePins.partial().extend({
-  action: reviewAction, provider: reviewProvider.optional(), runId: z.uuid().optional(),
+  action: reviewAction, provider: reviewProvider.optional(), runId: z.uuid().optional(), requestId: z.uuid().optional(),
 });
 const target = reviewIssuePins.extend({
   provider: reviewProvider.optional(),
@@ -151,7 +152,9 @@ async function verifySource(api: ReviewRepository, pins: z.infer<typeof reviewIs
     throw mismatch("The pinned repository or open issue changed");
   if (branchSha(api, base, pins.baseRef, mismatch) !== pins.baseSha)
     throw mismatch("The pinned base changed");
-  return { origin: provider.origin, issue: { number: issue.number, title: issue.title, url: issue.html_url, body: (issue.body ?? "").slice(0, 16_000) } };
+  const body = issue.body ?? "";
+  return { origin: provider.origin, bodyLimitExceeded: body.length > 16_000,
+    issue: { number: issue.number, title: issue.title, url: issue.html_url, body: body.slice(0, 16_000) } };
 }
 
 async function savedReview(db: IntakeContext["db"], runId: string) {
@@ -308,15 +311,16 @@ export const issueReviewRunInput = z.strictObject({ runId: z.uuid() });
 
 export async function reviewIssue(context: IntakeContext, command: z.infer<typeof reviewIssueCommand>) {
   if (command.action === "RECOVER") return recoverIssueReview(context, command.runId);
+  if (command.action === "RESTART") return continueIssueReview(context, command.runId, command.requestId);
   const { action, provider, ...pins } = command;
   const receipt = await startIssueReview(context, pins, provider);
   return readIssueReview(context, receipt.run.id);
 }
 
-async function originalReview(context: IntakeContext, runId: string, access: "read" | "write") {
+async function reviewRun(context: IntakeContext, runId: string, access: "read" | "write", originalOnly = false) {
   const identity = reviewCaller(context, access);
   const row = await savedReview(context.db, runId);
-  if (!row || row.recoveryOf !== null || row.installationId !== identity.installationId)
+  if (!row || (originalOnly && row.recoveryOf !== null) || row.installationId !== identity.installationId)
     throw new Response("Original issue review not found", { status: 404 });
   return { identity, row };
 }
@@ -335,26 +339,48 @@ function runHistory(run: WorkflowRun | null, row: Row) {
     : { id: row.runId, status: "pending", attempts: [] };
 }
 
-function recoveryReceipt(row: Row, original: WorkflowRun | null, recovery?: Row, child: WorkflowRun | null = null) {
+async function reviewAncestors(db: IntakeContext["db"], row: Row) {
+  const ancestors = [row];
+  const seen = new Set([row.runId]);
+  for (let id = row.recoveryOf; id !== null;) {
+    if (seen.has(id)) throw conflict("Review lineage changed");
+    const parent = await savedReview(db, id);
+    if (!parent || parent.installationId !== row.installationId || parent.createdBy !== row.createdBy ||
+        parent.repositoryId !== row.repositoryId || parent.issueNumber !== row.issueNumber || parent.forgeOrigin !== row.forgeOrigin)
+      throw conflict("Review lineage changed");
+    ancestors.push(parent);
+    seen.add(id);
+    id = parent.recoveryOf;
+  }
+  return ancestors.reverse();
+}
+
+async function reviewHistory(host: WorkflowHost<"interactive">, rows: Row[], callerId: string) {
+  const runs = await Promise.all(rows.map(row => readReviewRun(host, row)));
+  if (rows[0].createdBy !== callerId && runs.some(run => !run))
+    throw new Response("Issue review not available", { status: 404 });
+  const history = rows.map((row, index) => runHistory(runs[index], row));
+  const latest = rows[rows.length - 1];
   return {
-    provider: target.parse(row.inputs["implement.inputs.target"]).provider ?? "FORGEJO",
-    original: runHistory(original, row),
-    recovery: recovery ? runHistory(child, recovery) : null,
-    ...publicationReceipt(recovery ?? row),
+    provider: target.parse(rows[0].inputs["implement.inputs.target"]).provider ?? "FORGEJO",
+    original: history[0],
+    recovery: history.length > 1 ? history[history.length - 1] : null,
+    ...(history.length > 2 ? { lineage: history } : {}),
+    ...publicationReceipt(latest),
   };
 }
 
 export async function readIssueReview(context: IntakeContext, runId: string) {
-  const { row, identity } = await originalReview(context, runId, "read");
-  const host = context.host();
-  const recovery = await savedRecovery(context.db, runId);
-  const [originalRun, recoveryRun] = await Promise.all([
-    readReviewRun(host, row),
-    recovery ? readReviewRun(host, recovery) : null,
-  ]);
-  if (row.createdBy !== identity.userId && (!originalRun || (recovery && !recoveryRun)))
-    throw new Response("Issue review not available", { status: 404 });
-  return recoveryReceipt(row, originalRun, recovery, recoveryRun);
+  const { row, identity } = await reviewRun(context, runId, "read");
+  const lineage = await reviewAncestors(context.db, row);
+  const seen = new Set(lineage.map(item => item.runId));
+  for (let child = await savedRecovery(context.db, row.runId); child; child = await savedRecovery(context.db, child.runId)) {
+    if (seen.has(child.runId) || child.installationId !== row.installationId || child.createdBy !== row.createdBy)
+      throw conflict("Review lineage changed");
+    lineage.push(child);
+    seen.add(child.runId);
+  }
+  return reviewHistory(context.host(), lineage, identity.userId);
 }
 
 // Compatibility with retained failures created before recovery was available.
@@ -372,34 +398,52 @@ function requirePreCheckoutFailure(row: Row, run: WorkflowRun | null) {
     throw conflict("Recovery requires the original retained pre-checkout failure and no publication claims");
 }
 
-export async function recoverIssueReview(context: IntakeContext, runId: string) {
-  const { identity, row } = await originalReview(context, runId, "write");
-  if (row.createdBy !== identity.userId) throw denied("Only the original review initiator can recover this run");
+export function recoverIssueReview(context: IntakeContext, runId: string) {
+  return continueIssueReview(context, runId);
+}
+
+async function continueIssueReview(context: IntakeContext, runId: string, requestId?: string) {
+  const { identity, row } = await reviewRun(context, runId, "write", !requestId);
+  if (row.createdBy !== identity.userId) throw denied("Only the original review initiator can continue this run");
   const host = context.host();
+  const lineage = await reviewAncestors(context.db, row);
+  const root = lineage[0];
   const pins = target.parse(row.inputs["implement.inputs.target"]);
   const provider = pins.provider ?? "FORGEJO";
+  const pinnedIdentity = (item: Row) => {
+    const { branch: assigned, ...source } = target.parse(item.inputs["implement.inputs.target"]);
+    if (assigned !== forgejoWorkspaceBranch(item.runId)) throw conflict("Review lineage branch changed");
+    return canonicalActionValue(source);
+  };
+  const sourceIdentity = pinnedIdentity(row);
   if (pins.origin !== row.forgeOrigin || pins.repositoryId !== row.repositoryId || pins.issueNumber !== row.issueNumber ||
-      pins.branch !== forgejoWorkspaceBranch(runId) ||
-      runId !== await stableRunId([issueReviewWorkflow, row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber,
-        ...providerKey(provider)]))
+      root.runId !== await stableRunId([issueReviewWorkflow, row.installationId, row.forgeOrigin, row.repositoryId, row.issueNumber,
+        ...providerKey(provider)]) || lineage.some(item => pinnedIdentity(item) !== sourceIdentity))
     throw conflict("The original review pins changed");
 
-  const recoveryId = await stableRunId([issueReviewWorkflow, "recovery", row.installationId, runId]);
+  const continuationKey = requestId ? ["restart", row.installationId, runId, requestId] : ["recovery", row.installationId, runId];
+  const recoveryId = await stableRunId([issueReviewWorkflow, ...continuationKey]);
   const recoveryPins = { ...pins, branch: forgejoWorkspaceBranch(recoveryId) };
-  if (recoveryPins.branch === pins.baseRef) throw conflict("The recovery branch cannot be its own base");
-  const inputs = { ...row.inputs, "implement.inputs.target": recoveryPins };
+  if (recoveryPins.branch === pins.baseRef) throw conflict("The continuation branch cannot be its own base");
+  const inputs: Row["inputs"] = { ...row.inputs, "implement.inputs.target": recoveryPins };
+  const matchesInputs = (saved: Row) => {
+    // RESTART may have already captured its issue snapshot before an earlier
+    // response was lost. That durable input belongs to the request ID.
+    const expected = requestId ? { ...inputs, "implement.inputs.issue": saved.inputs["implement.inputs.issue"] } : inputs;
+    return canonicalActionValue(saved.inputs) === canonicalActionValue(expected);
+  };
   const existingRecovery = async () => {
     const saved = await savedRecovery(context.db, runId);
     if (saved && (saved.runId !== recoveryId || saved.installationId !== row.installationId ||
-        saved.createdBy !== row.createdBy || canonicalActionValue(saved.inputs) !== canonicalActionValue(inputs)))
-      throw conflict("Recovery workflow identity changed");
+        saved.createdBy !== row.createdBy || !matchesInputs(saved)))
+      throw conflict("This run already has a different continuation");
     return saved;
   };
+  const report = (child: Row) => reviewHistory(host, [...lineage, child], identity.userId);
   let recovery = await existingRecovery();
-  const original = await readReviewRun(host, row);
-  const prior = recovery ? await readReviewRun(host, recovery) : null;
-  if (prior) return recoveryReceipt(row, original, recovery, prior);
-  requirePreCheckoutFailure(row, original);
+  if (recovery && await readReviewRun(host, recovery)) return report(recovery);
+  const priorRuns = await Promise.all(lineage.map(item => readReviewRun(host, item)));
+  lineage.forEach((item, index) => requirePreCheckoutFailure(item, priorRuns[index]));
 
   const snapshot = await reviewSnapshot(host, identity.installationId);
   const connectionId = reviewConnection(snapshot, pins.repository, provider);
@@ -411,22 +455,27 @@ export async function recoverIssueReview(context: IntakeContext, runId: string) 
     { workerId: pins.workerId, reviewerId: pins.reviewerId });
 
   const api = reviewRepository(host, worker, implementer);
+  const branches = [...lineage.map(item => forgejoWorkspaceBranch(item.runId)), recoveryPins.branch];
   try {
-    const { issue } = await verifySource(api, pins, pins.origin);
-    if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
-      throw conflict("The original issue changed");
-    const [originalBranch, recoveryBranch, priorPull] = await Promise.all([
-      reviewBranchTip(api, pins),
-      reviewBranchTip(api, recoveryPins),
-      hasReviewPull(api, pins, [pins.branch, recoveryPins.branch], [runId, recoveryId]),
+    const { issue, bodyLimitExceeded } = await verifySource(api, pins, pins.origin);
+    if (!requestId) {
+      if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
+        throw conflict("The original issue changed");
+    } else {
+      const previous = z.object({ number, url: z.url() }).parse(row.inputs["implement.inputs.issue"]);
+      if (issue.number !== previous.number || issue.url !== previous.url)
+        throw conflict("The original issue identity changed");
+      if (!recovery && bodyLimitExceeded) throw conflict("The current issue body exceeds 16000 characters");
+      inputs["implement.inputs.issue"] = issue;
+    }
+    const [tips, priorPull] = await Promise.all([
+      Promise.all(branches.map(branch => reviewBranchTip(api, { ...pins, branch }))),
+      hasReviewPull(api, pins, branches, [...lineage.map(item => item.runId), recoveryId]),
     ]);
-    if (originalBranch || recoveryBranch || priorPull) throw conflict("The provider already has publication evidence for this review");
+    if (tips.some(Boolean) || priorPull) throw conflict("The provider already has publication evidence for this review");
   } catch (error) {
-    // Another caller can start the claimed run while we read the provider. In that
-    // case report the known run and let its coordinator reconcile native writes.
     const saved = await existingRecovery();
-    const active = saved ? await readReviewRun(host, saved) : null;
-    if (active) return recoveryReceipt(row, original, saved, active);
+    if (saved && await readReviewRun(host, saved)) return report(saved);
     throw error;
   }
 
@@ -436,13 +485,10 @@ export async function recoverIssueReview(context: IntakeContext, runId: string) 
       issueNumber: row.issueNumber, forgeOrigin: row.forgeOrigin, createdBy: row.createdBy, inputs,
     }).onConflictDoNothing().returning();
     recovery = claimed ?? await existingRecovery();
-    if (!recovery) throw conflict("Recovery run claim unavailable");
+    if (!recovery) throw conflict("Review continuation claim unavailable");
   }
-  // The deterministic host claim can replay after a lost response or a crash
-  // between the app claim and dispatch without creating another child.
   await host.call("workflow.start", { workflow: issueReviewWorkflow, id: recovery.runId, inputs: jsonInputs(recovery.inputs) });
-  const started = await readReviewRun(host, recovery);
-  return recoveryReceipt(row, original, await existingRecovery() ?? recovery, started);
+  return report(await existingRecovery() ?? recovery);
 }
 
 const head = z.object({ ref: branch, sha, repo: z.object({ id: number, full_name: repository }) });
