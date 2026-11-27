@@ -1,0 +1,567 @@
+{
+  "appsCommit": "3438cd054261a69ba9de4a6ccf3bc5241a263190",
+  "harnessCommit": "9e4d46afc97a5c5bc16c840b514bc68842b61b06",
+  "image": {
+    "imageId": "24d05ea25773ad5139e90e9fa35cf2256f1405d350235a349a8743ae5f92843f",
+    "webappTree": "29c0707ba8071f683863533ce40f3ec1ec59bbab",
+    "boxAppsTree": "570526794a2b88476dcaecb15d1e6f3119207ff7",
+    "webappCommit": "dac7bddb3ccdb55ef13de849c6c04c73369ff513"
+  },
+  "launchPinsSha256": "6c46d42aeb3139dda9efd4bea59ac426d56a9b01c39d2f745eb08f7a5ec653ea",
+  "operationalPackageSha256": "e55334c0d7270df2b1a038625d076bd7eb702d53c7f1da1b4cabb73ee399a2ab",
+  "expected": {
+    "restart-edited": "Plain recovery refuses a changed issue. Deliberate restart uses the changed text at the pinned base. Five overlapping deliveries return one successor and the same completed request replays one exact-head draft and review.",
+    "restart-uncertain": "When the provider read fails or reports an original branch without a receipt, restart refuses before any successor, model call or draft.",
+    "restart-chain": "The first successor fails during checkout initialization. Restarting it after a second edit preserves both failed runs and produces one reviewed draft."
+  },
+  "actual": {
+    "restart-edited": {
+      "outcome": "pass",
+      "startedAt": "2026-11-27T02:48:33.402Z",
+      "finishedAt": "2026-11-27T02:48:57.395Z",
+      "pinnedTarget": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "release/review-fixture",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueSnapshots": {
+        "original": {
+          "number": 7,
+          "title": "Record the synthetic lamp setting",
+          "body": "Update the README to record that the synthetic lamp is amber. Keep the change confined to the README.",
+          "url": "http://127.0.0.1:3300/box/review-fixture/issues/7"
+        },
+        "edited": {
+          "id": 1,
+          "number": 7,
+          "state": "open",
+          "title": "Record the updated lamp setting",
+          "body": "Update README so the synthetic lamp uses teal. Preserve all other files.",
+          "comments": 0
+        }
+      },
+      "originalRun": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "originalCheckoutProof": "Pinned checkout could not initialize.",
+      "latestRun": {
+        "id": "d2902e66-701b-566d-afc6-24341a9888ee",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "restart": {
+        "requestId": "00000000-0000-4000-8000-000000000011",
+        "originalId": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "id": "d2902e66-701b-566d-afc6-24341a9888ee",
+        "contenderIds": [
+          "d2902e66-701b-566d-afc6-24341a9888ee",
+          "d2902e66-701b-566d-afc6-24341a9888ee",
+          "d2902e66-701b-566d-afc6-24341a9888ee",
+          "d2902e66-701b-566d-afc6-24341a9888ee",
+          "d2902e66-701b-566d-afc6-24341a9888ee"
+        ],
+        "originalPreserved": true,
+        "postPublicationReplay": "d2902e66-701b-566d-afc6-24341a9888ee"
+      },
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "baseUnchanged": true,
+      "finalRefs": {
+        "outfitter-review-d2902e66-701b-566d-afc6-24341a9888ee": "d497f66bbddd7421d7b64c7c1675243c7fc3cd97",
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalPulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-d2902e66-701b-566d-afc6-24341a9888ee",
+          "head": "d497f66bbddd7421d7b64c7c1675243c7fc3cd97",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "d497f66bbddd7421d7b64c7c1675243c7fc3cd97",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "git": {
+        "head": "d497f66bbddd7421d7b64c7c1675243c7fc3cd97",
+        "parents": [
+          "097e3f64847a1b428403cd5f628c46cc71a74c40"
+        ],
+        "files": [
+          "README.md"
+        ],
+        "readme": "# Synthetic lamp\n\nSetting: teal."
+      },
+      "refusals": [
+        {
+          "scenario": "wrong-tenant",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unknown-run",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "read-only-member",
+          "progressRefused": false,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "recover-after-issue-edit",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "The original issue changed",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "different-request-while-active",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "restart-active-successor",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "Recovery requires the original retained pre-checkout failure and no publication claims",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "unmodified-recovery-after-restart",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "different-request-after-publication",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "restart-published-successor",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "Recovery requires the original retained pre-checkout failure and no publication claims",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        }
+      ],
+      "providerJournalSha256": "e6482e261aa7e33842f2dd8092ff96a9da0a46f3a66a694f77bd9047a978a54d"
+    },
+    "restart-uncertain": {
+      "outcome": "pass",
+      "startedAt": "2026-11-27T02:48:33.392Z",
+      "finishedAt": "2026-11-27T02:48:44.078Z",
+      "pinnedTarget": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "release/review-fixture",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueSnapshots": {
+        "original": {
+          "number": 7,
+          "title": "Record the synthetic lamp setting",
+          "body": "Update the README to record that the synthetic lamp is amber. Keep the change confined to the README.",
+          "url": "http://127.0.0.1:3300/box/review-fixture/issues/7"
+        },
+        "edited": {
+          "id": 1,
+          "number": 7,
+          "state": "open",
+          "title": "Record the updated lamp setting",
+          "body": "Update README so the synthetic lamp uses teal. Preserve all other files.",
+          "comments": 0
+        }
+      },
+      "originalRun": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "originalCheckoutProof": "Pinned checkout could not initialize.",
+      "latestRun": null,
+      "restart": null,
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "baseUnchanged": true,
+      "finalRefs": {
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "outfitter-review-461f5c24-2478-50a1-a371-10c3288a1f1d": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalPulls": [],
+      "git": null,
+      "refusals": [
+        {
+          "scenario": "wrong-tenant",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unknown-run",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "read-only-member",
+          "progressRefused": false,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "recover-after-issue-edit",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "The original issue changed",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "unknown-provider-state",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "Repository request unavailable",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 503
+            }
+          }
+        },
+        {
+          "scenario": "unreceipted-original-branch",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "The provider already has publication evidence for this review",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        }
+      ],
+      "providerJournalSha256": "b48b862748b8ee5000c4d2987257c17b5793bcb638a04379dd894de625c7fb87"
+    },
+    "restart-chain": {
+      "outcome": "pass",
+      "startedAt": "2026-11-27T02:48:33.390Z",
+      "finishedAt": "2026-11-27T02:49:02.394Z",
+      "pinnedTarget": {
+        "repository": "box/review-fixture",
+        "repositoryId": 1,
+        "issueNumber": 7,
+        "baseRef": "release/review-fixture",
+        "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "issueSnapshots": {
+        "original": {
+          "number": 7,
+          "title": "Record the synthetic lamp setting",
+          "body": "Update the README to record that the synthetic lamp is amber. Keep the change confined to the README.",
+          "url": "http://127.0.0.1:3300/box/review-fixture/issues/7"
+        },
+        "edited": {
+          "id": 1,
+          "number": 7,
+          "state": "open",
+          "title": "Record the updated lamp setting",
+          "body": "Update README so the synthetic lamp uses teal. Preserve all other files.",
+          "comments": 0
+        },
+        "intermediate": {
+          "title": "Record a preliminary lamp setting",
+          "body": "Update README so the synthetic lamp uses indigo."
+        }
+      },
+      "originalRun": {
+        "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "failed"
+      },
+      "originalCheckoutProof": "Pinned checkout could not initialize.",
+      "latestRun": {
+        "id": "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+        "workflowId": "foundry-forgejo-issue-review",
+        "status": "complete"
+      },
+      "restart": {
+        "requestId": "00000000-0000-4000-8000-000000000011",
+        "originalId": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+        "id": "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+        "contenderIds": [
+          "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "16cc6099-2f45-5d28-ade9-d97946d5e0ea"
+        ],
+        "originalPreserved": true,
+        "postPublicationReplay": "16cc6099-2f45-5d28-ade9-d97946d5e0ea"
+      },
+      "reviewerPermissions": {
+        "admin": false,
+        "push": false,
+        "pull": true
+      },
+      "baseUnchanged": true,
+      "finalRefs": {
+        "outfitter-review-16cc6099-2f45-5d28-ade9-d97946d5e0ea": "71e88a8396e142a8e172abb153bbe10af7a16d46",
+        "main": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+        "release/review-fixture": "097e3f64847a1b428403cd5f628c46cc71a74c40"
+      },
+      "finalPulls": [
+        {
+          "number": 8,
+          "baseRef": "release/review-fixture",
+          "baseSha": "097e3f64847a1b428403cd5f628c46cc71a74c40",
+          "baseRepositoryId": 1,
+          "headRef": "outfitter-review-16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "head": "71e88a8396e142a8e172abb153bbe10af7a16d46",
+          "headRepositoryId": 1,
+          "state": "open",
+          "merged": false,
+          "draft": true,
+          "author": 2,
+          "authorLogin": "outfitter",
+          "reviews": [
+            {
+              "id": 1,
+              "head": "71e88a8396e142a8e172abb153bbe10af7a16d46",
+              "actor": 3,
+              "login": "reviewer",
+              "state": "APPROVED"
+            }
+          ]
+        }
+      ],
+      "git": {
+        "head": "71e88a8396e142a8e172abb153bbe10af7a16d46",
+        "parents": [
+          "097e3f64847a1b428403cd5f628c46cc71a74c40"
+        ],
+        "files": [
+          "README.md"
+        ],
+        "readme": "# Synthetic lamp\n\nSetting: teal."
+      },
+      "refusals": [
+        {
+          "scenario": "wrong-tenant",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "unknown-run",
+          "progressRefused": true,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "read-only-member",
+          "progressRefused": false,
+          "recoveryRefused": true
+        },
+        {
+          "scenario": "recover-after-issue-edit",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "The original issue changed",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "different-request-while-active",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "restart-active-successor",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "Recovery requires the original retained pre-checkout failure and no publication claims",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "unmodified-recovery-after-restart",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "different-request-after-publication",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "This run already has a different continuation",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        },
+        {
+          "scenario": "restart-published-successor",
+          "refused": true,
+          "additionalWrites": 0,
+          "error": {
+            "message": "Recovery requires the original retained pre-checkout failure and no publication claims",
+            "path": [
+              "reviewIssue"
+            ],
+            "extensions": {
+              "code": "REFUSED",
+              "status": 409
+            }
+          }
+        }
+      ],
+      "providerJournalSha256": "9c0ab40988e89d6b6a5cce2acfd512459e89218ccf420e6f0e440844d2c37e8c",
+      "lineage": [
+        {
+          "id": "461f5c24-2478-50a1-a371-10c3288a1f1d",
+          "status": "failed"
+        },
+        {
+          "id": "ea4ef0c5-f7e3-5159-a62b-9b51e840df6c",
+          "status": "failed"
+        },
+        {
+          "id": "16cc6099-2f45-5d28-ade9-d97946d5e0ea",
+          "status": "complete"
+        }
+      ]
+    }
+  },
+  "reviewDocument": {
+    "name": "ReviewIssue",
+    "hash": "87cae3836f8ce0ea9a8d8a5aea0089a3e60dd905cf11ae330e729ab5fdfb441b"
+  }
+}

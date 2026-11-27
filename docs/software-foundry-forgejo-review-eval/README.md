@@ -82,6 +82,8 @@ done
 | `restart-uncertain` | Unavailable native branch read and a discovered branch without a receipt both block restart. The original run and edited issue stay intact. |
 | `restart-chain` | The first restart uses an intermediate edit, then its real workspace fails during checkout initialization. After a second edit, restart from that failed child. The root query retains both failed runs and points at the third run and its reviewed draft. The original request still replays its own failed child. |
 
+For exact replay, export the harness commit listed in the launch pins and use `./run.sh --pins launch-pins-3438-dac7.json` with the pinned image, package and case. [Restart launch pins](launch-pins-3438-dac7.json) · [Restart receipts](receipts-3438-dac7.json)
+
 The fixture's native issue edits are scoped to the seeded issue and run only with the disposable administrator identity. The model endpoint is deterministic and checks the actual implementer prompt and Git checkout evidence.
 
 ## Exact release replay
