@@ -6,6 +6,20 @@
 
 - Keep project detail available when bounded Wiki context has no release/evidence types, while retaining supported evidence paths and project scope checks.
 
+## [0.1.3](https://github.com/ai-outfitter/apps/compare/planning-v0.1.2...planning-v0.1.3) (2026-11-27)
+
+
+### Features
+
+* **graph:** compose app-owned graph definitions ([fbd6e1e](https://github.com/ai-outfitter/apps/commit/fbd6e1e5425e36caaa78f662efb079afb83cf5d2))
+* **planning:** review screenshots and video as revision evidence ([#232](https://github.com/ai-outfitter/apps/issues/232)) ([79981a0](https://github.com/ai-outfitter/apps/commit/79981a02c0e6b0a5cff7f784d94993267d116dfc))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
+
+### Bug Fixes
+
+* **planning:** render source links in evidence walkthroughs ([#243](https://github.com/ai-outfitter/apps/issues/243)) ([83d4e83](https://github.com/ai-outfitter/apps/commit/83d4e83ccf2c1804a11088aaef92614e103cccde))
+
 ## [0.1.2](https://github.com/ai-outfitter/apps/compare/planning-v0.1.1...planning-v0.1.2) (2026-11-17)
 
 
