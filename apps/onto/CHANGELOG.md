@@ -4,6 +4,24 @@
 
 - Restore personal local graphs through audited legacy endpoint reconciliation, preserving source records and type revision history. Repair the exact shipped commitment-subject contract omission for historical Person subjects; fresh seeds include Person and custom explicit contracts remain enforced.
 
+## [0.1.8](https://github.com/ai-outfitter/apps/compare/onto-v0.1.7...onto-v0.1.8) (2026-11-27)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* **graph:** compose app-owned graph definitions ([fbd6e1e](https://github.com/ai-outfitter/apps/commit/fbd6e1e5425e36caaa78f662efb079afb83cf5d2))
+* **onto:** enrich a graph from authorized repositories or nodes ([#263](https://github.com/ai-outfitter/apps/issues/263)) ([561bd03](https://github.com/ai-outfitter/apps/commit/561bd030c24531691f89d3d147d44c4abc353e7f))
+* **onto:** index Wiki passages with bounded evidence inventory ([cca47b3](https://github.com/ai-outfitter/apps/commit/cca47b3314fdb231d9eb6809e56230f4dd1dd16f))
+* **onto:** Ontology document, one read of types, relationship ends, root and staging ([#201](https://github.com/ai-outfitter/apps/issues/201)) ([57fb11b](https://github.com/ai-outfitter/apps/commit/57fb11b276ab7f4817cd33422f336379545f2099))
+* **onto:** submit open drafts for review from Changes ([#261](https://github.com/ai-outfitter/apps/issues/261)) ([f191a4d](https://github.com/ai-outfitter/apps/commit/f191a4d7bb80a571996d2467715c86a9581c8e3d))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
+
+### Bug Fixes
+
+* **onto:** run queued steward reviews under schedule authority ([#257](https://github.com/ai-outfitter/apps/issues/257)) ([3df0752](https://github.com/ai-outfitter/apps/commit/3df0752cd4ae3f09781b367060331f9402ab341b))
+
 ## [0.1.7](https://github.com/ai-outfitter/apps/compare/onto-v0.1.6...onto-v0.1.7) (2026-11-17)
 
 
