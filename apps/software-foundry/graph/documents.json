@@ -77,7 +77,7 @@
   {
     "name": "IssueReview",
     "kind": "query",
-    "story": "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    "story": "As an organization member, I want to read a review lineage by any of its run IDs, so that I can inspect progress, the draft, and the formal review.",
     "query": "query IssueReview($runId: ID!) {\n  issueReview(runId: $runId)\n}",
     "hash": "4a957a0fbfafb21a4ecd723f7d3585c4b3e274cfc349ced02c05504cc9758e5f",
     "variables": {

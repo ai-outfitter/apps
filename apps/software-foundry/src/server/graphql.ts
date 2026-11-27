@@ -161,7 +161,7 @@ const mutation = new GraphQLObjectType<unknown, FoundryContext>({
       input: reviewIssueInput,
       args: { input: { type: nonNull(zodInputType(reviewIssueGraphInput, "ReviewIssueInput") as GraphQLInputObjectType) } },
       output: nonNull(JSONScalar),
-      description: "Start a pinned issue review or recover it after a verified checkout initialization failure.",
+      description: "Start a pinned issue review, recover it, or restart it with current issue text after a verified checkout initialization failure.",
       run: (context, { input }) => reviewIssue(context, input),
     }),
     planWork: mutationField<typeof planWorkInput, FoundryContext>({

@@ -28,7 +28,7 @@ const legacyDocuments = defineDocuments({
     inputSchema: z.toJSONSchema(reviewIssueInput, { io: "input" }),
   },
   IssueReview: {
-    story: "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    story: "As an organization member, I want to read a review lineage by any of its run IDs, so that I can inspect progress, the draft, and the formal review.",
     document: `query IssueReview($runId: ID!) { issueReview(runId: $runId) }`,
   },
   FoundryPlan: {
