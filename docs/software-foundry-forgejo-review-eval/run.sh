@@ -10,7 +10,7 @@ if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
   echo "Usage: $0 [--pins <launch-pins.json>] <local-box-image> <case> <fresh-private-output> <operational-package-dir> [legacy-gateway-file]" >&2
   exit 2
 fi
-case "$2" in native|grants|grants-revoked|refusal|happy|slash-base|before-work|before-open|before-review|before-review-base|race-lost|provider-fenced|mixed-gateway|draft-read-refusal|review-not-sent|authority-retry|recovery-legacy|recovery-lost|recovery-unknown|github-happy|github-recovery) ;;
+case "$2" in native|grants|grants-revoked|refusal|happy|slash-base|before-work|before-open|before-review|before-review-base|race-lost|provider-fenced|mixed-gateway|draft-read-refusal|review-not-sent|authority-retry|recovery-legacy|recovery-lost|recovery-unknown|github-happy|github-recovery|restart-edited|restart-uncertain|restart-chain) ;;
   *) echo "Unknown case: $2" >&2; exit 2 ;;
 esac
 umask 077
@@ -64,7 +64,7 @@ if [ -n "$old_gateway" ]; then
   set -- -v "$stage/legacy-gateway.mjs:/app/workspace/gateway.mjs:ro"
 fi
 "$eval_dir/seed-git.sh" "$stage/repo" > "$out/base.sha"
-case "$case_name" in slash-base|recovery-*|github-*)
+case "$case_name" in slash-base|recovery-*|github-*|restart-*)
   git -C "$stage/repo" -c core.hooksPath=/dev/null branch release/review-fixture
 ;;
 esac

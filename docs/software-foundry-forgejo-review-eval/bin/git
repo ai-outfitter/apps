@@ -1,0 +1,9 @@
+#!/bin/sh
+# Fail only the disposable workspace's pre-agent repository initialization.
+if [ -f /out/restart-fail-checkout ] && [ "$#" = 4 ] &&
+   [ "$1" = -c ] && [ "$2" = core.hooksPath=/dev/null ] &&
+   [ "$3" = init ] && [ "$4" = --template= ]; then
+  printf '%s\n' 'Pinned checkout initialization refused by fixture' >> /out/restart-checkout-fault.log
+  exit 1
+fi
+exec /usr/bin/git "$@"

@@ -7,6 +7,8 @@ import { api, inspectCandidate, inventory, repoPath } from "./fixture.mjs";
 import { waitFor } from "./grants.mjs";
 import { checkoutProof, reviewRows, seedPriorReview } from "./recovery-seed.mjs";
 
+import { exerciseRestart } from "./restart.mjs";
+
 const app = "software-foundry";
 const reviewDocument = "ReviewIssue";
 const progressDocument = "IssueReview";
@@ -142,6 +144,13 @@ export async function exerciseRecovery({ box, db, auth, mcp, report, pin, workfl
   assert.deepEqual(loadAppReviews(), [frozenAppReview]);
   assert.deepEqual(nativeWrites(writeJournal), beforeWrites);
   assert.deepEqual(await currentInventory(), report.before);
+
+  if (report.case.startsWith("restart-")) {
+    await exerciseRestart({ auth, report, pin, out, runs, settle, auditPull, gradeResolution, db,
+      mutate, progress, originalId, frozenAppReview, frozenRun, frozenAttempts, loadAppReviews,
+      readRun, attempts, nativeWrites, repoPath, responseReceipt });
+    return;
+  }
 
   if (report.case === "recovery-unknown") {
     // A provider-side artifact with no coordinator receipt makes the old effect ambiguous.

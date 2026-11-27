@@ -77,7 +77,7 @@
   {
     "name": "IssueReview",
     "kind": "query",
-    "story": "As an organization member, I want to read the original review and any recovery by the original run ID, so that I can inspect progress, the draft, and the formal review.",
+    "story": "As an organization member, I want to read a review lineage by any of its run IDs, so that I can inspect progress, the draft, and the formal review.",
     "query": "query IssueReview($runId: ID!) {\n  issueReview(runId: $runId)\n}",
     "hash": "4a957a0fbfafb21a4ecd723f7d3585c4b3e274cfc349ced02c05504cc9758e5f",
     "variables": {
@@ -93,7 +93,7 @@
       ]
     },
     "mcp": {
-      "description": "Read an issue review using the original ReviewIssue runId. Returns the exact target, the original and recovery run states and attempts, and any confirmed candidate, local draft observation and formal independent review."
+      "description": "Read an issue review using its original runId or a linked continuation runId. Returns the exact target, original and latest continuation, any intermediate run attempts, and any confirmed candidate, local draft observation and formal independent review."
     },
     "outputSchema": {
       "type": "object",
@@ -1011,7 +1011,7 @@
   {
     "name": "ReviewIssue",
     "kind": "mutation",
-    "story": "As an organization editor, I want to start or recover a review of an existing issue at a pinned base, so that I can assess an independently reviewed draft.",
+    "story": "As an organization editor, I want to start, recover or restart a review of an existing issue at a pinned base, so that I can assess an independently reviewed draft.",
     "query": "mutation ReviewIssue($input: ReviewIssueInput!) {\n  reviewIssue(input: $input)\n}",
     "hash": "87cae3836f8ce0ea9a8d8a5aea0089a3e60dd905cf11ae330e729ab5fdfb441b",
     "variables": {
@@ -1026,7 +1026,7 @@
       ]
     },
     "mcp": {
-      "description": "START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. It keeps the same issue, exact base and approved actors. Repeating a command returns the same lineage. Use IssueReview to read progress and the local draft and formal review."
+      "description": "START reviews an existing open issue. Supply provider (FORGEJO or GITHUB), repository (owner/name), numeric repositoryId, issueNumber, baseRef and exact baseSha. RECOVER takes only the original runId and requires a retained checkout initialization failure, current repository approval, and the original initiator. RESTART takes a failed runId and a caller-generated requestId to capture the current title and body after a proven pre-checkout failure. The first claim fixes that snapshot. Continuations preserve the issue identity, exact base and approved actors. Repeat RESTART with the same requestId to get that request’s continuation. Use IssueReview to read progress and the local draft and formal review."
     },
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1100,6 +1100,31 @@
               "required": [
                 "action",
                 "runId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "const": "RESTART"
+                },
+                "runId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "requestId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "required": [
+                "action",
+                "runId",
+                "requestId"
               ],
               "additionalProperties": false
             }

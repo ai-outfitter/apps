@@ -185,7 +185,7 @@ async function runCase({ box, db, auth, root, cookie, mcp, report }) {
 
   writeFileSync(out("provider-context.json"), JSON.stringify({ database: box.databases.platform,
     installationId: report.installation.id, workflowId, pin }));
-  if (report.case.startsWith("recovery-")) {
+  if (report.case.startsWith("recovery-") || report.case.startsWith("restart-")) {
     await exerciseRecovery({ box, db, auth, mcp, report, pin, workflowId, out, runs, settle, auditPull, gradeResolution });
     return;
   }

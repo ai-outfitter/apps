@@ -1,5 +1,13 @@
 # Local replay evidence
 
+## Edited-issue restart
+
+Apps `3438cd05` and Webapp `dac7bddb` passed three byte-pinned installed OAuth MCP runs against disposable native Forgejo. The published `ReviewIssue` document hash is unchanged. The fixture used native repository and issue APIs, real Git checkouts and a deterministic model endpoint that inspected the actual implementer prompt. [Exact launch pins](launch-pins-3438-dac7.json) · [Expected and observed results](receipts-3438-dac7.json)
+
+- `RECOVER` refused the edited issue with 409. Five overlapping `RESTART` calls converged on one successor, which used the edited body and the original slash-qualified base. Its single draft remained open and received one independent approval for the exact head. The original run and issue snapshot were preserved.
+- Restart refused a native branch read returning 503 and a provider branch with no receipt. Neither refusal added a workflow or provider write. Active and published successors and competing request IDs also refused with zero additional writes.
+- A real workspace initialization failure left the first restart with no model or publication activity. After another edit, the next restart preserved both failed runs and published one reviewed draft. The first request replayed its original failed successor.
+
 ## Provider-neutral candidate replay
 
 Apps `430d03eb` and Webapp `dac7bddb` passed five installed OAuth MCP cases. All five used the same literal `ReviewIssue` document hash. The three Forgejo runs used a disposable native instance. The two GitHub runs exercised real Git against a local GitHub API and credential fixture that omitted optional GitHub App installation permission metadata and required a scoped pull request lookup. [Exact Forgejo launch pins](launch-pins-430d-dac7.json) · [Expected and observed results](receipts-430d-dac7.json) · [GitHub fixture](GITHUB.md)
