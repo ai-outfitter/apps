@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8](https://github.com/ai-outfitter/apps/compare/app-build-v0.1.7...app-build-v0.1.8) (2026-11-27)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.5 to 0.1.6
+    * @ai-outfitter/ui bumped from 0.1.6 to 0.1.7
+
 ## [0.1.7](https://github.com/ai-outfitter/apps/compare/app-build-v0.1.6...app-build-v0.1.7) (2026-11-17)
 
 

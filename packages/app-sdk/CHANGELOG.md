@@ -6,6 +6,29 @@
 - `actions.call` accepts `template` in place of `installationId`: the host finds the owner's one installation of that package. `wiki-documents` uses it: `readWikiPage`, `readWikiPages` and `wikiDocuments` replace `documentWiki` and `readWikiDocument`, and no longer discover the Wiki.
 - Route personal GitHub pull request reads by account ownership, retaining the actual connection ID instead of requiring a synthetic ID.
 
+## [0.1.6](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.5...app-sdk-v0.1.6) (2026-11-27)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* **foundry:** review existing Forgejo issues at a pinned base ([#287](https://github.com/ai-outfitter/apps/issues/287)) ([38ce446](https://github.com/ai-outfitter/apps/commit/38ce4461e2b5e98b10f93c229393fe82c1c666d1))
+* **foundry:** share pinned issue review across GitHub and Forgejo ([#292](https://github.com/ai-outfitter/apps/issues/292)) ([af34544](https://github.com/ai-outfitter/apps/commit/af34544d06a7241424af15a1f5e36e2c032f5eb3))
+* **graph:** compose app-owned graph definitions ([fbd6e1e](https://github.com/ai-outfitter/apps/commit/fbd6e1e5425e36caaa78f662efb079afb83cf5d2))
+* **onto:** enrich a graph from authorized repositories or nodes ([#263](https://github.com/ai-outfitter/apps/issues/263)) ([561bd03](https://github.com/ai-outfitter/apps/commit/561bd030c24531691f89d3d147d44c4abc353e7f))
+* **onto:** index Wiki passages with bounded evidence inventory ([cca47b3](https://github.com/ai-outfitter/apps/commit/cca47b3314fdb231d9eb6809e56230f4dd1dd16f))
+* **planning:** review screenshots and video as revision evidence ([#232](https://github.com/ai-outfitter/apps/issues/232)) ([79981a0](https://github.com/ai-outfitter/apps/commit/79981a02c0e6b0a5cff7f784d94993267d116dfc))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+* **workshop:** add print inspection and sliced plate evidence ([eef637d](https://github.com/ai-outfitter/apps/commit/eef637da88a2f043b9a21bc70534f6d581d4356c))
+* **workshop:** publish revision-checked assembly reads and saves ([c4ae915](https://github.com/ai-outfitter/apps/commit/c4ae9158e2f564e5f8d474b605de7711ca85b79b))
+
+
+### Bug Fixes
+
+* **foundry:** recover verified PlanWork failures on the same request ([#284](https://github.com/ai-outfitter/apps/issues/284)) ([d5cc97b](https://github.com/ai-outfitter/apps/commit/d5cc97b540eff436035184ccfbd87f1cda54d3ac))
+* **graphql:** preserve complete fields alongside paged results ([027287c](https://github.com/ai-outfitter/apps/commit/027287cd0b04f9039c9e515096a064cb83690f9d))
+* **workshop:** verify sliced geometry and scope print analysis ([0df3ae0](https://github.com/ai-outfitter/apps/commit/0df3ae0d007b05c36e8d6f65c77dcf1d7b99ea8b))
+
 ## [0.1.5](https://github.com/ai-outfitter/apps/compare/app-sdk-v0.1.4...app-sdk-v0.1.5) (2026-11-17)
 
 

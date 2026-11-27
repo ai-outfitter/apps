@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.7](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.6...app-test-v0.1.7) (2026-11-27)
+
+
+### Features
+
+* **foundry:** share pinned issue review across GitHub and Forgejo ([#292](https://github.com/ai-outfitter/apps/issues/292)) ([af34544](https://github.com/ai-outfitter/apps/commit/af34544d06a7241424af15a1f5e36e2c032f5eb3))
+* **onto:** enrich a graph from authorized repositories or nodes ([#263](https://github.com/ai-outfitter/apps/issues/263)) ([561bd03](https://github.com/ai-outfitter/apps/commit/561bd030c24531691f89d3d147d44c4abc353e7f))
+* **workshop:** add print inspection and sliced plate evidence ([eef637d](https://github.com/ai-outfitter/apps/commit/eef637da88a2f043b9a21bc70534f6d581d4356c))
+
+
+### Bug Fixes
+
+* **workshop:** verify sliced geometry and scope print analysis ([0df3ae0](https://github.com/ai-outfitter/apps/commit/0df3ae0d007b05c36e8d6f65c77dcf1d7b99ea8b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.5 to 0.1.6
+    * @ai-outfitter/threads bumped from 0.1.5 to 0.1.6
+
 ## [0.1.6](https://github.com/ai-outfitter/apps/compare/app-test-v0.1.5...app-test-v0.1.6) (2026-11-17)
 
 

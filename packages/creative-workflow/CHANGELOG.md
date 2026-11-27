@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/ai-outfitter/apps/compare/creative-workflow-v0.1.1...creative-workflow-v0.1.2) (2026-11-27)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @ai-outfitter/app-sdk bumped from 0.1.5 to 0.1.6
+
 ## [0.1.1](https://github.com/ai-outfitter/apps/compare/creative-workflow-v0.1.0...creative-workflow-v0.1.1) (2026-11-17)
 
 
