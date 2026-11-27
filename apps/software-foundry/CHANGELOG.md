@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.7](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.6...software-foundry-v0.3.7) (2026-11-27)
+
+
+### Features
+
+* **agents:** delegate to Onto and Foundry with reviewed job starts ([#225](https://github.com/ai-outfitter/apps/issues/225)) ([2e7f8a2](https://github.com/ai-outfitter/apps/commit/2e7f8a293f5eb3fa91c8830a40ab8bee87be8840))
+* **foundry:** plan from explicit repositories before filing an issue ([#277](https://github.com/ai-outfitter/apps/issues/277)) ([2162714](https://github.com/ai-outfitter/apps/commit/21627146d1ca174cc737026cdee667b49dffa756))
+* **foundry:** review existing Forgejo issues at a pinned base ([#287](https://github.com/ai-outfitter/apps/issues/287)) ([38ce446](https://github.com/ai-outfitter/apps/commit/38ce4461e2b5e98b10f93c229393fe82c1c666d1))
+* **foundry:** share pinned issue review across GitHub and Forgejo ([#292](https://github.com/ai-outfitter/apps/issues/292)) ([af34544](https://github.com/ai-outfitter/apps/commit/af34544d06a7241424af15a1f5e36e2c032f5eb3))
+* Publish app daily updates and read them across member Wikis in Forerunner ([#246](https://github.com/ai-outfitter/apps/issues/246)) ([f319f36](https://github.com/ai-outfitter/apps/commit/f319f36ed9912594e5a19e51dd110e10e5d92889))
+
+
+### Bug Fixes
+
+* **foundry:** accept dotted Forgejo repository owners ([#283](https://github.com/ai-outfitter/apps/issues/283)) ([41cc556](https://github.com/ai-outfitter/apps/commit/41cc556751154b5f4c5b84d1ec5cfbdb5c64cf59))
+* **foundry:** recover verified PlanWork failures on the same request ([#284](https://github.com/ai-outfitter/apps/issues/284)) ([d5cc97b](https://github.com/ai-outfitter/apps/commit/d5cc97b540eff436035184ccfbd87f1cda54d3ac))
+
 ## [0.3.6](https://github.com/ai-outfitter/apps/compare/software-foundry-v0.3.5...software-foundry-v0.3.6) (2026-11-17)
 
 
