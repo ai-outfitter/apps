@@ -50,7 +50,7 @@ function fixture(t: TestContext) {
     granted: true, baseSha: pin.baseSha, repoId: pin.repositoryId, reviewer: 23, issueOpen: true, issueTitle: "Fix an example", issueBody: "",
     baseError: 0, writer: repo.appId, committer: repo.appId, provider: origin, connectionId: "connection",
     extraPath: false, splitTree: false, providerContent: "Updated æ\n",
-    loseStart: false, loseWrites: false, missingCommit: false, moveAfterPull: false,
+    loseStart: false, loseBeforeStart: false, loseWrites: false, missingCommit: false, moveAfterPull: false,
     head: null as string | null, branch: "", message: "", runId: "", inputs: {} as Record<string, any>,
     pull: null as Record<string, any> | null, reviews: [] as Record<string, any>[], reviewAttempt: "", reviewWrites: 0,
   };
@@ -95,6 +95,7 @@ function fixture(t: TestContext) {
             inputs: runs.get(input.id), outputs: {}, attempts: failedRuns.get(input.id) ?? [],
           } : null;
         case "workflow.start": {
+          if (state.loseBeforeStart) throw lost();
           const created = !runs.has(input.id);
           if (created) {
             state.runId = input.id;
@@ -267,6 +268,7 @@ test("restarts with current issue text and preserves every proven failed attempt
   const [a, b] = await Promise.all([reviewIssue(f.context, first), reviewIssue(f.context, first)]);
   assert.ok(a.recovery);
   assert.equal(a.recovery.id, b.recovery?.id);
+  assert.equal((await reviewIssue(f.context, { ...first, requestId: first.requestId.toUpperCase() })).recovery?.id, a.recovery.id);
   assert.equal(f.state.inputs["implement.inputs.issue"].title, "Updated example");
   assert.equal(f.state.inputs["implement.inputs.issue"].body, "First deliberate edit");
   assert.deepEqual(a.target, pin);
@@ -284,6 +286,26 @@ test("restarts with current issue text and preserves every proven failed attempt
   assert.deepEqual(await readIssueReview(f.context, original), c);
   assert.deepEqual(await readIssueReview(f.context, a.recovery.id), c);
   assert.equal((await reviewIssue(f.context, first)).recovery?.id, a.recovery.id);
+  assert.deepEqual(f.writes(), []);
+});
+
+test("replays the frozen RECOVER claim after losing dispatch and a later issue edit", async t => {
+  const f = fixture(t);
+  const original = (await f.start()).run.id;
+  f.failedRuns.set(original, [{
+    id: crypto.randomUUID(), nodeId: "implement", state: "failed",
+    failure: "Pinned checkout could not initialize.", sessionArtifact: { id: crypto.randomUUID(), runId: original },
+  }]);
+  f.state.loseBeforeStart = true;
+  await assert.rejects(recoverIssueReview(f.context, original), refused(502));
+  const pending = await readIssueReview(f.context, original);
+  assert.equal(pending.recovery?.status, "pending");
+  f.state.issueBody = "Changed after the original claim";
+  f.state.loseBeforeStart = false;
+  const resumed = await recoverIssueReview(f.context, original);
+  assert.equal(resumed.recovery?.id, pending.recovery?.id);
+  assert.equal(resumed.recovery?.status, "running");
+  assert.equal(f.state.inputs["implement.inputs.issue"].body, "");
   assert.deepEqual(f.writes(), []);
 });
 

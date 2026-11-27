@@ -339,14 +339,18 @@ function runHistory(run: WorkflowRun | null, row: Row) {
     : { id: row.runId, status: "pending", attempts: [] };
 }
 
+function sameLineage(left: Row, right: Row) {
+  return left.installationId === right.installationId && left.createdBy === right.createdBy &&
+    left.repositoryId === right.repositoryId && left.issueNumber === right.issueNumber && left.forgeOrigin === right.forgeOrigin;
+}
+
 async function reviewAncestors(db: IntakeContext["db"], row: Row) {
   const ancestors = [row];
   const seen = new Set([row.runId]);
   for (let id = row.recoveryOf; id !== null;) {
     if (seen.has(id)) throw conflict("Review lineage changed");
     const parent = await savedReview(db, id);
-    if (!parent || parent.installationId !== row.installationId || parent.createdBy !== row.createdBy ||
-        parent.repositoryId !== row.repositoryId || parent.issueNumber !== row.issueNumber || parent.forgeOrigin !== row.forgeOrigin)
+    if (!parent || !sameLineage(parent, row))
       throw conflict("Review lineage changed");
     ancestors.push(parent);
     seen.add(id);
@@ -375,7 +379,7 @@ export async function readIssueReview(context: IntakeContext, runId: string) {
   const lineage = await reviewAncestors(context.db, row);
   const seen = new Set(lineage.map(item => item.runId));
   for (let child = await savedRecovery(context.db, row.runId); child; child = await savedRecovery(context.db, child.runId)) {
-    if (seen.has(child.runId) || child.installationId !== row.installationId || child.createdBy !== row.createdBy)
+    if (seen.has(child.runId) || !sameLineage(child, row))
       throw conflict("Review lineage changed");
     lineage.push(child);
     seen.add(child.runId);
@@ -395,7 +399,7 @@ function requirePreCheckoutFailure(row: Row, run: WorkflowRun | null) {
       attempt.sessionArtifact?.runId !== row.runId || Object.keys(run.outputs).length ||
       row.effectDispatch || row.branchClaim || row.commitClaim || row.commitProof || row.publication ||
       row.draftObservation || row.candidate || row.reviewPublication || row.review)
-    throw conflict("Recovery requires the original retained pre-checkout failure and no publication claims");
+    throw conflict("Continuation requires retained pre-checkout failures and no publication claims");
 }
 
 export function recoverIssueReview(context: IntakeContext, runId: string) {
@@ -421,7 +425,7 @@ async function continueIssueReview(context: IntakeContext, runId: string, reques
         ...providerKey(provider)]) || lineage.some(item => pinnedIdentity(item) !== sourceIdentity))
     throw conflict("The original review pins changed");
 
-  const continuationKey = requestId ? ["restart", row.installationId, runId, requestId] : ["recovery", row.installationId, runId];
+  const continuationKey = requestId ? ["restart", row.installationId, runId, requestId.toLowerCase()] : ["recovery", row.installationId, runId];
   const recoveryId = await stableRunId([issueReviewWorkflow, ...continuationKey]);
   const recoveryPins = { ...pins, branch: forgejoWorkspaceBranch(recoveryId) };
   if (recoveryPins.branch === pins.baseRef) throw conflict("The continuation branch cannot be its own base");
@@ -458,15 +462,18 @@ async function continueIssueReview(context: IntakeContext, runId: string, reques
   const branches = [...lineage.map(item => forgejoWorkspaceBranch(item.runId)), recoveryPins.branch];
   try {
     const { issue, bodyLimitExceeded } = await verifySource(api, pins, pins.origin);
-    if (!requestId) {
-      if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"]))
+    const previous = z.object({ number, url: z.url() }).parse(row.inputs["implement.inputs.issue"]);
+    if (issue.number !== previous.number || issue.url !== previous.url)
+      throw conflict("The original issue identity changed");
+    // An existing claim owns a frozen work order. A lost start can be replayed
+    // after rechecking identity, authorization, and provider publication state.
+    if (!recovery) {
+      if (requestId) {
+        if (bodyLimitExceeded) throw conflict("The current issue body exceeds 16000 characters");
+        inputs["implement.inputs.issue"] = issue;
+      } else if (canonicalActionValue(issue) !== canonicalActionValue(row.inputs["implement.inputs.issue"])) {
         throw conflict("The original issue changed");
-    } else {
-      const previous = z.object({ number, url: z.url() }).parse(row.inputs["implement.inputs.issue"]);
-      if (issue.number !== previous.number || issue.url !== previous.url)
-        throw conflict("The original issue identity changed");
-      if (!recovery && bodyLimitExceeded) throw conflict("The current issue body exceeds 16000 characters");
-      inputs["implement.inputs.issue"] = issue;
+      }
     }
     const [tips, priorPull] = await Promise.all([
       Promise.all(branches.map(branch => reviewBranchTip(api, { ...pins, branch }))),
